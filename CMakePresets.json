@@ -1,0 +1,39 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug bootstrap (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "RUNIC_ENGINE_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "dependencies",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/dependencies",
+      "cacheVariables": { "RUNIC_ENGINE_FETCH_DEPENDENCIES": "ON" }
+    },
+    {
+      "name": "presentation",
+      "inherits": "dependencies",
+      "binaryDir": "${sourceDir}/build/presentation",
+      "cacheVariables": { "RUNIC_ENGINE_ENABLE_PRESENTATION": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "dependencies", "configurePreset": "dependencies" },
+    { "name": "presentation", "configurePreset": "presentation" }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    { "name": "dependencies", "configurePreset": "dependencies", "output": { "outputOnFailure": true } },
+    { "name": "presentation", "configurePreset": "presentation", "output": { "outputOnFailure": true } }
+  ]
+}

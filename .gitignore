@@ -1,0 +1,30 @@
+# Out-of-source CMake builds and generated tool state.
+/build*/
+/cmake-build-*/
+/out/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+CMakeUserPresets.json
+.cache/
+.clangd/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.pdb
+# Keep shared VS Code/Cursor settings trackable; only ignore personal history/state.
+.vscode/.browse.VC.db*
+.vscode/ipch/
+.history/
+*.swp
+*~
+.DS_Store
