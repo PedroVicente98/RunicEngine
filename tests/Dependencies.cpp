@@ -9,7 +9,9 @@
 
 int main() {
     JPH::RegisterDefaultAllocator();
-    const auto *build = ecs_get_build_info();
+    flecs::world world;
     const glm::vec3 unit{1.0F, 0.0F, 0.0F};
-    return build != nullptr && glm::dot(unit, unit) == 1.0F ? 0 : 1;
+    const auto entity = world.entity().set<glm::vec3>(unit);
+    const auto *stored = entity.get<glm::vec3>();
+    return stored != nullptr && glm::dot(*stored, unit) == 1.0F ? 0 : 1;
 }

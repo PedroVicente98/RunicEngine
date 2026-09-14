@@ -1,5 +1,4 @@
 // Calls that prove linkage without creating a window, renderer, or UI context.
-#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <bgfx/bgfx.h>
 #include <imgui.h>

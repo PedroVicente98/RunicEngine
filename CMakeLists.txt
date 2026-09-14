@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.24)
 project(RunicEngine VERSION 0.1.0 LANGUAGES C CXX)
 
 option(RUNIC_ENGINE_BUILD_TESTS "Build the disposable engine link smoke tests" ${PROJECT_IS_TOP_LEVEL})
-option(RUNIC_ENGINE_FETCH_DEPENDENCIES "Fetch pinned Flecs, GLM, and Jolt sources" OFF)
-option(RUNIC_ENGINE_ENABLE_PRESENTATION "Also fetch GLFW, bgfx, and ImGui for client tools" OFF)
+option(RUNIC_ENGINE_FETCH_DEPENDENCIES "Fetch pinned Flecs, GLM, and Jolt sources" ON)
+option(RUNIC_ENGINE_ENABLE_PRESENTATION "Also fetch GLFW, bgfx, and ImGui for client tools" ${PROJECT_IS_TOP_LEVEL})
 
 if(RUNIC_ENGINE_ENABLE_PRESENTATION AND NOT RUNIC_ENGINE_FETCH_DEPENDENCIES)
     message(FATAL_ERROR "Presentation requires RUNIC_ENGINE_FETCH_DEPENDENCIES=ON")
@@ -37,6 +37,8 @@ if(RUNIC_ENGINE_ENABLE_PRESENTATION)
     add_library(runic_presentation INTERFACE)
     add_library(Runic::Presentation ALIAS runic_presentation)
     target_compile_features(runic_presentation INTERFACE cxx_std_20)
+    # bgfx owns the graphics API; GLFW must not include platform OpenGL headers.
+    target_compile_definitions(runic_presentation INTERFACE GLFW_INCLUDE_NONE)
     target_link_libraries(runic_presentation INTERFACE glfw bgfx runic_imgui)
 endif()
 

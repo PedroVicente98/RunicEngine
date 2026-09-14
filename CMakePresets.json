@@ -4,20 +4,23 @@
   "configurePresets": [
     {
       "name": "debug",
-      "displayName": "Debug bootstrap (Ninja)",
+      "displayName": "Debug with all dependencies (Ninja)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "RUNIC_ENGINE_BUILD_TESTS": "ON"
+        "RUNIC_ENGINE_BUILD_TESTS": "ON",
+        "RUNIC_ENGINE_FETCH_DEPENDENCIES": "ON",
+        "RUNIC_ENGINE_ENABLE_PRESENTATION": "ON"
       }
     },
     {
       "name": "dependencies",
+      "displayName": "Headless dependencies (Ninja)",
       "inherits": "debug",
       "binaryDir": "${sourceDir}/build/dependencies",
-      "cacheVariables": { "RUNIC_ENGINE_FETCH_DEPENDENCIES": "ON" }
+      "cacheVariables": { "RUNIC_ENGINE_ENABLE_PRESENTATION": "OFF" }
     },
     {
       "name": "presentation",

@@ -11,6 +11,8 @@ function(runic_engine_dependencies)
     set(FLECS_SHARED OFF)
     set(FLECS_TESTS OFF)
     set(FLECS_PIC ON)
+    # flecs.h exposes its C++ bindings automatically to C++ consumers. The
+    # bindings link the same static core; do not disable FLECS_CPP.
     FetchContent_Declare(flecs
         URL https://codeload.github.com/SanderMertens/flecs/tar.gz/refs/tags/v4.0.4
         URL_HASH SHA256=a3b6238a913f65d90db18759ab5442393901da914e4a9bfe30aa8823687dce86
