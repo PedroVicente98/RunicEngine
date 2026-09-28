@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "name": "RunicEngine",
+      "path": "."
+    },
+    {
+      "name": "RunicFabric",
+      "path": "../RunicFabric"
+    },
+    {
+      "name": "RunicGame",
+      "path": "../RunicGame"
+    }
+  ],
+  "settings": {
+    "cmake.useCMakePresets": "always"
+  }
+}

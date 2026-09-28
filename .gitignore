@@ -2,6 +2,9 @@
 /build*/
 /cmake-build-*/
 /out/
+# CMake downloads pinned dependency sources here.
+/ThirdParty/*
+!/ThirdParty/README.md
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake

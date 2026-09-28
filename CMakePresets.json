@@ -1,42 +1,44 @@
 {
   "version": 5,
-  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "debug",
-      "displayName": "Debug with all dependencies (Ninja)",
+      "displayName": "Debug",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/debug",
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "RUNIC_ENGINE_BUILD_TESTS": "ON",
-        "RUNIC_ENGINE_FETCH_DEPENDENCIES": "ON",
-        "RUNIC_ENGINE_ENABLE_PRESENTATION": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+        "RUNIC_BUILD_SANDBOX": true,
+        "RUNIC_ENGINE_ENABLE_PRESENTATION": true
       }
     },
     {
-      "name": "dependencies",
-      "displayName": "Headless dependencies (Ninja)",
-      "inherits": "debug",
-      "binaryDir": "${sourceDir}/build/dependencies",
-      "cacheVariables": { "RUNIC_ENGINE_ENABLE_PRESENTATION": "OFF" }
-    },
-    {
-      "name": "presentation",
-      "inherits": "dependencies",
-      "binaryDir": "${sourceDir}/build/presentation",
-      "cacheVariables": { "RUNIC_ENGINE_ENABLE_PRESENTATION": "ON" }
+      "name": "release",
+      "displayName": "Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+        "RUNIC_BUILD_SANDBOX": true,
+        "RUNIC_ENGINE_ENABLE_PRESENTATION": true
+      }
     }
   ],
   "buildPresets": [
-    { "name": "debug", "configurePreset": "debug" },
-    { "name": "dependencies", "configurePreset": "dependencies" },
-    { "name": "presentation", "configurePreset": "presentation" }
-  ],
-  "testPresets": [
-    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
-    { "name": "dependencies", "configurePreset": "dependencies", "output": { "outputOnFailure": true } },
-    { "name": "presentation", "configurePreset": "presentation", "output": { "outputOnFailure": true } }
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    }
   ]
 }
