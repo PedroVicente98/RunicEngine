@@ -5,8 +5,8 @@
       "path": "."
     },
     {
-      "name": "RunicFabric",
-      "path": "../RunicFabric"
+      "name": "RunicPlatform",
+      "path": "../RunicPlatform"
     },
     {
       "name": "RunicGame",

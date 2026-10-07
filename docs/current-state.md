@@ -1,8 +1,9 @@
 # RunicEngine — current state
 
 Snapshot taken when the architecture docs were imported (October 2026, commit
-`c2657ee` "Refactor engine structure and dependencies"). Update this file whenever
-a module or migration step lands.
+`c2657ee` "Refactor engine structure and dependencies"), updated on 2026-10-07
+after the RunicFabric → RunicPlatform rename. Update this file whenever a module
+or migration step lands.
 
 ## Summary
 
@@ -22,7 +23,7 @@ scaffold predates Appendix J and must be migrated to the target layout.
 | `cmake/CompilerWarnings.cmake` | `runic_enable_warnings(target)`. |
 | `apps/Sandbox/Main.cpp` | Disposable dependency check: Flecs entity, GLM dot, Jolt allocator, GLFW/bgfx/ImGui version checks; prints `RunicSandbox ready.` No window, renderer, or simulation. |
 | Scaffold folders | Empty (`.gitkeep`): `include/RunicEngine/{Core,Debug,Input,Physics,Platform,Renderer,Simulation,UI}/`, `src/` with the same names, `tests/`. |
-| Editor setup | `.vscode/launch.json` + `tasks.json` (configure/build Debug/Release), `.clangd`, `.clang-format`, `Runic.code-workspace`. |
+| Editor setup | `.vscode/launch.json` + `tasks.json` (configure/build Debug/Release), `.clangd`, `.clang-format`, `Runic.code-workspace` (RunicEngine, RunicPlatform, RunicGame sibling folders). |
 | License | MIT. |
 
 ## Gaps against the target architecture
@@ -40,15 +41,14 @@ scaffold predates Appendix J and must be migrated to the target layout.
 | Tests | `tests/` empty; no framework | Module-local `Tests/` + CTest; framework to choose | [OQ-7](system/11-open-questions.md#oq-7) |
 | Headless check | Manual (presentation option) | Automated headless dependency test | [J.14.6] |
 | Missing third parties | — | RmlUi, BehaviorTree.CPP, Recast/Detour, fastgltf, meshoptimizer, MikkTSpace, KTX, Zstd, audio backend | [J.4] |
-| Workspace file | `Runic.code-workspace` lists `../RunicFabric` | `../RunicPlatform` | [OQ-13](system/11-open-questions.md#oq-13) |
 
 ## Consumers that depend on today's targets
 
 RunicGame links `Runic::Runtime` (server and client) and `Runic::Presentation`
 (client). Keep both aggregate targets working until RunicGame links per-module
-targets. RunicGame is currently broken for unrelated reasons (removed
-`Runic/Core/Version.hpp`, old RunicFabric path) — see RunicGame
-`docs/current-state.md`.
+targets. RunicGame's `debug` and `server-only` presets build against these targets
+and pass their smoke tests (verified on 2026-10-07); the server links no
+presentation library.
 
 ## Suggested next steps to finish Phase 0 (proposal — confirm with the owner)
 

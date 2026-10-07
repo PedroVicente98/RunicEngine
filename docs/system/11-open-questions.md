@@ -21,7 +21,6 @@ outcome, and update the affected module contracts in all three repositories.
 | [OQ-10](#oq-10) | Agones SDK inside the simulation process | Phase 16 |
 | [OQ-11](#oq-11) | RunicGame module → folder mapping | Phase 0 (Game) |
 | [OQ-12](#oq-12) | Source documents not yet imported | several |
-| [OQ-13](#oq-13) | RunicFabric → RunicPlatform rename is incomplete | Phase 0 |
 | [OQ-14](#oq-14) | How Game simulation code is linked into the server | Phase 1 (Game) |
 | [OQ-15](#oq-15) | What the client runs for prediction | Phase 2 / 4 |
 | [OQ-16](#oq-16) | `QuestStore` placement | Phase 9 / 10 |
@@ -155,8 +154,9 @@ the owning module as `PRIVATE`.
 bindings may exist where the C++ simulation integrates with Platform-owned
 networking/contracts" [J.5]. The realtime path is `client → C++ simulation`, so
 Realtime must be usable from C++. The repository today has `cpp/`, `go/`, `proto/`
-folders, CMake target `Runic::Fabric`, namespace `Runic::Fabric`, and Go module
-`runic.local/fabric`.
+folders, a bootstrap CMake target `Runic::Platform`, namespace `Runic::Platform`,
+and the placeholder Go module `runic.local/platform` (renamed from RunicFabric —
+[OQ-13](#oq-13)).
 
 **Proposal (to confirm per module).**
 
@@ -171,8 +171,10 @@ folders, CMake target `Runic::Fabric`, namespace `Runic::Fabric`, and Go module
 | Orchestration | Go (Agones/Kubernetes) |
 | Observability | Go + C++ hooks |
 
-Also decide: C++ namespace (`Runic::Platform::<Module>`?), CMake alias names
-(`Runic::Platform::Realtime`? `Runic::Realtime`?), and the canonical Go module path.
+Also decide: per-module C++ namespaces (`Runic::Platform::<Module>`?), CMake alias
+names (`Runic::Platform::Realtime`? `Runic::Realtime`?), and the canonical Go module
+path (`runic.local/platform` is a placeholder; a hosted path such as
+`github.com/PedroVicente98/RunicPlatform` would replace it).
 
 <a id="oq-10"></a>
 ## OQ-10 — Agones SDK inside the simulation process
@@ -213,19 +215,6 @@ tick domain (60/30/20/10 Hz), simulation phase names, snapshot/replication
 formats, interest-management policy, combat timeline/hit-detection contract,
 native asset formats, and renderer/UI specifics. Add those documents (or their
 relevant parts) under `docs/` when available.
-
-<a id="oq-13"></a>
-## OQ-13 — RunicFabric → RunicPlatform rename is incomplete
-
-Remaining references to the old name: RunicPlatform CMake `project(RunicFabric)`,
-target `runic_fabric`/`Runic::Fabric`, option `RUNIC_FABRIC_BUILD_TESTS`,
-namespace `Runic::Fabric`, header path `Runic/Fabric/Version.hpp`, Go module
-`runic.local/fabric` and package `go/fabric`; RunicGame `RUNIC_FABRIC_DIR`
-(default `../RunicFabric`), links to `Runic::Fabric`, README and
-`Services/README.md`; RunicEngine `Runic.code-workspace` folder `../RunicFabric`.
-
-**Proposal.** Rename in one coordinated change across the three repositories,
-together with OQ-9 naming.
 
 <a id="oq-14"></a>
 ## OQ-14 — How Game simulation code is linked into the server
@@ -297,4 +286,21 @@ needs no new edges. Decide before phase 10.
 
 ## Decided
 
-_None yet._
+<a id="oq-13"></a>
+### OQ-13 — RunicFabric → RunicPlatform rename (decided 2026-10-07)
+
+**Decision.** The owner asked to complete the rename in all three repositories.
+
+**Outcome.**
+
+| Repository | Old | New |
+| --- | --- | --- |
+| RunicPlatform | `project(RunicFabric)`, target `runic_fabric` / `Runic::Fabric`, option `RUNIC_FABRIC_BUILD_TESTS`, test `runic_fabric.bootstrap` | `project(RunicPlatform)`, target `runic_platform` / `Runic::Platform`, option `RUNIC_PLATFORM_BUILD_TESTS`, test `runic_platform.bootstrap` |
+| RunicPlatform | namespace `Runic::Fabric`, header `<Runic/Fabric/Version.hpp>` | namespace `Runic::Platform`, header `<Runic/Platform/Version.hpp>` |
+| RunicPlatform | Go module `runic.local/fabric`, package `go/fabric` | Go module `runic.local/platform`, package `go/platform` |
+| RunicGame | `RUNIC_FABRIC_DIR` (default `../RunicFabric`), links `Runic::Fabric`, build dir `dependencies/fabric` | `RUNIC_PLATFORM_DIR` (default `../RunicPlatform`), links `Runic::Platform`, build dir `dependencies/platform` |
+| RunicEngine | `Runic.code-workspace` folder `../RunicFabric` | `../RunicPlatform` |
+
+"Formerly RunicFabric" remains only as a historical note. "Platform
+Fabric/Networking" is the title of an external source document and is unchanged.
+Per-module naming and the canonical Go module path stay open in [OQ-9](#oq-9).
