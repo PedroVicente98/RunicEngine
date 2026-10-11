@@ -28,11 +28,13 @@ The source of truth is ARCH (RunicEngine — Technical Architecture v3); these d
   are approved before any `Source/` code. Implement **Stage A only**: what the tests need, no
   speculative features, no placeholders in other modules.
 - **Link only the module's allowed dependencies** (the Depends on column is a ceiling). A package's
-  Needs orders merges; it never grants a link. Third-party libraries are always PRIVATE.
+  Needs orders merges; it never grants a link. Third-party libraries are PRIVATE except the
+  approved public-header exceptions below (GLM is a PUBLIC dependency of Core).
 - **Public headers carry no library types** (Flecs, Jolt, bgfx, RmlUi, ImGui, BehaviorTree.CPP,
-  Detour, GameNetworkingSockets). Exactly two exceptions are approved: the Flecs world handle for
-  modules that register systems (for example `AIModule`), and BehaviorTree.CPP node base types for
-  Game custom AI nodes. Record a used exception in the module's `ARCHITECTURE.md`.
+  Detour, GameNetworkingSockets). Exactly three exceptions are approved: GLM math types in Core,
+  the Flecs world handle for modules that register systems (for example `AIModule`; ECS re-exports
+  Flecs only to them), and BehaviorTree.CPP node base types for Game custom AI nodes. Record a used
+  exception in the module's `ARCHITECTURE.md`.
 - **Headless modules** never link GLFW, bgfx, RmlUi, ImGui, an audio backend or editor code. The
   Window class in Application is compiled only in client and tools builds.
 - **No game content.** No RunicGame rules, names, numbers or content anywhere in this repository,

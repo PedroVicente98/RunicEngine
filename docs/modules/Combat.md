@@ -61,7 +61,7 @@ Also owned: targeting modes (free aim, FriendlyLock, light aim-assist hooks), co
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Gameplay, Physics, DistributedSimulation |
+| Engine modules | Gameplay, Physics, Environment (projectile wind), DistributedSimulation |
 | Third-party | — |
 
 The list is a ceiling: a package links only what it uses. DistributedSimulation is linked from CMB-8 (foreign combat) on.
@@ -107,10 +107,9 @@ Foreign combat (ARCH § Networking: replication, interest and handoff): the targ
 | CMB-4 | Rule pipeline and behavior registries (fixed hooks for Game code) | A test rule and a test behavior run in order; the Engine holds no game rule | CMB-3 | 17 |
 | CMB-5 | Damage pipeline, interception hooks, invulnerability windows | Interception follows hook order; invulnerability blocks hits | CMB-4, GPL-3 | 18 |
 | CMB-6 | Threat table and crowd control (target cap, immunity windows) | A CC chain and its immunity follow the test data | CMB-5 | 19 |
-| CMB-7 | Input queue: one queued action per character inside the game-set window, started on the first legal tick; priority defensive inputs skip it when the cancel window allows † | An early input fires on the first legal tick; a stun in between cancels it | CMB-1, SIM-4 | 19 |
+| CMB-7 | Input queue: one queued action per character inside the game-set window, started on the first legal tick; game-named priority inputs skip it when the cancel window allows | An early input fires on the first legal tick; a stun in between cancels it | CMB-1, SIM-4 | 19 |
 | CMB-8 | Foreign combat: volumes crossing an authority border become requests to the owner | The target is damaged exactly once, by its owner | CMB-5, DSIM-4 | 37 |
 
-† CMB-7 is worded generically for this public repository, as in [12-work-packages.md](../system/12-work-packages.md); ARCH names the game's own defense inputs there.
 
 ## Acceptance tests
 
@@ -118,4 +117,4 @@ The Done when column is the acceptance list. All test data is Engine test data (
 
 ## Open items
 
-- Projectiles may opt into wind drift through a per-ability wind flag (ARCH § Environment), but Combat does not list Environment as a dependency. The contract session that adds the flag must ask the owner how wind reaches projectiles.
+- Decided in ARCH revision 369: projectiles that opt into wind drift (a per-ability wind flag) read wind from Environment; Combat → Environment is an allowed edge, linked by the package that adds the flag.

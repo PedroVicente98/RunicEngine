@@ -1,114 +1,167 @@
-# 10 — AI development workflow (Claude Code)
+# 10 — AI development workflow
 
-These repositories are developed **one module at a time** by an AI coding agent
-under owner supervision. The agent may read the whole project, but writes only
-inside the selected module. [J.13.1]
+This file says how one work package is built with Claude Code: what a session may touch, the contract-first cycle, the task template, and what to do when something outside the package is needed.
 
-## Why the boundary must be enforceable [J.13.1]
+Source: ARCH § Modules, work packages and the implementation contract (Why the code is segmented this way, Work
+packages, Building with Claude Code, Maturity stages, Parallel work, Automated checks).
 
-The coding model must not "help" by implementing neighboring future systems or by
-moving responsibilities across module boundaries. When another module needs a
-change, the model **reports the required public-interface change** instead of
-making it.
+## The unit of work
 
-## Standard procedure for a module task
+**One work package = one Claude Code session = one pull request = one module.**
 
-1. **Orient.** Read, in order: the repository's `CLAUDE.md`, `docs/README.md`,
-   `docs/system/01`–`03`, `docs/current-state.md`, and the target module contract
-   (`docs/modules/<Module>.md` or `<Module>/ARCHITECTURE.md` if it exists).
-2. **Check prerequisites.** Confirm the module's roadmap phase
-   ([08](08-implementation-roadmap.md)) and that every allowed dependency it needs
-   exists at least at Stage A. If not, stop and report what is missing.
-3. **Check open questions.** If the task touches an item in
-   [11-open-questions.md](11-open-questions.md), ask the owner before deciding it.
-   Do not silently resolve an open question in code.
-4. **Fix the write scope** (template below). Everything else is read-only.
-5. **Implement Stage A only** — the smallest real implementation that satisfies
-   the acceptance tests. No speculative features, no placeholder implementations
-   in other modules.
-6. **Test.** Module tests, plus the headless build for headless modules
-   ([09 §J.14.6](09-validation-scenarios.md#j146-headless-dependency-test)).
-7. **Update docs in the same change:** create/refresh `<Module>/ARCHITECTURE.md`,
-   update the status column in `docs/modules/README.md`, and update
-   `docs/current-state.md`.
-8. **Report** any required interface change in another module or repository as a
-   proposal (file, type, signature, reason) instead of implementing it.
+A package is defined by five things ([12-work-packages.md](12-work-packages.md)):
 
-## Task template [J.13.1]
+| Field | Meaning |
+| --- | --- |
+| Write scope | One module folder, its CMake target and its docs. Nothing else is edited |
+| Interface change | The public headers it adds or changes, approved before the implementation |
+| Done when | The acceptance behavior, written as automated tests |
+| Needs | The packages that must be merged first. A package starts only when all of them are merged |
+| Slice | The roadmap slice that first needs it. Packages are Stage A unless the table says otherwise |
 
-Use this when asking Claude Code to implement a module (example: Physics).
+Why it is cut this way:
+
+- A session builds well what it can hold in mind at once: the module's `ARCHITECTURE.md`, the public headers of the
+  modules it depends on, and its own code.
+- The design decision stays with the owner: the public interface and the acceptance tests are approved before the
+  implementation, so the implementing session solves a closed problem.
+- One package writes inside one module. When it needs something elsewhere, it reports the interface change instead of
+  making it, so changes never ripple silently across the codebase.
+- Reviewable size: as a rule of thumb a package changes at most about 1,500 to 2,500 lines, which fits a careful
+  review of about 30 minutes.
+
+BUILD-1 (slice 0) is the one package ARCH defines across all three repositories: it creates the build skeleton, CI,
+presets, checks and submodule pins, not module code.
+
+## Before you start
+
+1. Read the repository's `CLAUDE.md`, `docs/README.md`, this folder's 01 to 03 and this file, the repository's
+   `docs/current-state.md`, and the module's contract (`<Module>/ARCHITECTURE.md`, or `docs/modules/<Module>.md` before
+   the folder exists).
+2. Find the package in [12-work-packages.md](12-work-packages.md). Confirm every package in its Needs is merged. If
+   not, stop and report what is missing.
+3. Check [11-open-questions.md](11-open-questions.md). If the package touches an open item, ask the owner before
+   deciding it. **Never resolve an open question silently in code.**
+4. Fix the write scope. Everything outside it is read-only.
+
+## The cycle
+
+Every package goes through the same short cycle. It keeps design decisions with the owner and gives each coding
+session a closed, testable problem.
+
+| Step | Who | What happens |
+| --- | --- | --- |
+| 1. Contract session | Claude Code | Writes or updates the module's `ARCHITECTURE.md`, the public headers the package adds and the acceptance tests, which fail at first. **Nothing in `Source/` yet** |
+| 2. Contract review | Owner | Approves the interface and the tests or asks for changes. This is the cheapest moment to change a design |
+| 3. Implementation session | Claude Code, fresh session | Implements `Source/` until the tests pass, inside the write scope only. When it needs something from another module, it stops and reports the interface change |
+| 4. Checks | CI | Module tests, the headless server build and the dependency checks |
+| 5. Code review and merge | Owner | The pull request carries the code, the tests, the updated `ARCHITECTURE.md` and the package status |
+
+Small packages, with a few hundred lines and no new public types, may combine steps 1 and 3 in one session.
+
+## Stage A only
+
+- Build the smallest real implementation that makes the approved tests pass inside the slice.
+- No speculative features, no "while I am here" generalization, no placeholders in other modules.
+- Generalization (Stage B) and hardening (Stage C) are later packages, started when a slice needs them.
+
+| Stage | Meaning | When |
+| --- | --- | --- |
+| A — vertical proof | The smallest real implementation that proves the module's boundaries inside a roadmap slice | Every package starts here |
+| B — generalize | Broader interface and data coverage once a second real consumer exists | When a later slice needs more |
+| C — harden | Performance, scale, recovery, tooling, compatibility and adversarial tests | Battle scale, operations and pre-launch slices |
+
+## Task template
+
+Use this shape for every implementation session. Example from ARCH, which is already neutral:
 
 ```text
-TASK:
-  Implement Runic::Physics (Stage A).
+TASK
+  Implement CMB-3 (Stage A): statuses and effects, cooldowns, resource costs.
 
-WRITE SCOPE:
-  Engine/Physics/**
-  the Physics target in CMake only
-  docs/modules/Physics.md, docs/modules/README.md, docs/current-state.md
+WRITE SCOPE
+  Engine/GameplayAPI/Combat/**   (Public, Source, Tests, ARCHITECTURE.md)
+  the Runic::Combat target in CMake
 
-READ-ONLY DEPENDENCIES:
-  Runic::Core
-  Runic::World
+READ-ONLY
+  Public headers of Runic::Core, Events, Simulation, Gameplay
+  Docs: Engine gameplay APIs, Simulation core, Modules and work packages
 
-FORBIDDEN:
-  Simulation, Combat, Renderer, Networking, Editor,
-  RunicGame, RunicPlatform services
+APPROVED INTERFACE
+  [public headers from the contract session]
 
-ARCHITECTURAL CONTRACT:
-  - Physics answers geometric/physical questions.
-  - Physics does not implement gameplay rules.
-  - Jolt types do not escape the backend unless explicitly approved.
-  - Headless compatibility is mandatory.
+DONE WHEN
+  [acceptance tests from the package table and ARCHITECTURE.md]
 
-PUBLIC API:
-  [approved API from ARCHITECTURE.md / docs/modules/Physics.md]
-
-ACCEPTANCE TESTS:
-  [approved tests from the module contract]
-
-DO NOT:
-  - invent missing game systems;
-  - add placeholder implementations to other modules;
-  - modify dependency modules to make this easier;
-  - move responsibilities across module boundaries;
-  - implement future functionality not required by acceptance tests.
-
-If another module would need a change, report the required interface
-change instead of implementing it.
+RULES
+  - Edit nothing outside the write scope; report needed interface changes.
+  - No library types in Public/; the server build stays headless.
+  - No game rules, names or numbers; tests use engine: test IDs.
+  - Never block a tick on I/O; never mutate Flecs from an I/O callback.
+  - Build only what the tests need; no placeholders in other modules.
 ```
 
-The source template lists tests as `Tests/Physics/**`; this documentation uses
-module-local `Engine/Physics/Tests/` per J.3.1 until
-[OQ-7](11-open-questions.md#oq-7) is settled.
+For a contract session, replace APPROVED INTERFACE and DONE WHEN with "propose the public headers and write the failing
+acceptance tests"; the session ends at contract review.
 
 ## Rules that always apply
 
-- Never add a dependency that is not in the module's "Allowed dependencies".
-- Never let a backend type (Jolt, bgfx, Flecs, RmlUi, BehaviorTree.CPP,
-  Recast/Detour) appear in a `Public/` header without an approved exception.
-- Never put RunicGame rules, numbers, content, or names into RunicEngine or
-  RunicPlatform — including tests and examples. Use neutral names
-  (`engine:test_ability`), never game content.
-- Never block a simulation tick on I/O; never mutate Flecs from an I/O callback.
-- Never let a client decide an authoritative outcome.
+- Edit nothing outside the write scope.
+- Link only what the package uses, within the module's row in [03](03-dependency-rules.md); third-party libraries are
+  `PRIVATE` except the approved exceptions.
+- No library types in `Public/`, except the three approved exceptions
+  ([02 § Public/ is the compile boundary](02-module-contract.md#public-is-the-compile-boundary)).
 - Keep the server build headless.
-- Mark anything you infer but cannot confirm from these docs as **(proposal)**
-  in the docs you write, and surface it to the owner.
+- Never block a tick on I/O; never mutate Flecs from an I/O callback; never let a local Flecs ID leave the process.
+- Never let a client decide an authoritative outcome.
+- No Game rules, names or numbers in RunicEngine, RunicPlatform or `docs/system/`, tests included. Use neutral IDs such
+  as `engine:test_ability`.
+- Never resolve an item in [11-open-questions.md](11-open-questions.md) silently.
 
-## Keeping the documentation healthy
+## Reporting a change in another module
 
-| Change | Update |
+When the package needs something outside its write scope (a new public type, a new function, a new dependency, a
+change in another repository), **stop and report it**. Do not make the change, and do not work around it with a
+placeholder.
+
+Report it in the pull request description or to the owner, with:
+
+| Field | Content |
 | --- | --- |
-| A module is created | `<Module>/ARCHITECTURE.md` (from the docs contract), status in `docs/modules/README.md`, `docs/current-state.md` |
-| A module's public API, ownership, or dependencies change | That module's contract; `docs/system/03-dependency-rules.md` if dependencies changed (in all three repositories) |
-| An open question is decided | Move it to "Decided" in `docs/system/11-open-questions.md` (all three repositories) and update affected contracts |
-| A phase completes | `docs/current-state.md`; "Where we are" in `docs/system/08-implementation-roadmap.md` (all three repositories) |
-| New architecture source material arrives | Fold it into the relevant docs; record provenance in `docs/system/README.md` |
+| Module | The module (and repository) that would change |
+| Change | The header, type or function, with the proposed signature |
+| Reason | Which test or Done when needs it |
+| Package | The existing package that should carry it, or "new package needed" |
+| Rule check | Whether it adds a dependency, and whether that dependency is allowed by [03](03-dependency-rules.md) |
 
-`docs/system/` is mirrored. A quick consistency check from the parent folder:
+A change that adds a dependency outside a module's allowed list, a new module or a new package is an owner decision
+recorded in ARCH first.
 
-```sh
-diff -r RunicEngine/docs/system RunicPlatform/docs/system && \
-diff -r RunicEngine/docs/system RunicGame/docs/system && echo "docs/system in sync"
-```
+## Parallel work
+
+- Packages whose Needs are all merged can run at the same time, each in its own Claude Code session and git worktree.
+  Examples: RND-1 and RND-2 alongside SIM-1; PCT-1 alongside NET-1; EDT-1 alongside PHYS-1.
+- Two or three sessions at once is the practical limit, because every contract and pull request still needs the
+  owner's review.
+- **Two packages that write the same module never run at the same time.**
+
+## Automated checks
+
+| Check | Catches |
+| --- | --- |
+| Headless build of GameServer | Graphics, UI, audio or editor code reaching the server |
+| Dependency check per module | Links outside the allowed list; includes of another module's Source/ |
+| Public-header scan | Library types in Public/ |
+| Module tests | The Done when behavior of every merged package |
+| Docs check | A code change without its ARCHITECTURE.md or package-status update |
+
+## Keeping documentation in step
+
+| Change | Update in the same pull request |
+| --- | --- |
+| A package is merged | The module's `ARCHITECTURE.md` (Work packages: status), the repository's module status and `docs/current-state.md` |
+| A module's public API, ownership or dependencies change | That module's `ARCHITECTURE.md`; if a dependency changes, ARCH first, then [03](03-dependency-rules.md) in all three repositories |
+| An open question is decided | Move it to Decided in [11](11-open-questions.md) in all three repositories and update the affected contracts |
+
+`docs/system/` is mirrored byte-for-byte in all three repositories; edit all copies together
+([README § How to change this folder](README.md#how-to-change-this-folder)).

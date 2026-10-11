@@ -29,7 +29,8 @@ Two rules are fixed:
 - Interest: candidates by cell, priority and per-client budgets, visibility tiers applied (NET-4).
 - Simulation links: ghost deltas and transfer messages encoded with the snapshot codec over simulation-to-simulation connections (NET-5).
 - Parallel replication and the degradation order (NET-6).
-- The Diagnostics layer: network and replication metrics recorded in the Core metrics registry, the Editor attach channel and the debug-shape stream; the attach channel is compiled only into development builds (NET-7).
+- Snapshots encode only what modules registered in Simulation's replication registry (SIM-6): components and world-state values with a schema, quantization profile and relevance. Network never depends on the modules that own them.
+- The Diagnostics layer: network and replication metrics recorded in the Core metrics registry; the Editor attach channel over a development socket transport inside Network, streaming debug shapes and the traces modules publish in Core's debug-stream registry; compiled only into development and staging builds (NET-7).
 - The connection roles of a WorldSession: Primary (authoritative), WarmCandidate (connected and prepared for promotion), Dormant (kept with minimal traffic) and Retiring (the old authority during a grace window).
 
 ### Sessions
@@ -119,12 +120,12 @@ ARCH has no code sample for this module. Headers (sketch, fixed in the contract 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
 | NET-1 | Transport interface, tick-safe ingress and egress queues, connect-ticket hook, the Network layer; the interface and hook ship as the header-only Runic::NetworkTransport target (Core types only) | A loopback transport passes ping and echo tests | SIM-1 | 12 |
-| NET-2 | Snapshots: extraction, quantization, deltas against the last acknowledged state, interpolation buffers | Two clients see each other move smoothly under packet loss | NET-1, SIM-2 | 13 |
+| NET-2 | Snapshots: extraction, quantization, deltas against the last acknowledged state, interpolation buffers | Two clients see each other move smoothly under packet loss | NET-1, SIM-6 | 13 |
 | NET-3 | Prediction and reconciliation: input history, replay, blend or snap | Movement stays responsive under simulated lag; corrections show in the debug view | NET-2, SIM-4 | 14 |
 | NET-4 | Interest: candidates by cell, priority and budgets, visibility tiers applied | Only relevant entities arrive and per-client budgets hold | NET-2, WORLD-2, PRC-2 | 25 |
 | NET-5 | Simulation links: ghost deltas and transfer messages encoded with the snapshot codec over simulation-to-simulation connections | Ghosts stay in sync across a border under packet loss; a message with a stale epoch is dropped | NET-2, DSIM-2 | 36 |
 | NET-6 | Parallel replication and the degradation order | 500 bots in one region fit the per-client budget | NET-4, SIM-3 | 38 |
-| NET-7 | Diagnostics layer: network and replication metrics recorded in the Core metrics registry, Editor attach channel and debug-shape stream (attach compiled only into development builds) | The Editor attaches to a development server and sees its shapes; a production build has no attach endpoint | NET-1, CORE-2 | 39 |
+| NET-7 | Diagnostics layer: network and replication metrics recorded in the Core metrics registry; Editor attach channel over a development socket transport inside Network, streaming debug shapes and the traces modules publish in Core's debug-stream registry (compiled only into development and staging builds) | The Editor attaches to a development server and sees its shapes; a production build has no attach endpoint | NET-1, CORE-2 | 39 |
 
 ## Acceptance tests
 
@@ -132,7 +133,7 @@ The Done when column is the acceptance list. Runnable results by slice: 12, a cl
 
 ## Open items
 
-- ARCH says the Editor attaches through the Diagnostics layer and sees live behavior trees and resolver traces, but Network does not depend on AI or Combat. The NET-7 contract session must ask how those debug streams reach the Diagnostics layer (for example a registry that AI and Combat register into).
-- Network replicates world time, weather overrides and dynamic water state, but does not depend on Environment or Water. The first package that needs them (NET-2 for world time) must ask how they reach replication.
-- The Editor's attach channel needs a transport in the Editor process, while the only Engine transport is the interface plus a loopback. The NET-7 contract session must ask which transport carries it.
+- Decided in ARCH revision 369: AI, Combat and other modules publish traces in Core's debug-stream registry (CORE-2); the Diagnostics layer streams them without depending on those modules.
+- Decided in ARCH revision 369: world time, weather overrides and dynamic water state reach replication through Simulation's replication registry (SIM-6) as world-state values; Network never depends on Environment or Water. NET-2 needs SIM-6.
+- Decided in ARCH revision 369: the attach channel runs over a development socket transport inside Network, compiled only into development and staging builds; production builds have no attach endpoint.
 - [OQ-1](../system/11-open-questions.md#oq-1) (decided): the Engine owns the transport interface; the Platform transport implements it.

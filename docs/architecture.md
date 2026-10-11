@@ -35,7 +35,7 @@ The Engine must:
 | Presentation | Client, Renderer, Animation, UI, Audio |
 | Tools | Editor, Cooker |
 
-A module inside a group nests under the group folder. These docs write group folders without spaces (`SimulationCore`, `WorldSystems`); BUILD-1 creates the folders.
+A module inside a group nests under the group folder. The group folders are `Foundation`, `SimulationCore`, `GameplayAPI`, `WorldSystems`, `Networking`, `Presentation` and `Tools` (ARCH); BUILD-1 creates them.
 
 ```text
 RunicEngine/
@@ -66,11 +66,11 @@ Read it as build dependencies: each band links only the bands below it, and noth
 | --- | --- | --- |
 | Tools | Editor, Cooker | Any band below; never linked by a runtime |
 | Presentation | Client; UI; Renderer, Animation, Audio | Gameplay and world, Simulation core, Foundation, lower tiers |
-| Gameplay and world | Quest, AI, Network; Combat, GameplayFlow, Perception, Water; Gameplay, DistributedSimulation, Navigation, Environment | Simulation core, Foundation, lower tiers |
+| Gameplay and world | Quest, AI, Network; Perception; Combat, GameplayFlow, Water; Gameplay; DistributedSimulation, Navigation, Environment | Simulation core, Foundation, lower tiers |
 | Simulation core | Simulation; Physics; World; ECS | Foundation, lower tiers |
 | Foundation | Assets; Application, Events, Content; Core | Lower tiers; Core links nothing |
 
-Groups are folders and names; bands are build order. The gameplay-and-world band mixes three groups because, for example, Combat links DistributedSimulation and Network links Gameplay and Perception.
+Groups are folders and names; bands are build order. The gameplay-and-world band mixes three groups because, for example, Combat links DistributedSimulation, Gameplay links Environment (wind for gliding), Perception links Water (underwater light) and Network links Gameplay and Perception.
 
 ```text
               RunicGame (GameClient, GameServer, game modules)
@@ -102,7 +102,7 @@ Every executable is an Application on the Engine's ApplicationHost: a stack of l
 | --- | --- | --- |
 | Network | Engine | Network (NET-1) |
 | Simulation | Engine | Simulation (SIM-1) |
-| Diagnostics | Engine | Network (NET-7): network and replication metrics into the Core registry, Editor attach channel (development builds only), debug-shape stream |
+| Diagnostics | Engine | Network (NET-7): network and replication metrics into the Core registry; Editor attach channel over a development socket transport (development and staging builds only), streaming debug shapes and the traces in Core's debug-stream registry |
 | Prediction | Engine | Client (CLI-3) |
 | Presentation | Engine | Client (CLI-1): interpolation, camera, render extraction, audio |
 | GameUI and ImGui overlays | Engine | UI (UI-2, UI-1) |
@@ -134,14 +134,15 @@ Server DebugGeometry ──► Diagnostics layer ──► Editor (development b
 - **The production pipeline comes later** (RND-6, slice 44+): materials, shaders, lighting and shadows, terrain, water shading, VFX, decals and the UI renderer. Both pipelines read the same RenderFrame, so switching needs no gameplay change.
 - Physics and Renderer never link each other: Physics fills DebugGeometry (PHYS-3), and the Renderer's physics view draws it (RND-3).
 
-## Public headers and the two approved exceptions
+## Public headers and the three approved exceptions
 
-Library types never appear in `Public/`; they stay in `Source/` behind Runic types. Exactly two exceptions are approved, and each module that uses one records it in its `ARCHITECTURE.md`:
+Library types never appear in `Public/`; they stay in `Source/` behind Runic types. Exactly three exceptions are approved, and each module that uses one records it in its `ARCHITECTURE.md`:
 
-1. **The Flecs world handle**, for modules that register systems into the simulation (for example `AIModule::Register(flecs::world&)`).
-2. **BehaviorTree.CPP node base types**, for Game custom AI nodes.
+1. **GLM math types in Core's public headers**, the Engine's math vocabulary. GLM is a PUBLIC dependency of Core.
+2. **The Flecs world handle**, for modules that register systems into the simulation (for example `AIModule::Register(flecs::world&)`). ECS re-exports Flecs only to the Engine modules that register systems.
+3. **BehaviorTree.CPP node base types**, for Game custom AI nodes.
 
-Jolt, bgfx, RmlUi, ImGui, Detour and GameNetworkingSockets always stay hidden. A module dependency is PUBLIC only when its types appear in public headers; third-party libraries are always PRIVATE.
+Jolt, bgfx, RmlUi, ImGui, Detour and GameNetworkingSockets always stay hidden. A module dependency is PUBLIC only when its types appear in public headers; third-party libraries are PRIVATE except these approved exceptions.
 
 ## Third-party placement
 
@@ -159,7 +160,7 @@ Pins live in `cmake/Dependencies.cmake`; sources are fetched into `ThirdParty/` 
 | BehaviorTree.CPP | Not pinned | AI | Server (client only if ever needed) |
 | Detour, DetourTileCache | Not pinned | Navigation | Server |
 | Recast, fastgltf, meshoptimizer, MikkTSpace, xatlas, KTX-Software, Basis Universal | Not pinned | Cooker | Cooker only |
-| Zstandard | Not pinned | Cooker; runtime decompression (Assets, to confirm in ASSET-2) | Cooker, server, client |
+| Zstandard | Not pinned | Cooker; runtime package decompression in Assets (ASSET-2) | Cooker, server, client |
 | imnodes | Not pinned | Editor | Editor only |
 | Audio backend and decoders | Not chosen | Audio | Client |
 

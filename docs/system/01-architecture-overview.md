@@ -1,179 +1,196 @@
 # 01 — Architecture overview
 
-The project is a server-authoritative MMORPG built from three independent Git
-repositories that are developed side by side:
+This file says who owns what across the three repositories, which processes exist, how the build is layered, and which principles every change must keep.
 
-| Repository | License | Language | One-line role |
-| --- | --- | --- | --- |
-| **RunicEngine** | MIT (public) | C++20 | Reusable real-time and game *mechanisms*. |
-| **RunicPlatform** | MIT (public) | Go + C++ bindings | Reusable networking, service, persistence, and distributed *infrastructure*. Formerly named RunicFabric. |
-| **RunicGame** | Proprietary | C++ + Go | The actual MMORPG: every *rule, policy, content definition, and presentation*. |
+Source: ARCH § Architecture overview, § Principles and performance targets, § Repositories, build targets and
+processes, § Application and LayerStack.
 
-The repositories are expected as siblings (`../RunicEngine`, `../RunicPlatform`,
-`../RunicGame`). RunicGame consumes the other two; neither public repository may
-depend on RunicGame.
+## Ownership in one sentence
 
-## Non-negotiable invariants
+The **Engine** supplies generic mechanisms, the **Game** composes them into its two executables and its own
+services, and the **Platform** runs the shared services and infrastructure both depend on.
 
-These hold across every module and every repository. [J intro, J.7.2, J.8.2]
-
-1. **Server-authoritative C++ world simulation.** Clients speculate and present;
-   they never decide hits, damage, quest completion, trade validity, or durable
-   ownership.
-2. **60 Hz master scheduling** with **30 / 20 / 10 Hz** tick domains.
-3. **Flecs owns gameplay state.** Flecs is the authoritative simulation
-   state/rule graph — not the database, geometry engine, distributed
-   coordinator, or renderer.
-4. **Jolt is geometry and physics, not gameplay rules.** Physics answers "what
-   was intersected"; Combat and Game decide what it means.
-5. **One logical seamless world.** Region/Sector/Cell describe the world; which
-   process simulates it is a separate, operational concern.
-6. **Platform owns networking.** Engine exposes a narrow adapter; it never
-   implements sockets, transports, or service clients.
-7. **Headless simulation is a first-class target.** The authoritative server
-   builds and runs without GLFW, bgfx, RmlUi, ImGui, client audio, or the editor.
-8. **External I/O never blocks a simulation tick.** gRPC, NATS, Agones, and
-   database work complete off-thread and enqueue typed work that is applied only
-   at explicit safe tick boundaries.
-9. **Exactly one simulation owns mutable authority** for a transferable entity at
-   any time. Local Flecs entity IDs never cross a process boundary;
-   `GlobalEntityId` is the stable cross-simulation identity.
-
-## Decisions introduced by Appendix J
-
-| Decision | Summary | Source |
+| Owner | Repository | Owns |
 | --- | --- | --- |
-| Substantial modules | A *module* is a meaningful CMake target or Go service/package with its own public boundary, tests, `ARCHITECTURE.md`, and build file. Small systems (CooldownSystem, DamageSystem, AI perception, DebugRenderer, physics queries) are **subsystems** inside a larger module unless build isolation, independent deployment, or a stable reusable ABI justifies extraction. Narrow seams such as NetworkAdapter are the allowed exception. | J.1.1 |
-| Flat public include layout | `Physics/Public/PhysicsWorld.hpp`, not `Public/Runic/Physics/...`. File names are explicit (no generic `API.hpp`/`Types.hpp`). Namespaces stay explicit (`Runic::Physics`). | J.1.2 |
-| Domain services move to RunicGame | Platform keeps transport, contracts, service runtime, persistence primitives, idempotency, world control, orchestration. **Concrete** inventory, quest, trade, auction, economy, guild, mail services and their rules are private RunicGame server code. | J.1.3 |
-| New Engine modules | `Events`, `DistributedSimulation`, `GameplayFlow`, `Quest`. | J.1.4 |
+| Engine | RunicEngine | Generic mechanisms any MMORPG can use |
+| Game | RunicGame | This game's rules, content and executables |
+| Platform | RunicPlatform | Services, SDK and infrastructure any MMORPG can use |
 
-## The three-way rule [J.2.1]
+The goal is the most performant architecture that does not sacrifice the game, generic enough that another team
+could build a different MMORPG on Engine and Platform, including a much larger world.
 
-- **Engine** provides mechanisms that can affect authoritative gameplay.
-- **Platform** provides mechanisms that cross a process, machine, service,
-  orchestration, or persistence boundary.
-- **Game** defines every actual RunicGame policy, rule, quest, sequence, boss
-  behavior, economy rule, content definition, and presentation.
-
-```text
-RUNICGAME
-actual MMORPG semantics
-        |
-        | uses reusable mechanisms
-        v
-RUNICENGINE
-realtime/game mechanisms
-        |
-        | adapters + contracts
-        v
-RUNICPLATFORM
-transport + distributed infrastructure
-```
-
-Quick test for placing new code:
+### Placement test for new code
 
 | If the code… | It belongs in |
 | --- | --- |
-| would be useful to a *different* game and runs inside a simulation or client | RunicEngine |
-| would be useful to a different game and moves bytes/state across processes, stores durable data, or manages processes | RunicPlatform |
-| encodes *how RunicGame plays* (numbers, rules, content, scripts, UI screens, economy) | RunicGame |
-| is a reusable primitive first discovered while writing Game code | RunicGame first; extract to Engine/Platform **only after it proves generic** [J.6.2 GameWorldGameplay] |
+| is a mechanism another game could reuse and runs inside a simulation, client or tool | RunicEngine |
+| is a service, SDK piece, transport or infrastructure another game could reuse | RunicPlatform |
+| encodes how this game plays: rules, numbers, content, scripts, screens, game services | RunicGame |
 
-## Repository ownership [J.1.3]
+### Ownership map
 
-| Repository | Owns | Does not own |
-| --- | --- | --- |
-| RunicEngine | Reusable real-time/game mechanisms: ECS integration, world model, physics, simulation, gameplay events, combat framework, AI framework, water, quests, gameplay flow, rendering, client runtime, distributed-simulation semantics, tooling. | Concrete RunicGame rules/content; transport implementation; database/service infrastructure. |
-| RunicPlatform | Networking implementation and contracts; client↔simulation and simulation↔simulation transport; service runtime; persistence primitives; identity; world-control plane; Agones/Kubernetes integration; observability. | RunicGame economy/quest/inventory/auction policy; combat/gameplay rules; client presentation. |
-| RunicGame | Closed-source MMORPG semantics, content, server rules, C++ simulation extensions, Go domain-service implementations, client presentation/UI, boss/quest scripts, economy and anti-exploit policy. | Generic engine or platform infrastructure that another game should be able to reuse. |
+Game cells are written neutrally here; the concrete Game rules live only in RunicGame.
 
-## Complete project map (target) [J.2.2]
-
-```text
-RunicEngine/
-└── Engine/
-    ├── Core/
-    ├── Application/
-    ├── Events/
-    ├── Content/
-    ├── ECS/
-    ├── World/
-    ├── Physics/
-    ├── Simulation/
-    ├── DistributedSimulation/
-    ├── Assets/
-    ├── Renderer/
-    ├── Client/
-    ├── Animation/
-    ├── Audio/
-    ├── UI/
-    ├── Navigation/
-    ├── Gameplay/
-    ├── GameplayFlow/
-    ├── Quest/
-    ├── Combat/
-    ├── AI/
-    ├── Water/
-    ├── NetworkAdapter/
-    ├── Cooker/
-    └── Editor/
-
-RunicPlatform/
-├── Contracts/
-├── Realtime/
-├── ServiceRuntime/
-├── Persistence/
-├── WorldControl/
-├── Orchestration/
-├── Identity/
-└── Observability/
-
-RunicGame/
-├── Shared/
-├── Client/
-├── Server/
-│   ├── Simulation/
-│   └── Services/
-├── Content/
-└── Assets/
-```
-
-This is the **target** shape. Each repository's `docs/current-state.md` records
-how far the actual tree is from it.
-
-## Feature ownership examples [J.2.3]
-
-| Feature | Engine mechanism | Platform mechanism | Game semantics |
+| Area | Engine | Game | Platform |
 | --- | --- | --- | --- |
-| Combat | Ability/hit/effect/cooldown/CC framework; physics queries; events. | Realtime delivery/replication only. | Skills, formulas, class rules, PvP/PvE tuning. |
-| Quest | Quest runtime, objectives, triggers, GameplayFlow, world-interaction APIs. | Service runtime, contracts, durable persistence primitives. | Quest definitions, branching, rewards, story scripts, private QuestService behavior. |
-| Inventory | Runtime item/inventory/equipment model. | Transactions, persistence, idempotency, authenticated service transport. | Stack/bind/equipment/trade/loot rules; InventoryService domain logic. |
-| World | Region/Sector/Cell, spatial queries, streaming vocabulary. | Simulation directory, authority directory, load balancing, orchestration. | Continents, regions, territories, world rules. |
-| Cross-sim combat | Ghost/authority semantics and foreign combat contracts. | Sim-peer transport, sequencing, topology, connection management. | Concrete ability/damage rules. |
-| Auction | Normally nothing beyond item/currency types. | Service/persistence/transaction APIs. | Listing/bid/fee/tax/market/anti-abuse rules and server implementation. |
-| Cutscene | GameplayFlow + restrictions + authoritative sequence state. | Transport/replication if needed. | When it runs, cinematic content, camera/audio/UI presentation. |
+| Executables | Entry point, Application, ApplicationHost, reusable layers; Editor and Cooker | GameClient and GameServer compose the layers | Services-bridge and lifecycle layers (C++ server bindings) |
+| Simulation | Scheduler, threads, Flecs, Jolt, world space | Which systems run and their rules | — |
+| Skills and combat | GameplayAPI group (Gameplay and Combat modules): ability toolkit, hit timing, tags, statuses, rule pipeline, damage interception | Skill definitions, damage types and formula, resolver order, every concrete status and control effect | — |
+| Defense and threat | Invulnerability windows, interception hooks, threat table | Defense rules, armor effects, threat rules | — |
+| Custom code | Behavior registries, hooks, context and output buffers | The behaviors | — |
+| Movement | CharacterVirtual, movement modes, prediction, validation | Speeds, dashes, mount and glider stats | — |
+| Light, perception, AI | The APIs, computation, behavior-tree framework and editor | Values, mob profiles, trees, custom nodes | — |
+| Items and inventory | Runtime item and container mirrors | Item definitions and rules; Inventory service rules | Item ledger and currency wallets as mechanisms, with no game rules |
+| Quests, economy, housing, factions | Interaction framework, GameplayFlow sequences, Quest runtime with its quest-creation API | Quest definitions and encounter scripts; Go services that store quest progress and character state and run the game's economy and housing | Go SDK they are built on |
+| Scripted sequences and restrictions | GameplayFlow runtime, source-owned restrictions, presentation cues | Boss phases, cutscenes, dungeon and world-event scripts | — |
+| Networking | Transport interface, replication, interest, prediction, handoff | Game messages | GameNetworkingSockets transport, Protobuf contracts, gRPC and NATS wiring |
+| Accounts, world control, instances | — | Configuration; guild and mail services | Core services: accounts, entitlements, World Coordinator, instance allocation, chat and party groups |
+| Infrastructure and monitoring | Metrics recorded in every process; the Platform exports them (see note) | Dashboards for game metrics | Agones, Kubernetes, Prometheus, Grafana |
+| Presentation | Renderer (including the physics debug view), assets, animation, RmlUi and ImGui integrations, audio | GameUI screens, Game render extractors, art | — |
+| Water and environment | WaterSystem, buoyancy, water movement, wind, tides, waves, weather evaluation | Water content, profiles, watercraft rules, weather patterns | Weather-event directives; the Go SDK persistence that Game services use for durable water state |
 
-## Process composition (derived)
+Note on metrics: the decided seam is that every GameServer records its metrics in the Core metrics registry (CORE-2;
+the Engine's Diagnostics layer, NET-7, adds network and replication metrics) and the Platform exporter (PBND-3)
+**publishes the Core registry** to Prometheus. The Engine never talks to Prometheus itself
+(see [07 § Monitoring](07-service-backed-systems.md#monitoring-one-panel)).
 
-| Process | Built from | Notes |
+## Repositories and licenses
+
+| Repository | License | Owns |
 | --- | --- | --- |
-| Authoritative simulation server (headless) | RunicGame `Server/Simulation` + headless Engine modules + Platform realtime/identity bindings | One process per simulation; many simulations form one logical world. |
-| Game client | RunicGame `Client/` + Engine client/presentation modules + Platform realtime client binding | Connects **directly** to authoritative simulations for realtime play. |
-| Domain services (Go) | RunicGame `Server/Services/*` + Platform ServiceRuntime/Persistence/Identity | Outside the realtime path. |
-| Control plane (Go) | Platform WorldControl + Orchestration | Maps the logical world onto running simulations; uses Agones/Kubernetes for capacity. |
-| Editor / Cooker | Engine `Editor`, `Cooker` | Developer tools; never a dependency of the server. |
+| RunicEngine | Open source (MIT), C++ | Engine modules, the entry point and ApplicationHost, Editor, Cooker |
+| RunicPlatform | Open source (MIT), C++ and Go | GameNetworkingSockets transport, server bindings (services-bridge and lifecycle layers), Protobuf contracts, Go SDK, core services, building blocks, Agones and Kubernetes manifests, dashboards |
+| RunicGame | Closed source | GameClient and GameServer executables (`RunicGameClient`, `RunicGameServer`), game modules, Go game services, content |
 
-Realtime movement and combat never pass through a Go proxy:
-`client -> C++ authoritative simulation`.
+RunicGame is the superproject. How the repositories are wired together (submodules plus a sibling-checkout option)
+is in [03 § Repository wiring](03-dependency-rules.md#repository-wiring). ARCH calls the Game executables
+GameClient and GameServer; their build targets are `RunicGameClient` and `RunicGameServer`.
 
-## Relationship to the v2.1 reference [J.15]
+## Processes
 
-Appendix J should be read with v2.1 sections A.3.3 (architecture axes and process
-composition), B/C (Flecs, world, physics, scheduling), D (Platform networking,
-handoff, service fabric), E (Combat technical contract), F (Quest/world-interaction
-bridge), G (Renderer/UI), and H (vertical-slice development). It preserves those
-mechanisms except for the ownership refinement that concrete domain services are
-private Game server modules built on reusable Platform APIs. The subsystem
-references keep their internal contracts; Appendix J maps them onto the module
-graph. Those documents are not yet in the repositories ([OQ-12](11-open-questions.md#oq-12)).
+| Process | Owner | Runs | Shipped |
+| --- | --- | --- | --- |
+| GameClient | Game | Client layers on the Engine | Yes; shipping builds leave out the ImGui layer |
+| GameServer | Game | Server layers on the Engine, one region per pod | Yes, to the server fleet |
+| Editor | Engine | Editor layers; attaches to development and staging servers | Never |
+| Cooker | Engine | Cooking jobs, launched by the Editor or by build machines | Never |
+| Game services | Game | Go services built on the Platform SDK | Yes, to the server fleet |
+| Platform services | Platform | Core services and building blocks | Yes, to the server fleet |
+
+### Application, layers and loops
+
+The Engine owns `main()`. It calls `CreateApplication()`, which each executable defines (RunicGame twice, the Engine
+for the Editor and the Cooker). The Application builds its LayerStack and hands control to the ApplicationHost.
+Layers receive events top-down and update bottom-up; the simulation's internal order stays in its scheduler.
+
+| Executable | Loop | Layers, bottom to top | Overlays |
+| --- | --- | --- | --- |
+| GameServer | Fixed 60 Hz loop that sleeps until the next quantum; no rendering | Network (Engine) → Simulation (Engine) → Services bridge (Platform binding: gRPC, NATS) → Lifecycle (Platform binding: Agones) → Diagnostics (Engine: metrics, Editor attach endpoint in development and staging builds) | None |
+| GameClient | Frame loop (vsync or capped) | Network → Prediction → Presentation (interpolation, camera, render extraction, audio) | GameUI (RmlUi); ImGui only in development builds |
+| Editor | Frame loop | Editor host → tool panels | ImGui |
+| Cooker | Job loop | Job runner | None |
+
+- The Engine supplies the Network, Simulation, Prediction, Presentation and Diagnostics layers as reusable classes.
+- The Platform supplies the services-bridge and lifecycle layers as C++ server bindings, because only the Platform
+  may talk to gRPC, NATS and Agones. The Engine never supplies infrastructure or communication layers.
+- RunicGame configures and composes all of them and adds its own layers.
+- State changes are layer replacements applied at the loop's safe point, never mid-update. Client: Boot → Login →
+  Character select → World. Server: Starting → Ready → Draining → Shutdown; draining hands regions off before exit.
+
+## Layered build view
+
+Read it as build dependencies: each band links only the bands below it, and nothing points up.
+
+| Band (top to bottom) | Contains |
+| --- | --- |
+| Executables | GameClient, GameServer (Game); Editor, Cooker (Engine tools, development only) |
+| RunicGame | `RunicGame::Shared`, `RunicGame::Server`, `RunicGame::Client`, Go game services, content |
+| RunicPlatform | C++ parts (Transport, Server bindings) implement Engine interfaces and link only the Engine interface targets Runic::Core, Runic::Application, Runic::NetworkTransport and Runic::SimulationPort; Contracts; Go SDK, core services and building blocks need no Engine code |
+| Engine presentation | Client, Renderer, Animation, UI, Audio |
+| Engine systems | GameplayAPI group (Gameplay, Combat, GameplayFlow, Quest); World systems (Perception, Navigation, AI, Environment, Water); Networking (Network, DistributedSimulation) |
+| Simulation core | ECS, World, Physics, Simulation |
+| Engine foundation | Core (including RenderData), Application (including the Window class), Events, Content, Assets |
+| Infrastructure | Agones, Kubernetes, PostgreSQL, NATS, Prometheus, Grafana. **Runtime only, never linked.** Platform services and bindings reach it at runtime |
+
+Inside a band, modules depend on each other only as the module table in
+[03 § Engine modules](03-dependency-rules.md#engine-modules) allows. RunicPlatform sits above the Engine because its
+C++ transport and server bindings include Engine interface headers; the Engine never includes Platform code. The
+interfaces the Platform implements ship as header-only Engine targets whose headers include only Core types
+(Runic::NetworkTransport from Network, Runic::SimulationPort from Simulation), so a Platform build configures Core and
+Application and never Flecs, Jolt or the gameplay modules
+([03 § Engine interface targets for the Platform](03-dependency-rules.md#engine-interface-targets-for-the-platform)).
+
+## Four axes that must stay separate
+
+| Axis | Question it answers | Mechanism |
+| --- | --- | --- |
+| Compile-time dependencies | Which code may use which code? | CMake targets |
+| Process composition | Which coarse features run in this executable, and in what order? | ApplicationHost + LayerStack |
+| Simulation scheduling | What simulation work runs now, and before what? | 60 Hz master scheduler, 30/20/10 Hz domains, explicit phases |
+| Distributed topology | Which process owns this region or entity? | World Coordinator, SimulationOwner, authority epochs |
+
+Never use one axis to answer another axis's question. Example: simulation order lives in the scheduler, never in
+layer order; a Region never encodes which process owns it.
+
+## Three event families
+
+| Family | Examples | Delivery |
+| --- | --- | --- |
+| Application events | Key press, resize, UI focus, connection state | LayerStack: top layer first, can be marked handled |
+| Simulation facts | HitEvent, DamageEvent, EntityKilled, RegionChanged | Tick-safe buffers; every consumer receives them |
+| Distributed messages | Quest facts, inventory operations, world-event directives | Transport, gRPC or NATS, with explicit reliability and idempotency |
+
+Details: [04-events-and-messages.md](04-events-and-messages.md).
+
+## Non-negotiable principles
+
+1. The C++ simulation is authoritative for everything happening in the world. Clients send intentions; they never
+   decide position, hits, damage, loot or quest completion.
+2. The simulation runs headless and never depends on rendering, UI or tools.
+3. The engine provides mechanisms; the game provides data and rules. Anything game-specific lives in RunicGame as
+   data or as registered C++ behaviors.
+4. Data first: skills, items, effects, AI, light values and balance are data with stable namespaced IDs and
+   versioned schemas, reloadable without recompiling.
+5. Nothing blocks the tick: network, service and database work is queued and applied at defined points.
+6. Spatial partitions are indexes, not servers. Which process owns what is a separate, explicit assignment.
+7. Every feature is built as a vertical slice first, generalized second, hardened third.
+8. Performance is measured, not assumed: every clock domain and major system reports its cost per tick.
+
+Rules that follow directly from these and that every session must obey:
+
+- Never mutate Flecs from an I/O callback; completions are queued and applied at safe ticks.
+- Local Flecs entity IDs never leave the process; use `GlobalEntityId`.
+- The realtime path is direct: client ↔ simulation and simulation ↔ simulation traffic uses the transport, never
+  NATS or gRPC in the hot path. Runic::Network encodes every realtime message, envelope included; Protobuf (Platform
+  Contracts) carries only service APIs, published facts and the connect-ticket format, never per-tick traffic.
+- Durable changes are operations with IDs, so retries are safe.
+
+## Performance targets
+
+Engine-level targets from ARCH § Principles and performance targets. They are planning targets unless the decisions
+log marks them as decided (scale and clock rates are decided).
+
+| Target | Value |
+| --- | --- |
+| Players per world | Up to 5,000 concurrent |
+| Battle that must feel perfect | 100 vs 100 in one region |
+| Largest battle that must still work | 500 players in one region, with graceful degradation |
+| Combat and physics rate | 30 Hz |
+| Scheduler master clock | 60 Hz |
+| World coordinates | 64-bit |
+| Expansion | New continents and regions added to a live world by patch and streamed in seamlessly |
+| Engine ceiling | Continent-scale worlds for other teams without architectural change |
+
+ARCH also states the size of the first world. That is a Game decision; it is recorded in RunicGame, not here.
+
+## Planning budgets
+
+| Budget | Planning value | Why |
+| --- | --- | --- |
+| Simulation work per 30 Hz tick | ≤ 25 ms of the 33 ms window at p99 | Headroom for spikes and I/O |
+| Download per player in a 500-player battle | ≈ 50 KB/s | Fits any broadband connection |
+| Upload per simulation in a 500-player battle | ≈ 25 MB/s | Fits a standard server network card |
+| Input to visible action | Immediate on the client; server confirmation within one round trip | Combat feels responsive at any ping |
+
+The per-battle bandwidth plan behind these numbers is in
+[05 § Priority and bandwidth budget](05-distributed-simulation.md#priority-and-bandwidth-budget).

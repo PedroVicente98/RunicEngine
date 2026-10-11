@@ -80,14 +80,14 @@ Debug renderer rules (ARCH § Debug renderer):
 ARCH's illustrative debug API, with bgfx kept out of the public header (sketch, fixed in the contract session):
 
 ```cpp
-// Illustrative. ARCH's sample includes <bgfx/bgfx.h> in this header; the
-// public-header rule moves every bgfx type into Source/.
+// Illustrative. Every bgfx type stays in Source/; the public config uses plain Runic enums.
 struct RendererConfig {
     uint32_t width = 1280;
     uint32_t height = 720;
-    void* nativeWindowHandle = nullptr;    // plain data from the Window class
+    void* nativeWindowHandle = nullptr;    // copied by the Client from the Window's NativeWindow
     void* nativeDisplayHandle = nullptr;
-    RenderBackend backend;                 // a Runic enum, mapped to bgfx in Source/
+    NativeWindowType nativeWindowType = NativeWindowType::Default;
+    RendererBackend backend = RendererBackend::Vulkan;   // mapped to bgfx in Source/
     bool vsync = true;
 };
 
@@ -131,7 +131,7 @@ ARCH also sketches a `DebugShapeCommand` (shape, camera-relative transform, size
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| RND-1 | bgfx device, view, camera, vertex-color shader, line batch | A grid and axes draw on each backend | APP-2 | 2 |
+| RND-1 | bgfx device, view, camera, vertex-color shader, line batch | A grid and axes draw on Vulkan, the first backend; other backends follow when their shaders are built | APP-2 | 2 |
 | RND-2 | Shapes, filled shapes with opacity, depth and overlay batches, debug text | Every debug shape renders batched in one frame | RND-1 | 2 |
 | RND-3 | Debug pipeline layer registry and toggles; physics geometry layer with cached debug meshes | Collision shapes line up with gameplay shapes and each layer toggles | RND-2, PHYS-3, CORE-3 | 8 |
 | RND-4 | Debug pipeline mesh layer: mesh instances, flat shading, camera-relative | Cooked meshes draw correctly far from the origin | RND-3, ASSET-1, CLI-4 | 22 |
@@ -148,7 +148,7 @@ The Done when column is the acceptance list. The debug renderer's first mileston
 
 ## Open items
 
-- ARCH's sample header includes `<bgfx/bgfx.h>` and puts bgfx enums in `RendererConfig`, and its Window snippet sets a bgfx handle type inside the Window class, which conflicts with "bgfx stays hidden" and with Application depending only on Core. The RND-1 contract session must fix a bgfx-free public header (as sketched above) and confirm it with the owner.
-- RND-1 must draw "on each backend", while ARCH also suggests a Vulkan-first client with SPIR-V shaders. The RND-1 contract session asks which backends its tests cover.
-- ARCH places the debug shaders under a repository-level `Assets/Shaders/Debug/` folder; the RND-1 contract session confirms the location and how the build compiles them.
+- Decided in ARCH revision 369: the public `RendererConfig` uses plain Runic enums (`NativeWindowType`, `RendererBackend`), and the Window class exposes a plain `NativeWindow` that the Client copies into the config. Because both Application and Renderer use `NativeWindowType` and neither links the other, the RND-1 and APP-2 contract sessions ask the owner where it lives (proposal: Core).
+- Decided in ARCH revision 369: RND-1 draws on Vulkan, the first backend; other backends follow when their shaders are built.
+- Decided in ARCH revision 369: the debug shaders live in `Engine/Presentation/Renderer/Shaders/Debug/`; the RND-1 contract session decides how the build compiles them.
 - [OQ-5](../system/11-open-questions.md#oq-5) (decided): no Debug module; the debug pipeline lives here, DebugGeometry in Core, extraction in Physics, inspectors in Editor, the Diagnostics layer in Network.

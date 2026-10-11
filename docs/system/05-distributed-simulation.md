@@ -1,235 +1,300 @@
-# 05 — Distributed simulation, hot-city partitioning, handoff, cross-simulation combat
+# 05 — Distributed simulation
 
-One logical seamless world is simulated by many processes. This document defines
-who answers which question and the rules that keep authority unique.
+This file explains how one seamless world is split into spatial pieces and simulation processes: world space, authority, ghosts, transfer, foreign interactions, interest and bandwidth.
 
-## Ownership split [J.8.1]
+Source: ARCH § World space: coordinates, layers and partitions, § Networking: stack, sessions and responsiveness,
+§ Networking: replication, interest and handoff, § Water system, § Environment, § Platform and operations.
 
-| Layer | Question answered | Examples |
+## Package map
+
+| Concern | Packages | Slice |
 | --- | --- | --- |
-| Engine `DistributedSimulation` | What does remote authority/ghost/transfer *mean* to simulation state? | AuthorityEpoch, GhostState, TransferState, ForeignCombatRequest. |
-| Platform `Realtime` | How are bytes/messages delivered quickly and correctly? | Connections, channels, sequencing, reliability, serialization, peer transport. |
-| Platform `WorldControl` | Which simulation should own what, and which peers/clients should be prepared? | AuthorityPartition assignment, load balancing, neighbor topology, connection directives. |
-| Platform `Orchestration` | Where do simulation processes come from and how are they kept healthy? | Agones/Kubernetes capacity, lifecycle, fleets. |
-| Game | What does the interaction mean? | Ability damage, boss rules, quest consequences. |
+| Coordinates, layers, keys | WORLD-1 | 4 |
+| Spatial index and queries | WORLD-2 | 11 |
+| Streaming state | WORLD-3, ASSET-2, COOK-3 | 21 |
+| Replication, prediction | SIM-6, NET-2, NET-3, SIM-4 | 13, 14 |
+| Interest, visibility tiers | NET-4, PRC-2 | 25 |
+| Authority, ghosts, transfer, links | DSIM-1, DSIM-2, DSIM-3, NET-5, PCS-2, PTR-3 | 36 |
+| Foreign interactions, sequence and quest handoff | DSIM-4, CMB-8, FLOW-3, QST-3 | 37 |
+| Parallel replication, degradation | NET-6 | 38 |
+| Ship-group handoff | WATER-7 | 42b |
+| Authority partitions (busy cities) | DSIM-5 | 44+ |
 
-## World partition is not simulation ownership [J.8.2]
+## World space
 
-```text
-Logical/spatial world:            Operational authority:
-Continent                         SimulationGroup
-└── Region                        └── AuthorityPartition -> SimulationId
-    └── Sector
-        └── Cell
-```
+### 64-bit coordinates (decided)
 
-- Region/Sector/Cell is stable world structure (Engine `World`).
-- `AuthorityPartition` is an operational runtime subdivision used when load needs
-  more than one simulation inside the same logical area (Platform `WorldControl`).
-- A busy city can be one Region — even one loaded Cell set — while dynamic-entity
-  ownership is split among several simulations.
+A 32-bit position loses about 1 cm of precision for every 130 km from the origin, which an engine for continent-scale
+worlds cannot accept. 64-bit costs a little CPU and memory on the server and nothing on the network.
 
-```cpp
-// Conceptual
-struct AuthorityPartition {
-    PartitionId    id;
-    SimulationId   owner;
-    SpatialBounds  bounds;
-    AuthorityEpoch epoch;
-};
-```
-
-**Hard invariants**
-
-- Exactly one simulation owns mutable authority for a transferable entity at a time.
-- Local Flecs entity IDs never cross a process boundary; `GlobalEntityId` is
-  stable across simulations.
-- Region/Sector/Cell must never use `SimulationId` as identity. [J.11.2]
-
-Authority states (Engine `DistributedSimulation`) [J.4.9]:
-
-```cpp
-enum class EntityAuthority { LocalAuthority, RemoteGhost, TransferringOut, TransferringIn };
-struct AuthorityInfo { SimulationId owner; AuthorityEpoch epoch; };
-```
-
-Ghosts are read-mostly mirrors; they never independently decide gameplay
-outcomes for the remote entity.
-
-## Hot-city load balancing [J.8.3]
-
-Do **not** round-robin nearby players across simulations — that would turn most
-local interactions into remote ones. WorldControl preserves interaction/spatial
-locality and splits hot areas into authority partitions, with overlap/ghost bands
-where cross-boundary interaction is likely.
-
-```text
-             crowded city
-
-        +---------+---------+
-        | Sim A   | Sim B   |
-        |         |         |
-        +---------+---------+
-        | Sim C   | Sim D   |
-        |         |         |
-        +---------+---------+
-
-Static city geometry may be loaded by all relevant simulations.
-Dynamic entities retain exactly one SimulationOwner.
-```
-
-All participating simulations may load the same terrain, buildings, static
-collision, navigation, water, and static decorations. Dynamic doors, NPCs,
-players, projectiles, encounter state, and other mutable entities have explicit
-authority ownership and may appear as ghosts elsewhere.
-
-## Direct sim-to-sim message set [J.8.4]
-
-| Traffic | Purpose |
+| Place | Precision |
 | --- | --- |
-| GhostState / GhostDelta | Keep boundary-relevant remote copies sufficiently current. |
-| PrepareTransfer / TransferReady | Warm destination state before authority moves. |
-| FinalTransferSnapshot | Authoritative reconstruction state at a known tick/input sequence. |
-| AuthorityCommit | Atomically change the authoritative owner using epochs. |
-| ForeignCombatVolume / remote effect context | Ask the remote owner to evaluate effects against its authoritative entities. |
-| RemoteHitResult / feedback | Return the authoritative result/feedback to the source simulation. |
+| Server simulation and Jolt | 64-bit positions; shapes and local math stay 32-bit |
+| Network | Quantized relative to the entity's cell origin (16 bits per horizontal axis on 64 m cells ≈ 1 mm) |
+| Client rendering | 32-bit relative to the camera |
+| Authoring | Region-local coordinates plus a 64-bit region origin |
 
-This traffic is **direct and broker-free** on the realtime path. NATS, gRPC,
-databases, and Agones are never inserted into per-tick ghost or combat
-synchronization.
+### Spatial hierarchy
 
-## Cross-simulation melee / projectile / AoE [J.8.5]
+| Level | Nature | Purpose |
+| --- | --- | --- |
+| World | Persistent world identity | Global coordinates and registry |
+| SpatialLayer | A streaming and population regime defined per world (for example a surface, a sky and an underground layer) | Separate streaming and population regimes; same horizontal footprint, different height envelopes |
+| Region | Authored content area (a Flecs entity) | Gameplay state: PvP rules, ambient light profile, music, spawns, special mechanics |
+| Sector | Automatic coarse bucket (for example 512 m) | Streaming and coarse lookup |
+| Cell | Automatic fine bucket (for example 64 m), sparse | Candidate lookup for combat, AI, interest, light, map knowledge |
+| SimulationOwner | Runtime assignment | Which process is authoritative now |
 
-```text
-Alice owned by Simulation A
-Bob   owned by Simulation B
+- Cell, sector and region transitions inside one simulation are index updates, never entity recreation or handoff.
+- Gameplay locations (a harbor, a market) are game data volumes and may cross any partition.
+- Large objects (watercraft, world bosses) register in every cell their bounds touch, deduplicated on query.
 
-Alice attack on A
-    |
-    +-- local A-owned candidates -> A resolves locally
-    |
-    +-- attack volume reaches B authority domain
-            |
-            v
-      ForeignCombatRequest
-            |
-            v
-      Simulation B
-      - intersect against authoritative Bob
-      - run Game combat eligibility/formulas
-      - mutate Bob HP/status locally
-      - emit DamageApplied / Hit result
-            |
-            v
-      RemoteHitResult as needed
-            |
-            v
-      Simulation A feedback/presentation
-```
+### Sparse and expandable world
 
-Simulation A must never apply damage to a stale Bob ghost and then overwrite B.
-**The owner of the target state decides and applies the consequence.** The
-foreign request carries enough attack/effect context for the target owner to
-reproduce the intended authoritative evaluation:
+- The coordinate space reaches far beyond current content: sector coordinates are 32-bit integers.
+- Only cells with content or activity exist in memory. Empty sea and unbuilt land cost nothing; open ocean is
+  generated by the water system, not stored as cells.
+- A new continent is new regions in that space. A content patch adds cooked cells, streaming makes them appear without
+  restarts or loading screens, and the World Coordinator assigns their simulation.
+- Separate maps (dungeons, raids) are **instances**; the client starts loading while the player approaches the
+  entrance, so the transition hides the load.
+
+### One logical world, many pieces
+
+"One world" is a property of the logical identity and the coordinate space, not of one source file, one scene, one
+package or one process.
+
+- **Process boundary versus instance boundary.** A process boundary answers "who computes this?"; an instance boundary
+  answers "which copy of reality is this?". An area in another layer, or a neighboring region, may run in another
+  simulation process and still be the same unique overworld. Dungeons and raids are instances because several
+  independent copies can exist.
+- **The main overworld** is one WorldId with InstanceId 0, shared by all its layers. Teleporting within it changes
+  position, not instance; falling from one layer into another is continuous travel even when simulation ownership
+  changes.
+- **Partition:** Region (authored gameplay and content concept), then automatic Sector, then automatic Cell. Simulation
+  ownership is separate again and is never encoded as "one chunk equals one server".
+
+### Layers, bounds and transitions
+
+Layers are streaming and simulation regimes, not floor numbers. A world adds more layers only when a band has
+genuinely different streaming, population or environment rules.
 
 ```cpp
-// Conceptual (Engine Combat)
-struct ForeignCombatRequest {
-    GlobalEntityId     source;
-    AbilityExecutionId execution;
-    CombatVolume       volume;
-    TickId             source_tick;
-    AuthorityEpoch     source_epoch;
+// Illustrative contract, not a frozen API.
+struct SpatialLayerDefinition {
+    SpatialLayerId id;
+    double logical_min_y;   // where this layer's content and ownership are relevant
+    double logical_max_y;
+    double preload_min_y;   // where the layer starts streaming in advance
+    double preload_max_y;
+};
+
+struct SpatialSectorKey {
+    SpatialLayerId layer;
+    int32_t x;
+    int32_t z;
 };
 ```
 
-## World-boss example [J.8.6]
+- **Layer bounds are validity and relevance envelopes, not allocated voxels.** Standard Y bounds live on the layer,
+  not on every sector. Each cooked sector and cell also gets an automatically generated **content AABB**: the layer
+  bounds say what is allowed, the content bounds say what actually exists.
+- **Logical bounds and preload bounds differ, and neighboring layers overlap on purpose.** Inside the overlap the old
+  layer stays active while the destination layer streams assets and collision and prepares simulation and network
+  ownership. The player always has exactly one authoritative owner.
+- **Hysteresis.** A layer switch never uses a single `if (y > threshold)`. Transitions use separate **prepare**,
+  **commit** and **release** thresholds, with different enter and exit heights, so small vertical movement cannot flip
+  ownership back and forth. The values are per-world data.
+- Gameplay policies such as flight permission use their own thresholds again.
+- **Continuous versus teleport transitions.** A layer change is not a teleport: falling or walking into another layer
+  keeps continuous coordinates. A teleport, elevator or portal may change coordinates while staying in the same world
+  and instance; it is still not an instance unless a separate copy of reality is created.
+- Where two layers overlap around an entrance, the first layer stays loaded while the second prepares; deeper inside,
+  the first unloads. A river, road, elevator or path can cross the boundary continuously.
 
-```text
-Boss owner = Simulation B
-Player A   = Simulation A
-Player B   = Simulation B
-Player C   = Simulation C
+### 2.5D plus sparse 3D
 
-Players attack boss:
-A -> foreign combat -> B -> boss HP mutation
-B -> local combat   -> B -> boss HP mutation
-C -> foreign combat -> B -> boss HP mutation
+- **No world-wide voxel grid.** The default partition is the layer plus XZ sectors and cells plus vertical bounds;
+  dense vertical spaces get local 3D subdivision (BVH, octree, AABB volumes or a spatial hash) only where needed.
+- **Y-aware filtering is a speedup.** With layers and vertical bounds, irrelevant populations never become candidates.
+- **One vocabulary, separate structures.** Region, Sector and Cell are the shared spatial language; each subsystem
+  keeps its own structure.
 
-Boss large AoE:
-B resolves B-owned targets locally
-B sends foreign effect volume/context to A and C
-A applies consequences only to A-owned targets
-C applies consequences only to C-owned targets
-```
+| Concern | Internal structure |
+| --- | --- |
+| World partition | Region, Sector, Cell |
+| Physics | Jolt broadphase |
+| Rendering | Frustum and occlusion culling, HLOD, GPU visibility structures |
+| Navigation | Navmesh tiles |
+| Networking | Interest candidate sets |
+| AI | Spatial candidates and activation |
 
-Boss HP, phase, AI, cooldowns, and encounter state are owned by one simulation at
-a time. Neighbors may mirror presentation/ghost state but never advance the boss
-state machine.
+- **Visual relevance is not simulation relevance.** A client may render distant geography while receiving no NPC,
+  player or projectile data from that area.
 
-## Client make-before-break connection set [J.8.7, J.5.9]
+### Runtime loading
 
-```text
-WorldSession
-  player = GlobalPlayerId
-  authority = Simulation A
-  authority_epoch = N
-  primary = A
-  warm_candidates = B, C
-  dormant = D
-  input_sequence continues across handoff
-```
+- **Client streaming:** cells around the player's layer and position, with LOD, HLOD and world proxies at distance.
+- **Server streaming:** static collision, gameplay and world metadata, nav tiles where active, spawn and state
+  definitions and spatial indices — never textures, vegetation shaders or other presentation data.
+- **Streaming state** (WORLD-3) uses preload bands and hysteresis and emits load and unload requests per cell.
+  Who performs the load is open ([11 § OQ-3](11-open-questions.md#oq-3)).
 
-1. A remains authoritative while the player enters a preparation band.
-2. WorldControl/current authority identifies candidate simulations.
-3. Platform issues signed connection/transfer directives; the client preconnects.
-4. Neighbor simulations prepare ghost/transfer state.
-5. When the authority boundary is crossed, A sends the final transfer state and
-   the last processed input sequence.
-6. The authority epoch increments and the chosen candidate is committed as owner.
-7. The client promotes that connection without exposing topology to gameplay code.
-8. Old A becomes Retiring or Dormant for a grace window; unused candidates sleep
-   or drop according to policy.
+## Partition versus ownership
 
-Connection roles and control operations (Platform `Realtime`):
+- **Spatial partitions are indexes, not servers.** Regions, Sectors and Cells stay fixed. Which simulation owns what
+  is an operational decision made by the World Coordinator (PCS-2), which also issues the world epoch.
+- A simulation may own many quiet cells or regions. A busy area can later move or split without changing world
+  coordinates or authored assets.
+- Region, Sector or Cell code never refers to a simulation process identity (forbidden in
+  [03](03-dependency-rules.md#forbidden-dependencies)).
+- Players are never spread round-robin across simulations, which would turn most local interactions into remote ones.
 
-```cpp
-enum class WorldConnectionRole {
-    Primary,        // authoritative simulation
-    WarmCandidate,  // connected and prepared for promotion
-    Dormant,        // temporarily retained with minimal traffic
-    Retiring        // old authority during grace/cleanup
-};
-// Control operations:
-// PrepareConnection, WakeConnection, PromoteConnection,
-// SleepConnection, RetireConnection, DropConnection
-```
+## Authority and epochs
 
-The user-facing `WorldSession` is logical and stable even when the underlying
-authoritative endpoint changes. Gameplay code never reasons about IP addresses
-or chooses its own authority server.
+- **Exactly one simulation is authoritative for an entity at any moment.**
+- Authority state carries an **authority epoch**. Messages with a stale epoch are rejected (DSIM-1) and dropped on
+  simulation links (NET-5).
+- DistributedSimulation maps `GlobalEntityId` to local entities. Local Flecs IDs never cross a process boundary.
+- Exactly one owner holds a player at all times, including inside layer overlaps and during transfer.
 
-## Active scripted sequences during handoff
+## Ghosts
 
-See [06 §Handoff policy](06-gameplayflow-quests-cutscenes.md#handoff-policy-for-active-sequences-j99):
-`Transferable`, `PinAuthority`, or `AbortOnTransfer`.
+- Near a border, neighbor simulations receive **ghost state**: a read-mostly mirror of an entity owned elsewhere.
+- DistributedSimulation holds ghost state as plain data (DSIM-2); Network encodes ghost deltas with the snapshot codec
+  and sends them over simulation-to-simulation links (NET-5).
+- A ghost never decides an outcome for its entity. Effects on it become foreign interactions to its owner.
+- Ghosts stay in sync across a border under packet loss.
 
-## Agones boundary [J.8.8]
+## Transfer protocol
 
-```text
-Agones / Kubernetes
-    provide process capacity and lifecycle
-             |
-             v
-Platform WorldControl
-    assigns world/authority responsibility
-             |
-             v
-Engine DistributedSimulation
-    enforces ghost/authority/transfer semantics
-```
+Transfer is make-before-break: the destination is prepared before authority commits.
 
-For a hot city, Platform may request/warm new simulation capacity before
-repartitioning authority. Agones does not understand players, cities, ghosts,
-attacks, or quests — it manages game-server processes; WorldControl owns world
-semantics.
+1. **Prepare.** The destination is made ready before anything moves: it already receives the entity as a ghost, and
+   the client already holds a candidate connection to it.
+2. **Final snapshot.** The source builds the final transfer snapshot. Every module that owns state for the entity adds
+   it through the **snapshot-contributor registry** (DSIM-3).
+3. **Authority commit.** Authority moves in one step with a new epoch. The client's connection is promoted. The input
+   sequence continues; there is no loading screen and no explicit reconnect.
+
+Snapshot contributors:
+
+| Contributor | Package | What travels |
+| --- | --- | --- |
+| GameplayFlow | FLOW-3 | Transferable sequences: their step, timers relative to simulation time, restriction source IDs, quest or encounter context |
+| Quest | QST-3 | Quest instances with their objectives and timers |
+| Water | WATER-7 | A watercraft with its crew, passengers and cargo as one group, in one authority epoch |
+
+- A module adds its state by registering into the registry; DistributedSimulation never depends on those modules.
+- Static water is not transferred: neighbor simulations load matching fragments.
+- Environment values are deterministic functions of world time and position, so neighbors compute identical values at a
+  border and nothing jumps on crossing. World time counts from a world epoch that the World Coordinator issues
+  (PCS-2, slice 36); until then the Environment clock (ENV-1) reads the epoch from configuration.
+
+## Simulation links
+
+- Simulation-to-simulation connections are provided by the Platform transport (PTR-3) over GameNetworkingSockets.
+- Network encodes ghost deltas and transfer messages with the snapshot codec (NET-5), envelope included. Protobuf,
+  NATS and gRPC are never used in this hot path.
+
+## Foreign interactions
+
+When an action crosses an authority border, **the target's owner resolves it**.
+
+- The foreign-interaction contract (DSIM-4): a request carries enough context for the owner to resolve it.
+- Foreign combat (CMB-8): combat volumes crossing an authority border become requests to the owner
+  (ForeignCombatVolume, then RemoteHitResult). The target is damaged exactly once, by its owner.
+- A projectile or area effect crossing the border uses foreign effect volumes that each simulation applies only to
+  its own entities; nobody mutates a remote ghost.
+- A **world boss** keeps its health, phase, AI and cooldowns on one simulation. Attacks from players owned elsewhere
+  arrive as foreign combat; the boss's area effects reach other simulations as foreign effect volumes.
+
+## Sessions and candidate connections
+
+1. The client logs in through the Platform accounts service and receives a signed, short-lived connect ticket for its
+   simulation.
+2. The client opens a transport connection directly to the simulation and presents the ticket first.
+3. The simulation checks the ticket locally (signature, expiry and key ID, against a configured set of public keys),
+   with no service call in the hot path (PTR-2). PCS-1 signs tickets with rotating keys whose public halves the
+   simulations load; before slice 27 tickets are test-signed with a local key.
+4. The **WorldSession** survives handoffs: one authoritative connection plus **up to three candidate connections**
+   near borders (PTR-3). Crossing promotes one and drops the others.
+
+| Connection role | Meaning |
+| --- | --- |
+| Primary | The authoritative connection |
+| WarmCandidate | Connected and prepared for promotion |
+| Dormant | Kept with minimal traffic |
+| Retiring | The old authority during a grace window |
+
+The Platform tells the client to prepare, promote, sleep, retire or drop connections; gameplay code never reasons about
+addresses. Dropping a candidate or retiring connection never duplicates or rolls back authority.
+
+## Replication and prediction
+
+- Per client, the simulation builds a delta against the last state that client acknowledged; unchanged fields cost
+  nothing (NET-2).
+- Values are quantized: positions relative to the cell origin, angles in 16 bits, health in steps where acceptable.
+- Snapshot building runs in parallel, one client per task (NET-6).
+- **Prediction** runs `RunicGame::Shared`, the same code the server runs, with only a subset of systems enabled: the
+  local player's movement, its own skill timelines and nearby collision (SIM-4). There is no separate copy.
+- The client applies its input immediately and keeps a short history of numbered inputs; the server returns state with
+  the last input it processed; the client replays the inputs after it. Small errors blend, large ones snap (NET-3).
+- Skill starts are predicted cosmetically and cancelled in the rare case the server refuses.
+- Speed and teleport hacks are stopped by server validation of every movement, independent of prediction.
+
+## Interest and visibility tiers
+
+Decided. Candidates come from the cells around the client in its layer (plus the preload band), filtered by category.
+Each candidate pair then gets a tier — server-side fog of war (PRC-2, applied in NET-4).
+
+| Tier | Condition | Data sent |
+| --- | --- | --- |
+| Full | Within visibility range, set by the target's luminosity and concealment | Everything |
+| Silhouette | Within the minimum silhouette range in any light, or revealed by contact in the last few seconds | Coarse position and pose at a low rate; no name, gear or identity |
+| Hidden | Otherwise | Nothing |
+
+- Contact reveals: hitting or being hit, a heal nearby, AoE contact.
+- Projectiles and effects from hidden players are sent without the caster's identity.
+- Cost: one multiplication per candidate pair inside an interest pass that already runs.
+- **Combat never uses tiers.** The server resolves every hit regardless of visibility.
+- World anchors carry the tier to the client, so a Hidden player produces no nameplate (CLI-6).
+- Nothing on the client (music, UI) may reveal what the tiers hide.
+
+## Priority and bandwidth budget
+
+Each client has a byte budget per update. Entities are ranked by distance, combat involvement, targeting, party
+membership and importance; the highest go first and the rest accumulate priority until they are sent. Rough planning
+at about 12 bytes per entity update:
+
+| Battle size | Plan per client | Download per client | Upload per simulation |
+| --- | --- | --- | --- |
+| 200 (100 vs 100) | Everyone nearby at 20 Hz | ≈ 48 KB/s | ≈ 9.6 MB/s |
+| 500 | The ~100 most relevant at 20 Hz, the rest at 5 Hz | ≈ 48 KB/s | ≈ 24 MB/s |
+
+Beyond the budget, degradation follows a fixed order (NET-6):
+
+1. Lower update rates for distant entities.
+2. Less cosmetic detail (gear and animation flags).
+3. A cap on visible effects.
+
+**Combat correctness never degrades.**
+
+## Authority partitions
+
+- World partition is not simulation ownership. An **AuthorityPartition** is an operational area with an owner and an
+  epoch; it can split a busy city between simulations (DSIM-5, slice 44+).
+- Every participating simulation loads the same static geometry. Each dynamic entity keeps exactly one owner and
+  appears as a ghost elsewhere.
+- Splitting one region across several simulations is the last resort for capacity; placement rules are in
+  [07 § Simulation placement](07-service-backed-systems.md#simulation-placement).
+
+## Rules for any session touching this area
+
+- Never encode a simulation identity in a Region, Sector or Cell.
+- Never let two simulations mutate the same entity; route cross-border effects as foreign interactions.
+- Never send a local Flecs ID across a process boundary.
+- To carry a module's state across a transfer, register a snapshot contributor, as GameplayFlow, Quest and Water do.
+  The contributing module must have DistributedSimulation in its catalog row; DistributedSimulation never depends on
+  the contributors.
+- Never use NATS or gRPC for ghost, combat or replication traffic.

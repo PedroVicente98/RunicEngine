@@ -25,6 +25,7 @@ The SimulationRuntime advances the authoritative world in fixed steps on a 60 Hz
 - Phases on the worker pool, per-worker buffers and the deterministic merge; the physics step runs through PHYS-4 (SIM-3).
 - The client prediction subset: selected systems run on the client with RunicGame::Shared (SIM-4; decided in OQ-15).
 - The service port: an outbox of durable operations with stable operation IDs and an inbox of accepted results drained at safe ticks (SIM-5). It is the Engine's only door to durable services. It ships as the header-only `Runic::SimulationPort` target, whose headers include only Core types, so RunicPlatform can implement it without configuring Flecs, Jolt or any gameplay module. The Platform ServicesBridgeLayer implements it: gRPC calls in PBND-1, NATS facts and subscriptions (for example world directives) in PBND-4.
+- The replication registry: modules register replicated components and world-state values (schema, quantization profile, relevance), and Network encodes only what is registered (SIM-6).
 - Tick-domain timings recorded in the Core metrics registry (SIM-1); the Platform exporter (PBND-3) publishes them.
 
 | Domain | Interval | Typical work |
@@ -63,6 +64,7 @@ Realtime 30 Hz phase, in order:
 - Feature modules (Gameplay, Combat, GameplayFlow, Quest, AI, Water, Environment, Perception, Navigation, Network, DistributedSimulation) or Game code. They register into the Simulation.
 - gRPC, NATS, databases, Agones or Kubernetes. The service port is an interface; the Platform implements it.
 - Anything but Core types in the `Runic::SimulationPort` headers: that target links only `Runic::Core`.
+- The modules that register replicated data: the replication registry (SIM-6) is how they reach Network, never the reverse.
 - RunicPlatform or RunicGame code.
 
 ## Public API sketch
@@ -107,6 +109,7 @@ Sketch, fixed in the contract session: `SimulationRuntime.hpp`, `TickContext.hpp
 | SIM-3 | Phases on the worker pool, per-worker buffers, deterministic merge; the physics step runs through PHYS-4 | The same scene with one worker and with many gives identical results | SIM-2, PHYS-4 | 10 |
 | SIM-4 | Client prediction subset: selected systems run on the client with RunicGame::Shared | The same inputs give the same result on client and server | SIM-3 | 14 |
 | SIM-5 | Service port: an outbox of durable operations with stable operation IDs and an inbox of accepted results drained at safe ticks; the Engine interface the Platform services bridge implements, shipped as the header-only Runic::SimulationPort target (Core types only) | A fake port that delivers a result twice is applied once; no I/O callback touches Flecs | SIM-2, EVT-1 | 27 |
+| SIM-6 | Replication registry: modules register replicated components and world-state values (schema, quantization profile, relevance); Network encodes only what is registered | A test component and a world-state value replicate without Network depending on the modules that own them | SIM-2 | 13 |
 
 ## Acceptance tests
 

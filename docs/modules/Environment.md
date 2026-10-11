@@ -150,6 +150,6 @@ Tests use Engine test patterns, never RunicGame weather tables.
 
 ## Open items
 
-- The API takes `WaterBodyId`, but water bodies belong to Water, which depends on Environment. The ENV-4 contract session must ask where the plain `WaterBodyId` type lives (Core's RenderData has the same question; see [Core.md](Core.md)).
-- Clients receive world time in snapshots, but Network does not depend on Environment. The NET-2 or ENV-1 contract session must ask how world time reaches the snapshot.
+- Decided in ARCH revision 369: `WaterBodyId` is a plain value type in Core (CORE-1), so Environment's API uses it without depending on Water.
+- Decided in ARCH revision 369: Environment registers world time and weather state as world-state values in Simulation's replication registry (SIM-6), so clients receive them in snapshots without a Network → Environment edge.
 - ENV-5 receives overrides through the service port inbox; the operation's shape is fixed with PBND-4 (slice 30) and PCS-3 (slice 43).

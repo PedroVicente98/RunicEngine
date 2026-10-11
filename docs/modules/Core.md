@@ -20,11 +20,13 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 ## Owns
 
 - Plain ID types: `GlobalEntityId`, `GlobalPlayerId`, `SimulationId`, `TickId`, `AuthorityEpoch` (CORE-1; decided in OQ-2). Core declares the types; their meaning belongs to whoever issues them: authority semantics belong to DistributedSimulation, and the Platform accounts service (PCS-1) issues `GlobalPlayerId`.
+- Plain value types that other modules give meaning to: `AssetId` (Assets), `WaterBodyId` (Water), `FieldId` and `WidgetId` (CORE-1, ARCH revision 369).
 - `Result`, asserts and logging hooks (CORE-1).
 - Time types. Time comes from one clock as integer ticks or double seconds, never accumulated floats (ARCH § Application and LayerStack).
-- Math on GLM (CORE-1).
+- Math on GLM (CORE-1). GLM types may appear in Core's public headers: the third approved public-header exception.
 - Memory and configuration utilities (listed in the catalog row; no package names them yet).
 - The worker pool, sized from the process's CPU allotment (CORE-2).
+- The debug-stream registry where modules publish traces (CORE-2); the Diagnostics layer (NET-7) streams them to the Editor in development and staging builds.
 - The metrics registry: per-tick timings and counters per tick domain (CORE-2). Every GameServer records its metrics here: the Simulation records tick-domain timings (SIM-1) and the Network module's Diagnostics layer adds network and replication metrics (NET-7). The Platform exporter (PBND-3) publishes the whole registry to Prometheus.
 - RenderData in `Public/RenderData/`: the double-buffered `RenderFrame`, `DebugGeometry` and the render-data kinds below (CORE-3 to CORE-7).
 
@@ -61,7 +63,7 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 | Kind | Allowed |
 | --- | --- |
 | Engine modules | — (none) |
-| Third-party | GLM (math) |
+| Third-party (PUBLIC) | GLM (math), an approved public-header exception: the Engine's math vocabulary |
 
 ### Must never depend on
 
@@ -69,7 +71,7 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 - Flecs, Jolt, bgfx, RmlUi, ImGui, GLFW, BehaviorTree.CPP, Detour, GameNetworkingSockets.
 - RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
-Core's public headers are consumed outside the Engine: RunicPlatform's C++ links `Runic::Core` (the metrics registry), and the two header-only interface targets the Platform implements, `Runic::NetworkTransport` and `Runic::SimulationPort`, include only Core types. Keep every Core public header free of library types other than the math decision below.
+Core's public headers are consumed outside the Engine: RunicPlatform's C++ links `Runic::Core` (the metrics registry), and the two header-only interface targets the Platform implements, `Runic::NetworkTransport` and `Runic::SimulationPort`, include only Core types. Keep every Core public header free of library types other than GLM, so the Platform sees GLM math types and nothing else.
 
 ## Public API sketch
 
@@ -132,8 +134,8 @@ struct RenderFrame {
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, TickId, AuthorityEpoch), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
-| CORE-2 | Worker pool and metrics registry (per-tick timings and counters) | Jobs run on the pool; metrics are recorded per tick domain | CORE-1 | 3 |
+| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
+| CORE-2 | Worker pool, metrics registry (per-tick timings and counters) and debug-stream registry where modules publish traces | Jobs run on the pool; metrics are recorded per tick domain | CORE-1 | 3 |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame and DebugGeometry (lines, triangles, text, cached debug meshes) | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload | CORE-1 | 5 |
 | CORE-4 | RenderData scene kinds: mesh instances, skinned instances with pose buffers, world anchors | Every kind round-trips through a frame packet in tests | CORE-3 | 22 |
 | CORE-5 | RenderData world-state kinds: lights, environment frame, volumes | Every kind round-trips through a frame packet in tests | CORE-3 | 25a |
@@ -146,7 +148,7 @@ The Done when column is the acceptance list; each contract session turns its row
 
 ## Open items
 
-- `RenderFrame` uses `AssetId`, `WaterBodyId`, `FieldId` and `WidgetId`, but Core depends on nothing and ARCH lists `AssetId` under Assets and water bodies under Water. The CORE-3 and CORE-4 contract sessions must ask the owner where these plain IDs live.
-- ARCH puts GLM math in Core and Vec3/Mat4 types in RenderData, but also says third-party libraries are always PRIVATE and lists only two public-header exceptions. Because the Platform interface targets include only Core types, the answer also decides whether the Platform sees GLM. The CORE-1 contract session must ask whether Core's public math types expose GLM or wrap it.
+- Decided in ARCH revision 369: `AssetId`, `WaterBodyId`, `FieldId` and `WidgetId` are plain value types in Core (CORE-1); the modules that own them (Assets, Water, UI) give them meaning. `RenderFrame` and Environment's API use them without depending on those modules.
+- Decided in ARCH revision 369: GLM math types in Core's public headers are the third approved public-header exception, and GLM is a PUBLIC dependency of Core ([OQ-19](../system/11-open-questions.md#oq-19)). Record the exception in this module's ARCHITECTURE.md.
 - Memory and configuration utilities appear in the catalog row but in no package; add them only when a package's tests need them.
 - [OQ-2](../system/11-open-questions.md#oq-2) (decided): plain ID and time types live here. [OQ-7](../system/11-open-questions.md#oq-7) (decided): the test framework is chosen in BUILD-1.

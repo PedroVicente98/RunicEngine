@@ -124,5 +124,5 @@ The Done when column is the acceptance list. Editor validation: unknown nodes, p
 ## Open items
 
 - ARCH's catalog row says "Most modules". Each Editor package's contract session lists the exact modules it links and asks the owner before adding one.
-- ARCH says the attach channel is compiled only into development builds, yet the Editor also attaches to staging servers. The EDT-7 contract session must confirm that staging servers run development builds.
-- The transport the attach channel uses in the Editor process is open (see [Network.md](Network.md)).
+- Decided in ARCH revision 369: the attach channel is compiled into development and staging builds, never production.
+- Decided in ARCH revision 369: the attach channel runs over a development socket transport inside Network (see [Network.md](Network.md)).

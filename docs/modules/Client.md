@@ -99,6 +99,6 @@ The Done when column is the acceptance list. Runnable results by slice: 5, entit
 
 ## Open items
 
-- Extractors read Flecs, while ECS keeps Flecs private (see the open item in [ECS.md](ECS.md)). The CLI-1 contract session must ask how Client reads Flecs components.
+- Extractors read Flecs. ECS re-exports Flecs only to the Engine modules that register systems (ARCH revision 369); the CLI-1 contract session must ask whether Client's extractors count as such or read through Runic types.
 - [OQ-4](../system/11-open-questions.md#oq-4) (decided): input mapping lives in Client; raw input is application events from the Window class.
 - [OQ-15](../system/11-open-questions.md#oq-15) (decided): prediction runs RunicGame::Shared on the client.

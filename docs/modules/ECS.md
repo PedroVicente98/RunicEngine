@@ -51,7 +51,7 @@ ECS integrates Flecs and fixes the conventions every module follows when it stor
 | Kind | Allowed |
 | --- | --- |
 | Engine modules | Core |
-| Third-party (PRIVATE) | Flecs (C++ API) |
+| Third-party | Flecs (C++ API): PRIVATE, except that ECS re-exports it only to the Engine modules that register systems (the approved Flecs world-handle exception) |
 
 ### Must never depend on
 
@@ -83,4 +83,4 @@ The Done when column is the acceptance list. Slice 4 also requires entities with
 ## Open items
 
 - The approved exception is recorded here and in every module that uses it (ARCH § Modules, work packages and the implementation contract).
-- ARCH lists Flecs as private to ECS, yet modules that register systems (AI, and the Client's extractors that read Flecs) use the Flecs C++ API directly. The ECS-1 contract session must ask whether ECS exposes Flecs as a PUBLIC dependency to those modules or whether each one links Flecs itself.
+- Decided in ARCH revision 369: ECS re-exports Flecs only to the Engine modules that register systems (for example AI); other modules reach the world through Runic types. The ECS-1 contract session fixes the CMake shape of the re-export and proves no other module sees Flecs.

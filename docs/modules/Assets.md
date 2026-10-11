@@ -17,9 +17,9 @@ Assets is the runtime side of cooked data: asset IDs and handles, a cache, the n
 
 ## Owns
 
-- `AssetId`, handles and the cache (ASSET-1).
+- Handles and the cache keyed by `AssetId`, a plain value type in Core that Assets gives meaning to (ASSET-1).
 - Loading of the native cooked mesh and collision formats (ASSET-1).
-- Random-access packages and manifests (ASSET-2). A cooked region can be loose entries or one package (for example `A01.runicpak`) with an internal random-access table of contents. A continent is never compressed as one sequential stream.
+- Random-access packages and manifests with Zstandard decompression (ASSET-2). A cooked region can be loose entries or one package (for example `A01.runicpak`) with an internal random-access table of contents. A continent is never compressed as one sequential stream.
 - Client and server package selection (ASSET-2). The server never loads textures, vegetation shaders or other presentation data.
 - Asynchronous streaming that loads cells without stalling a tick or a frame (ASSET-2).
 
@@ -44,7 +44,7 @@ Assets is the runtime side of cooked data: asset IDs and handles, a cache, the n
 | Kind | Allowed |
 | --- | --- |
 | Engine modules | Core, Content |
-| Third-party (PRIVATE) | Zstandard for package decompression. ARCH lists "runtime decompression" next to the Cooker's compression without naming the module; the ASSET-2 contract session confirms it lives here |
+| Third-party (PRIVATE) | Zstandard for package decompression (ASSET-2) |
 
 ### Must never depend on
 
@@ -67,7 +67,7 @@ Sketch, fixed in the contract session: `AssetId.hpp`, `AssetHandle.hpp`, `AssetC
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
 | ASSET-1 | AssetId, handles, cache, loading of native cooked mesh and collision formats | A cooked test mesh loads on client and server | CNT-1 | 9 |
-| ASSET-2 | Random-access packages and manifests, client and server package selection, asynchronous streaming | Cells load from a package without stalling a tick or a frame | ASSET-1, WORLD-3 | 21 |
+| ASSET-2 | Random-access packages and manifests with Zstandard decompression, client and server package selection, asynchronous streaming | Cells load from a package without stalling a tick or a frame | ASSET-1, WORLD-3 | 21 |
 
 ## Acceptance tests
 

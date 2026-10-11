@@ -33,7 +33,7 @@ Navigation is the runtime pathfinding of the authoritative server: the Detour an
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | World, Simulation |
+| Engine modules | World, Simulation, Assets |
 | Third-party (PRIVATE) | Detour and DetourTileCache |
 
 ### Must never depend on
@@ -74,5 +74,5 @@ The Done when column is the acceptance list. Slice 31 shows spawned NPCs walking
 
 ## Open items
 
-- [OQ-3](../system/11-open-questions.md#oq-3) (still open, narrowed): who performs the load of streamed cell data. Nav tiles stream with cells like other cooked data, and Navigation does not depend on Assets. The NAV-1 contract session must ask the owner how tiles reach Navigation. Do not decide it silently.
+- [OQ-3](../system/11-open-questions.md#oq-3) (still open, narrowed): who performs the load of streamed cell data. Navigation may link Assets (ARCH revision 369) to read cooked nav tiles, and it owns the nav-tile format the Cooker writes. Who triggers the load of a cell's tiles is confirmed with OQ-3 in the NAV-1 contract session; do not decide it silently.
 - The exact MoveTo and MoveGoal contract is fixed in the NAV-1 contract session together with its first consumer, AI-2.

@@ -58,7 +58,7 @@ Rules:
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Gameplay, World, Environment (time of day, weather) |
+| Engine modules | Gameplay, World, Environment (time of day, weather), Water (underwater light) |
 | Third-party | — |
 
 ### Must never depend on
@@ -93,4 +93,4 @@ The Done when column is the acceptance list. Slice 25 shows visibility tiers at 
 
 ## Open items
 
-- ARCH lets each water body define underwater light attenuation by depth, which luminosity and visibility use like any ambient profile, but Perception does not depend on Water. The PRC-1 contract session (or the first package that needs attenuation) must ask how attenuation reaches luminosity without a Perception → Water edge.
+- Decided in ARCH revision 369: Perception may link Water to read each water body's underwater light attenuation by depth (Game values); luminosity and visibility use it like any ambient profile.

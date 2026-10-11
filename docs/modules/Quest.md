@@ -112,5 +112,5 @@ The Done when column is the acceptance list. Slice 30 proves a persistent quest 
 
 ## Open items
 
-- The "entity killed" trigger consumes a kill fact that Combat emits, but Quest does not list Combat as a dependency. The QST-1 contract session must ask the owner where the kill fact type lives (for example in Gameplay or Events) so Quest can read it without a Quest → Combat edge.
+- Decided in ARCH revision 369: the "entity killed" trigger reads the kill fact Gameplay publishes (GPL-2; Combat fills in the source), so Quest needs no Combat edge.
 - [OQ-16](../system/11-open-questions.md#oq-16) (decided): the Platform Go SDK owns transactions and the idempotency store; the Game Quest service stores progress.

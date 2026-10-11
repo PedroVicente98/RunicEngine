@@ -65,7 +65,7 @@ Engine reusable nodes: HasCombatTarget, HasReactableThreat, TargetInRange, Healt
 | Engine modules | Gameplay, Combat, Perception, Navigation |
 | Third-party (PRIVATE) | BehaviorTree.CPP |
 
-Approved public-header exceptions used here (record both in this module's ARCHITECTURE.md):
+Approved public-header exceptions used here (record both in this module's ARCHITECTURE.md; GLM math types from Core are the third exception and need no record here):
 
 1. The Flecs world handle, for registering systems: `AIModule::Register(flecs::world&)`.
 2. BehaviorTree.CPP node base types, so RunicGame can write custom AI nodes.
@@ -115,7 +115,7 @@ struct AIIntent {
 };
 ```
 
-`AIIntentType` covers MoveTo, FaceTarget, UseAbility, ClearTarget, ReturnHome and Investigate, plus defensive intents. ARCH's sketch names the defensive intents after the game's own defenses; the AI-4 contract session fixes generic names.
+`AIIntentType` covers MoveTo, FaceTarget, UseAbility, BeginDefense, EndDefense, Evade, ClearTarget, ReturnHome and Investigate. Defensive intents carry a game-registered `DefenseId`; the Game's registered defense chooser fills the choice, and the Game maps each ID to its own defensive rules. The Engine knows no concrete defense.
 
 ```cpp
 class BehaviorTreeRuntime {
@@ -151,11 +151,10 @@ public:
 | AI-1 | AI contracts and runtime shell: components, intents, working memory, AIDefinition, BehaviorTree.CPP adapter, brain pool, wake and sleep | A test tree ticks only while its NPC is awake | GPL-2, SIM-3 | 32 |
 | AI-2 | Command bridge and data assets: intents become movement and combat commands; tree loading, registries, personality profiles | AI commands pass the same validation as player commands | AI-1, NAV-1, CMB-2 | 32 |
 | AI-3 | Perception lifecycle: Aggroable, warn and detect wake, target validation, leash, return home, sleep | A mob walks toward a warning, attacks on detection and returns past its leash | AI-1, PRC-3 | 33 |
-| AI-4 | Reactive combat: SkillStarted perception, incoming threat, reaction timer, defense choice | A mob chooses a defensive reaction to a telegraphed skill within its reaction time † | AI-2, CMB-5 | 34 |
+| AI-4 | Reactive combat: SkillStarted perception, incoming threat, reaction timer, defense choice | A mob answers a telegraphed skill with a defensive action within its reaction time | AI-2, CMB-5 | 34 |
 | AI-5 | Instrumentation: per-brain trace, memory, utility and intent diagnostics | The trace explains each decision | AI-2 | 34 |
 | AI-6 | Scale tests with thousands of loaded NPCs and controlled awake percentages | The tick budget holds at the target counts | AI-4 | 38 |
 
-† AI-4's Done when is worded generically for this public repository, as in [12-work-packages.md](../system/12-work-packages.md); ARCH names the game's own defenses.
 
 ARCH's implementation steps map to these packages: contracts and runtime shell are AI-1; command bridge and data assets are AI-2; the perception lifecycle is AI-3; reactive combat is AI-4; instrumentation is AI-5; scale tests are AI-6. The AI editor steps are EDT-5 and EDT-6.
 
@@ -185,6 +184,6 @@ Tests use Engine test trees, personalities and `engine:` ability IDs, never Runi
 
 ## Open items
 
-- ARCH's sample code uses the Flecs C++ API directly (queries, entities), while ECS keeps Flecs private and only the world handle is an approved public exception. The AI-1 contract session must ask how AI gets Flecs headers (see the matching open item in [ECS.md](ECS.md)).
-- ARCH's reactive-combat sketch reads a game resource (a charge count) and emits intents named after the game's defenses, while ARCH also says the Engine does not know those defenses. The AI-4 contract session must ask how defense availability reaches the utility choice through a generic interface (for example through Gameplay resources or a Combat query).
+- Decided in ARCH revision 369: ECS re-exports Flecs to the Engine modules that register systems, so AI uses the Flecs C++ API through ECS (see [ECS.md](ECS.md)).
+- Decided in ARCH revision 369: the Engine emits BeginDefense, EndDefense or Evade with a game-registered `DefenseId`, and a defense chooser the Game registers picks the defense from the personality, the incoming threat and the random stream. The AI-4 contract session fixes the registration interface.
 - If per-brain BehaviorTree.CPP cost becomes material at very high counts, the public Runic AI contracts stay and a data-oriented Runic executor may be considered later, only after profiling (ARCH). Not part of any current package.

@@ -58,7 +58,7 @@ Water pipeline (COOK-7): export the curve and metadata, validate the source, sam
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Core, Content, Assets, World |
+| Engine modules | Core, Content, Assets, World, Physics, Navigation, Water (each runtime module owns its cooked format; the Cooker links its writer) |
 | Third-party (PRIVATE) | fastgltf, meshoptimizer, MikkTSpace, xatlas (optional), KTX-Software and Basis Universal, Jolt (cooking), Recast, Zstandard |
 
 ### Must never depend on
@@ -96,5 +96,5 @@ The Done when column is the acceptance list. The first cooker proof: a test regi
 
 ## Open items
 
-- The Cooker writes formats that Physics (collision), Navigation (nav tiles) and Water (fragments) read, but depends on none of them. Each format's contract session (COOK-1, COOK-6, COOK-7) must ask which module owns the format definition.
+- Decided in ARCH revision 369: each runtime module owns its cooked format (Physics collision, Navigation nav tiles, Water fragments), and the Cooker links that module to use its writer. The format contract is fixed in the owning module's package and used by COOK-1, COOK-6 and COOK-7.
 - ARCH places the Runic Blender add-on under Engine tools but in no module. Where its source lives is decided when the first package needs more than the basic export (slice 44+ for the full add-on).

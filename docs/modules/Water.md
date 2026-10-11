@@ -180,6 +180,7 @@ Debug drawing covers body bounds and loaded fragments, river centerlines and sam
 
 ## Open items
 
-- `WaterBodyId` is used by Core's RenderData and by Environment's API, both of which sit below Water. The WATER-1 contract session must ask where the plain ID type lives (see [Core.md](Core.md) and [Environment.md](Environment.md)).
-- Replication of dynamic water state (flow multipliers, levels, lock or dam state) is Network's job, but Network does not depend on Water. The first package that replicates dynamic water state must ask how it reaches Network.
+- Decided in ARCH revision 369: `WaterBodyId` is a plain value type in Core (CORE-1); Water gives it meaning.
+- Decided in ARCH revision 369: Water registers swimming into Gameplay's movement-mode registry (GPL-1), and owns the water-fragment format the Cooker writes.
+- Decided in ARCH revision 369: dynamic water state (flow multipliers, levels, lock or dam state) reaches clients through Simulation's replication registry (SIM-6); Network never depends on Water.
 - Implementation stages: Stage A is the vertical proof above; Stage B adds connections, blending, rapids and waterfalls, profiles, the client and server package split, dynamic water-level state and navigation metadata; Stage C adds fleet profiling, gameplay swell if needed, tides, locks, advanced rendering and cross-simulation stress tests (ARCH § Water system, implementation stages). Only Stage A belongs to the current packages.
