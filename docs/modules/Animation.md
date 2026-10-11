@@ -1,86 +1,64 @@
 # Animation
 
-> **Contract seed.** When `Engine/Animation/` is created, copy this file to
-> `Engine/Animation/ARCHITECTURE.md`; from then on that file is authoritative.
-> Purpose, Owns, Does not own, Allowed dependencies, and Primary consumers come
-> from Appendix J §J.4.13. Other sections are derived and are proposals until
-> confirmed.
+Contract seed for `Runic::Animation`: what a Claude Code session needs to implement the Animation work package. When `Engine/Presentation/Animation/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
 
 | Field | Value |
 | --- | --- |
-| Directory | `Engine/Animation/` |
-| CMake target | `RunicAnimation` → `Runic::Animation` |
+| Group | Presentation |
+| Directory | `Engine/Presentation/Animation/` |
+| CMake target | `Runic::Animation` |
 | Namespace | `Runic::Animation` |
-| Roadmap phase | 2 — stubs as needed; grows with client presentation |
-| Headless | **no** (presentation) — see open questions |
+| Headless | no |
 | Status | Not started |
 
 ## Purpose
 
-Reusable skeleton, clips, animator, graph/state, and presentation-facing
-animation runtime.
+Animation evaluates skeletons, clips and blending on the client and produces poses; the character renderer uploads them (ARCH § Client runtime). The server never evaluates animation: gameplay timing comes from ability timelines.
 
 ## Owns
 
-`Skeleton`, `AnimationClip`, `Animator`, `AnimationGraph`, `AnimationState`,
-blending and runtime evaluation.
+- Skeletons, clips, the animator, blending and poses (ANIM-1).
+- Pose output in the form the skinned extractor (CLI-5) writes into RenderData pose buffers (CORE-4).
 
 ## Does not own
 
-Game-specific animation assets or combat rules; the renderer backend.
+- Cooking skinned meshes and clips (Cooker, COOK-5) and loading them (Assets).
+- The skinned extractor (Client, CLI-5) and pose upload and drawing (Renderer, RND-5).
+- Gameplay timing (Combat ability timelines) and any authoritative state.
+- Which animation plays for which game action (RunicGame::Client presentation).
 
-## Allowed dependencies
+## Depends on
 
-- Core, Assets.
+| Kind | Allowed |
+| --- | --- |
+| Engine modules | Core, Assets |
+| Third-party | — |
 
-## Forbidden dependencies
+### Must never depend on
 
-Renderer backend (bgfx), Simulation mutation, Combat, RunicPlatform, RunicGame.
+- Simulation, Physics, ECS, Combat or any server module; the server never links Animation.
+- Renderer or bgfx: poses are plain data.
+- RunicPlatform or RunicGame code.
 
-## Primary consumers
+## Public API sketch
 
-Client, Game presentation, AI/editor previews.
+Sketch, fixed in the contract session: `Skeleton.hpp`, `AnimationClip.hpp`, `Animator.hpp`, `AnimationBlend.hpp`, `Pose.hpp`.
 
-## Public API (conceptual)
+## Threading and tick rules
 
-```text
-Animation/
-├── Public/
-│   └── Animation.hpp        # split into explicit headers as the API grows
-├── Source/
-├── Tests/
-└── CMakeLists.txt
-```
+- Evaluation runs on the client, once per frame, driven by the Presentation layer before extraction reads the poses.
+- Evaluation reads clips and writes poses only; it never touches simulation state.
 
-## Threading / tick model (derived)
+## Work packages
 
-Evaluated per frame on the client. Never on the authoritative simulation path.
+| ID | Package | Done when | Needs | Slice |
+| --- | --- | --- | --- | --- |
+| ANIM-1 | Skeletons, clips, animator, blending | Clips blend without pops | ASSET-1 | 23 |
 
-## Data ownership (derived)
+## Acceptance tests
 
-Owns animation runtime state per presented entity. Combat timelines (server) are
-owned by Combat, not by animation playback.
+The Done when column is the acceptance list. Slice 23 shows a skinned character animating with blended clips (with CLI-5, RND-5 and COOK-5), using an Engine test rig.
 
-## Integration points (derived)
+## Open items
 
-- Assets supplies skeletons/clips.
-- Client/Game presentation drives animator parameters from replicated state and
-  presentation cues.
-- Renderer consumes evaluated poses.
-
-## Acceptance tests (Stage A, derived)
-
-- [ ] Load a skeleton and clip; evaluate a pose at time t.
-- [ ] Blend two clips; state transitions in a simple graph.
-- [ ] Not linked by the headless server target.
-
-## Future extensions
-
-Animation graphs authored by Game; editor previews.
-
-## Open questions
-
-- If the server ever needs bone-accurate hit volumes, part of animation
-  evaluation would have to be headless. Appendix J does not address this; the
-  current assumption is that combat volumes come from Combat timelines, not
-  skeletal animation.
+- None recorded in ARCH.

@@ -1,45 +1,61 @@
 # RunicEngine module catalog
 
-One contract per module. Each file follows the per-module `ARCHITECTURE.md`
-contract ([system/02](../system/02-module-contract.md#the-per-module-architecturemd-contract-j33)).
-When a module directory is created, its contract moves to
-`Engine/<Module>/ARCHITECTURE.md` and the row below links there.
+This file lists every Engine module with its group, purpose, allowed dependencies, packages and status, and links to each module's contract seed.
 
-**Provenance legend.** In every file, *Purpose, Owns, Does not own, Allowed
-dependencies, Primary consumers*, layouts, and API sketches come from Appendix J
-§J.4. Sections marked **(derived)** — forbidden dependencies, threading, data
-ownership, integration points, acceptance tests — were inferred from §J.7–J.14
-and are proposals until the owner confirms them.
+Source: ARCH § Repositories, build targets and processes (Engine modules) and ARCH § Modules, work packages and the implementation contract (Work packages). The full cross-repository rules are in [../system/02-module-contract.md](../system/02-module-contract.md), [../system/03-dependency-rules.md](../system/03-dependency-rules.md) and [../system/12-work-packages.md](../system/12-work-packages.md).
 
-**Status values:** `Not started` · `Stage A` · `Stage B` · `Stage C`
-([maturity stages](../system/02-module-contract.md#maturity-stages-j132-j12)).
+## How to use this catalog
 
-| Module | Purpose (short) | Allowed dependencies | Phase | Headless | Status |
-| --- | --- | --- | --- | --- | --- |
-| [Core](Core.md) | Foundation types: IDs, Result, Assert, Time, Math, Logging | std, GLM | 0 | yes | Not started |
-| [Application](Application.md) | Process shell, LayerStack, AppEvent | Core | 0 | yes | Not started |
-| [Events](Events.md) | Tick-safe typed gameplay facts | Core | 1 | yes | Not started |
-| [Content](Content.md) | Namespaced ContentId, schemas, registry | Core | 1 / 6 | yes | Not started |
-| [ECS](ECS.md) | Flecs integration and conventions | Core, Flecs | 1 | yes | Not started |
-| [World](World.md) | Region/Sector/Cell, spatial queries, streaming vocabulary | Core, ECS, Content | 1 / 7 | yes | Not started |
-| [Physics](Physics.md) | Jolt-backed bodies, character, queries | Core, World, (Jolt) | 1 | yes | Not started |
-| [Simulation](Simulation.md) | Fixed-step runtime, 60/30/20/10 Hz, phases, commands | Core, ECS, Events, World, Physics, Content | 1 | yes | Not started |
-| [DistributedSimulation](DistributedSimulation.md) | Authority, ghosts, transfer semantics | Core, Events, World, Simulation | 13 | yes | Not started |
-| [Assets](Assets.md) | Runtime asset loading, packages, cache | Core, Content | 2 / 3 / 7 | yes | Not started |
-| [Renderer](Renderer.md) | bgfx rendering, camera, debug draw | Core, Assets, World, (bgfx) | 2 | no | Not started |
-| [Client](Client.md) | Input mapping, prediction, reconciliation, interpolation | Application, Events, Simulation, NetworkAdapter, Renderer, Assets, presentation | 2 / 4 | no | Not started |
-| [Animation](Animation.md) | Skeleton, clips, animator, graph | Core, Assets | 2 | no | Not started |
-| [Audio](Audio.md) | Spatial/non-spatial playback | Core, Assets, (backend) | 2 | no | Not started |
-| [UI](UI.md) | RmlUi integration, view/model bridge | Core, Application, Assets, (RmlUi) | 2 | no | Not started |
-| [Navigation](Navigation.md) | Detour path queries | Core, World, (Detour) | 11 | yes | Not started |
-| [Gameplay](Gameplay.md) | Character, stats, items, runtime inventory, interaction, faction, spawn, restrictions | Core, ECS, Events, Content, World, Simulation | 5 | yes | Not started |
-| [GameplayFlow](GameplayFlow.md) | Sequence/action/condition runtime | Core, Events, Gameplay, Simulation, Content | 10 | yes | Not started |
-| [Quest](Quest.md) | Quest/objective/trigger runtime | Core, Events, Gameplay, GameplayFlow, Content, Simulation | 10 | yes | Not started |
-| [Combat](Combat.md) | Abilities, targeting, hit detection, effects, cooldowns, CC, foreign combat | Core, Events, Gameplay, Physics, World, Simulation, Content, DistributedSimulation | 5 / 14 | yes | Not started |
-| [AI](AI.md) | Perception, aggro, BehaviorTree adapter, intents | Core, Events, Gameplay, Navigation, World, Simulation, Content | 11 | yes | Not started |
-| [Water](Water.md) | Water bodies, buoyancy, currents, watercraft | Core, World, Physics, Gameplay, Simulation | 12 | yes | Not started |
-| [NetworkAdapter](NetworkAdapter.md) | Simulation-safe ingress/egress seam to Platform | Core, Events, Simulation, DistributedSimulation, Platform contracts | 4 / 8 / 13 | yes | Not started |
-| [Cooker](Cooker.md) | Offline content → native assets/packages | Core, Content, format/World defs, tool libs | 3 / 7 | tool | Not started |
-| [Editor](Editor.md) | Inspectors and authoring (leaf) | Application, Renderer, ECS, World, Physics, AI, Water, Content, Assets, Simulation | 0+ / 11 | no (leaf) | Not started |
+- Each `<Module>.md` file is the contract seed for one module. When `Engine/<Group>/<Module>/` is created, the file becomes that module's `ARCHITECTURE.md`, and from then on the module's file is authoritative. Update the row below to link there.
+- The Depends on column is a ceiling: a package links only what it uses. A link that is not in the column is an architecture change: stop and report it.
+- A package's Needs orders merges; it never grants a link.
+- First slice is the earliest roadmap slice that needs one of the module's packages ([../system/08-implementation-roadmap.md](../system/08-implementation-roadmap.md)).
+- Status values: `Not started`, `Stage A`, `Stage B`, `Stage C` ([../system/02-module-contract.md](../system/02-module-contract.md)). Update the row in the same pull request as the code.
 
-Full dependency rules: [system/03-dependency-rules.md](../system/03-dependency-rules.md).
+## Modules
+
+27 modules in seven groups, in ARCH's group order. Group folders are `Foundation`, `SimulationCore`, `GameplayAPI`, `WorldSystems`, `Networking`, `Presentation` and `Tools`. Third-party libraries in parentheses are private unless the row says otherwise (GLM is a PUBLIC dependency of Core).
+
+| Group | Module | Purpose | Depends on | Headless | Packages | First slice | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Foundation | [Core](Core.md) | Plain ID and time types (including value types other modules give meaning to, such as AssetId and WaterBodyId), math (GLM), memory, logging, config, worker pool, metrics registry, debug-stream registry; RenderData (plain render structs, including DebugGeometry) | — (GLM is PUBLIC, an approved exception) | yes | CORE-1 to CORE-7 | 1 | Not started |
+| Foundation | [Application](Application.md) | Entry point, Application, ApplicationHost, LayerStack, loop policies, application events; the Window class (GLFW, client and tools builds only) | Core | yes (Window excluded) | APP-1, APP-2 | 1 | Not started |
+| Foundation | [Events](Events.md) | Typed tick-safe event buffers and readers, multi-consumer delivery, stable event IDs | Core | yes | EVT-1 | 4 | Not started |
+| Foundation | [Content](Content.md) | Namespaced ContentId (`engine:`, `game:`), registries, versioned schemas, validation, loading, live reload | Core | yes | CNT-1, CNT-2 | 9 | Not started |
+| Foundation | [Assets](Assets.md) | AssetId handles, cache, native cooked formats, random-access packages with Zstandard decompression, manifests, client and server package selection, streaming | Core, Content (Zstandard) | yes | ASSET-1, ASSET-2 | 9 | Not started |
+| Simulation core | [ECS](ECS.md) | Flecs integration and conventions | Core (Flecs, re-exported only to Engine modules that register systems) | yes | ECS-1 | 4 | Not started |
+| Simulation core | [World](World.md) | 64-bit coordinates, region-local origins, SpatialLayers, Regions, Sectors, Cells, spatial index and queries, streaming state | Core, ECS | yes | WORLD-1 to WORLD-3 | 4 | Not started |
+| Simulation core | [Physics](Physics.md) | Jolt v5.6 in double precision behind Runic types: bodies, shapes, CharacterVirtual, queries, collision layers, debug-geometry extraction, Jolt jobs on the Core worker pool | Core, World (Jolt) | yes | PHYS-1 to PHYS-5 | 7 | Not started |
+| Simulation core | [Simulation](Simulation.md) | SimulationRuntime: multi-rate scheduler, phases, barriers, commands, event flush, worker integration, client prediction subset, the replication registry, the service port; the Simulation layer | Core, Application, ECS, Events, World, Physics, Content | yes | SIM-1 to SIM-6 | 3 | Not started |
+| GameplayAPI | [Gameplay](Gameplay.md) | Attributes, modifiers, resources, tags, death and kill facts, the movement-mode registry and modes, restrictions, interaction framework, item and equipment runtime, factions, spawn | Simulation, Environment (wind for gliding) | yes | GPL-1 to GPL-7 | 14 | Not started |
+| GameplayAPI | [Combat](Combat.md) | Ability toolkit and timelines, hit timing, one-slot input queue, targeting, hit detection, statuses, cooldowns, rule pipeline, behavior registries, damage interception, threat, crowd control, foreign combat | Gameplay, Physics, Environment (projectile wind), DistributedSimulation | yes | CMB-1 to CMB-8 | 16 | Not started |
+| GameplayAPI | [GameplayFlow](GameplayFlow.md) | Sequences with trigger, condition and action registries, timers on simulation time, presentation cues, source-owned cleanup, handoff policies | Gameplay, DistributedSimulation (handoff snapshot) | yes | FLOW-1 to FLOW-3 | 29 | Not started |
+| GameplayAPI | [Quest](Quest.md) | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances, durable-fact bridge | GameplayFlow, DistributedSimulation (handoff snapshot) | yes | QST-1 to QST-3 | 30 | Not started |
+| World systems | [Perception](Perception.md) | Light emitters, ambient and skylight, luminosity queries, concealment, warn and detect radii, PvP visibility tiers | Gameplay, World, Environment (time of day, weather), Water (underwater light) | yes | PRC-1 to PRC-3 | 25 | Not started |
+| World systems | [Navigation](Navigation.md) | Detour and DetourTileCache runtime, nav tiles streamed by cell, path queries behind the MoveGoal contract | World, Simulation, Assets (Detour) | yes | NAV-1 | 31 | Not started |
+| World systems | [AI](AI.md) | BehaviorTree.CPP adapter, working memory, wake, sleep and leash, intents to commands, reactive combat | Gameplay, Combat, Perception, Navigation (BehaviorTree.CPP) | yes | AI-1 to AI-6 | 32 | Not started |
+| World systems | [Environment](Environment.md) | Environment clock, wind, current modulation, tides, gameplay waves, weather state and overrides | Core, World, Simulation | yes | ENV-1 to ENV-5 | 25 | Not started |
+| World systems | [Water](Water.md) | WaterSystem, bodies, rivers and routes, ocean current fields, cooked fragments, buoyancy, character, object and watercraft movement | World, Physics, Simulation, Gameplay, Environment, DistributedSimulation (ship-group handoff) | yes | WATER-1 to WATER-7 | 40 | Not started |
+| Networking | [Network](Network.md) | Transport interface (header-only `Runic::NetworkTransport`), ingress and egress queues, all realtime wire encoding, interest and budgets, prediction and reconciliation, parallel replication; the Network and Diagnostics layers | Application, Simulation, DistributedSimulation, Gameplay, Perception | yes | NET-1 to NET-7 | 12 | Not started |
+| Networking | [DistributedSimulation](DistributedSimulation.md) | Authority state and epochs, ghost state as plain data, transfer with a snapshot-contributor registry, foreign-interaction contract, authority partitions | Simulation, Events, World | yes | DSIM-1 to DSIM-5 | 36 | Not started |
+| Presentation | [Client](Client.md) | Prediction and Presentation layers, extractor registry and Engine extractors, camera, interpolation, input mapping and command builder | Application, Simulation, Network, Perception, Environment, Water, Renderer, Animation, Audio, UI, Assets | no | CLI-1 to CLI-8 | 5 | Not started |
+| Presentation | [Renderer](Renderer.md) | bgfx device and views; the layered debug pipeline; render targets for diegetic UI; the batched world-UI feature; the production pipeline later | Core, Assets (bgfx) | no | RND-1 to RND-10 | 2 | Not started |
+| Presentation | [Animation](Animation.md) | Skeletons, clips, animator, blending, poses | Core, Assets | no | ANIM-1 | 23 | Not started |
+| Presentation | [UI](UI.md) | RmlUi (GameUI) and ImGui (development overlay) as layers; world UI: diegetic panels, anchored elements, batched fallback, budgets, input routing | Application, Renderer, Assets (RmlUi, ImGui) | no | UI-1 to UI-5 | 2 | Not started |
+| Presentation | [Audio](Audio.md) | Backend abstraction, buses and mixing, semantic sound events, MusicDirector, albums, soundtrack presets, local profiles | Core, Assets | no | AUD-1, AUD-2 | 24 | Not started |
+| Tools | [Editor](Editor.md) | Editor host and panels, inspectors, resolver debugger, AI editor, live attach, Cooker launcher | Most modules (ImGui, imnodes) | never shipped | EDT-1 to EDT-7 | 6 | Not started |
+| Tools | [Cooker](Cooker.md) | Cooking orchestration and Runic format writers over fastgltf, meshoptimizer, MikkTSpace, xatlas, KTX and Basis Universal, Jolt cooking, Recast and Zstandard | Core, Content, Assets, World, Physics, Navigation, Water (each runtime module owns its cooked format; the Cooker links its writer) | tool | COOK-1 to COOK-8 | 9 | Not started |
+
+The build skeleton package BUILD-1 (slice 0) belongs to no module: it creates the `runic_add_module` helper, presets, CI, the chosen test framework, the headless and forbidden-dependency checks and the x86-64-v3 CPU baseline ([../current-state.md](../current-state.md)).
+
+## Group and interface targets
+
+| Target | Kind | What it is | Defined by | First slice |
+| --- | --- | --- | --- | --- |
+| `Runic::GameplayAPI` | Umbrella (INTERFACE) | Links Gameplay, Combat, GameplayFlow and Quest so the Game links one name; each module keeps its own boundary and tests. No code of its own | The GameplayAPI group folder | 14 (first GameplayAPI package) |
+| `Runic::NetworkTransport` | Header-only interface target | The transport interface and the connect-ticket hook. Headers include only Core types. RunicPlatform's Transport implements it | Network, NET-1 | 12 |
+| `Runic::SimulationPort` | Header-only interface target | The service port: outbox of durable operations, inbox of accepted results. Headers include only Core types. RunicPlatform's ServicesBridgeLayer implements it | Simulation, SIM-5 | 27 |
+
+RunicPlatform's C++ links only `Runic::Core`, `Runic::Application`, `Runic::NetworkTransport` and `Runic::SimulationPort`, never Flecs, Jolt or a gameplay module.
+
+Transitional targets: today's bundles `Runic::Runtime` and `Runic::Presentation` stay until RunicGame links per-module targets (decided in [OQ-8](../system/11-open-questions.md#oq-8)). Do not add new code to them.

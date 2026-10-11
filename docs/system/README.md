@@ -1,47 +1,79 @@
-# System documentation (shared across the three repositories)
+# System documentation (shared by RunicEngine, RunicPlatform and RunicGame)
 
-> **Mirrored folder.** `docs/system/` is identical in RunicEngine, RunicPlatform,
-> and RunicGame. When you change a file here, apply the same change to the other
-> two repositories in the same change set. Repository-specific material belongs
-> in that repository's `docs/architecture.md`, `docs/current-state.md`,
-> `docs/modules/`, or `docs/services/`, never here.
+This folder holds the architecture rules that all three repositories share; read it before you change any module.
 
-## Provenance and authority
+> **Mirrored folder.** `docs/system/` is byte-for-byte identical in RunicEngine, RunicPlatform and
+> RunicGame. Two of those repositories are public. Nothing in this folder may contain RunicGame rules,
+> names, numbers or content (see [02 § No game content in public repositories](02-module-contract.md#no-game-content-in-public-repositories)).
+> Repository-specific material belongs in that repository's own `docs/` (for example `docs/current-state.md`
+> and `docs/modules/`), never here.
+
+## Source and authority
 
 | Item | Value |
 | --- | --- |
-| Architecture version | **v0 — initial import.** Migrated from earlier work done with another AI agent (GPT); it will be refined in these repositories. |
-| Primary source | *RunicEngine / RunicPlatform / RunicGame — Technical Architecture Appendix J: Module Boundaries, Distributed Simulation, Gameplay Flow, and Service Integration* (6 October 2026). |
-| Source status | `OWNER REFINEMENT` of *Technical Architecture and Implementation Reference v2.1*. The v2.1 document remains authoritative except where Appendix J supersedes repository ownership. |
-| Not yet imported | v2.1 sections A–I and the subsystem references (World Authoring/Cooking, Water, AI, Jolt Physics/Multi-Rate Tick, Combat System Context, Platform Fabric/Networking). See [11-open-questions.md](11-open-questions.md#oq-12). |
+| Source document | *RunicEngine — Technical Architecture v3* ("ARCH"), doc revision 369, exported 2026-10-11 |
+| Status of ARCH | The single source of truth for architecture, modules, work packages and the roadmap |
+| Status of this folder | Generated from ARCH. It restates ARCH's rules for Claude Code sessions and humans; it adds no decisions of its own |
+| On conflict | **ARCH wins.** If this folder, a module's `ARCHITECTURE.md` or any code disagrees with ARCH, ARCH is right and the other text is a bug to fix |
+| Game design | Not in this folder. It lives only in RunicGame, outside `docs/system/` |
 
-Section references such as `[J.8.2]` point to Appendix J so that decisions can be
-traced back to the source document.
+Citations use ARCH section names, for example "ARCH § Networking: replication, interest and handoff".
 
-### What is locked and what is not
+### What is fixed and what is not
 
-- **Invariants** listed in [01-architecture-overview.md](01-architecture-overview.md#non-negotiable-invariants)
-  are architectural commitments. Changing one is an owner decision, not an
-  implementation detail.
-- **API sketches, file names, and class names are conceptual** unless a document
-  explicitly marks them as locked. They define responsibility and dependency
-  direction, not a frozen ABI, wire schema, or final spelling. [J intro]
-- Text marked **(derived)** or **(proposal)** was inferred while converting the
-  source into these docs. Treat it as a starting point that needs owner review.
+- **Rules and decisions** (dependency direction, headless server, nothing blocks a tick, ownership of each seam) are
+  architectural commitments. Changing one is an owner decision, recorded in ARCH first.
+- **Numbers** (rates, sizes, budgets) are planning targets unless ARCH's decisions log marks them as decided.
+  Final values come from profiling and playtests (ARCH § About this document).
+- **Code** in these docs is a contract sketch. Names are illustrative, not a frozen API.
+- **Open items** are listed in [11-open-questions.md](11-open-questions.md). Never resolve one silently in code.
 
 ## Reading order
 
-| # | Document | Read it when |
+| Step | Read | When |
 | --- | --- | --- |
-| 01 | [Architecture overview](01-architecture-overview.md) | Always, first. Invariants, the three-way rule, ownership, project map. |
-| 02 | [Module contract](02-module-contract.md) | Before creating or changing any module. Layout, CMake, `ARCHITECTURE.md` contract, maturity stages. |
-| 03 | [Dependency rules](03-dependency-rules.md) | Before adding any `#include`, link, import, or package dependency. |
-| 04 | [Events and messages](04-events-and-messages.md) | When touching events, commands, replication, or service calls. |
-| 05 | [Distributed simulation](05-distributed-simulation.md) | Authority, ghosts, handoff, hot-city partitioning, cross-simulation combat. |
-| 06 | [GameplayFlow, quests, cutscenes](06-gameplayflow-quests-cutscenes.md) | Scripted sequences, quests, bosses, cutscenes, restrictions. |
-| 07 | [Service-backed systems](07-service-backed-systems.md) | Inventory, trade, auction, economy, durable quest progression. |
-| 08 | [Implementation roadmap](08-implementation-roadmap.md) | Choosing what to build next. Phases 0–16. |
-| 09 | [Validation scenarios](09-validation-scenarios.md) | Writing acceptance tests and phase gates. |
-| 10 | [AI development workflow](10-ai-development-workflow.md) | Every implementation task performed by Claude Code. |
-| 11 | [Open questions](11-open-questions.md) | Before relying on an area marked as undecided. |
-| — | [Glossary](glossary.md) | Whenever a term is unclear. |
+| 1 | [01 Architecture overview](01-architecture-overview.md) | Always, first |
+| 2 | [02 Module contract](02-module-contract.md) | Before creating or changing any module |
+| 3 | [03 Dependency rules](03-dependency-rules.md) | Before adding any include, link, import or package dependency |
+| 4 | [10 AI development workflow](10-ai-development-workflow.md) | Before starting any work package with Claude Code |
+| 5 | [12 Work packages](12-work-packages.md) and [08 Implementation roadmap](08-implementation-roadmap.md) | To find the package you are building, its Needs and its slice |
+| 6 | The topic file for your package (04 to 07, 09) | When your package touches that topic |
+| 7 | [11 Open questions](11-open-questions.md) | Before relying on anything that might be undecided |
+| — | [Glossary](glossary.md) | Whenever a term is unclear |
+
+## File index
+
+| File | One line |
+| --- | --- |
+| [README.md](README.md) | This file: provenance, reading order, index, how to change the folder |
+| [01-architecture-overview.md](01-architecture-overview.md) | Ownership, repositories, processes, layered build view, four axes, event families, principles, targets |
+| [02-module-contract.md](02-module-contract.md) | What a module is, folder layout, naming, Public/ boundary, ARCHITECTURE.md template, maturity stages |
+| [03-dependency-rules.md](03-dependency-rules.md) | Direction rules, module tables for Engine, Platform and Game, the Engine interface targets the Platform links, forbidden links, repository wiring, CPU baseline, CI checks |
+| [04-events-and-messages.md](04-events-and-messages.md) | Event families, commands and facts, stable IDs, buffers and barriers, the service port, delivery classes |
+| [05-distributed-simulation.md](05-distributed-simulation.md) | World space, partition versus ownership, authority, ghosts, transfer, interest, bandwidth, partitions |
+| [06-gameplayflow-quests-cutscenes.md](06-gameplayflow-quests-cutscenes.md) | Scripted sequences, restrictions, termination, handoff policies, cutscenes, quest runtime and durable bridge |
+| [07-service-backed-systems.md](07-service-backed-systems.md) | Platform and Game services, the durable-fact path, idempotency, placement, monitoring, local development |
+| [08-implementation-roadmap.md](08-implementation-roadmap.md) | Every roadmap slice with its runnable result and work packages |
+| [09-validation-scenarios.md](09-validation-scenarios.md) | Acceptance scenarios as runnable checklists |
+| [10-ai-development-workflow.md](10-ai-development-workflow.md) | How one work package is done with Claude Code |
+| [11-open-questions.md](11-open-questions.md) | Open items and the decisions already taken |
+| [12-work-packages.md](12-work-packages.md) | Every Engine and Platform work package with Done when, Needs and Slice |
+| [glossary.md](glossary.md) | Terms used across the folder |
+
+## How to change this folder
+
+1. **Change ARCH first.** A rule, module, package, dependency or slice changes in ARCH, then this folder is
+   regenerated or edited to match. Never change an architecture rule only here.
+2. **Edit all three copies together.** Apply the identical change to `docs/system/` in RunicEngine,
+   RunicPlatform and RunicGame in the same change set. A quick check from the parent folder:
+
+   ```sh
+   diff -r RunicEngine/docs/system RunicPlatform/docs/system && \
+   diff -r RunicEngine/docs/system RunicGame/docs/system && echo "docs/system in sync"
+   ```
+
+3. **Keep it public-safe.** Before committing, check that no RunicGame rule, name, number or content entered
+   the folder. Game work-package IDs may appear as IDs only.
+4. **Decisions move in 11.** When an open question is decided, move it to the Decided section of
+   [11-open-questions.md](11-open-questions.md) with its date and outcome, and update the affected module contracts.

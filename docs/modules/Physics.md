@@ -1,122 +1,132 @@
 # Physics
 
-> **Contract seed.** When `Engine/Physics/` is created, copy this file to
-> `Engine/Physics/ARCHITECTURE.md`; from then on that file is authoritative.
-> Purpose, Owns, Does not own, Allowed dependencies, Primary consumers, layout,
-> and API sketch come from Appendix J §J.4.7 and the J.13.1 example. Other
-> sections are derived and are proposals until confirmed.
+Contract seed for `Runic::Physics`: what a Claude Code session needs to implement the Physics work packages. When `Engine/SimulationCore/Physics/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
 
 | Field | Value |
 | --- | --- |
-| Directory | `Engine/Physics/` |
-| CMake target | `RunicPhysics` → `Runic::Physics` |
+| Group | Simulation core |
+| Directory | `Engine/SimulationCore/Physics/` |
+| CMake target | `Runic::Physics` |
 | Namespace | `Runic::Physics` |
-| Roadmap phase | 1 — authoritative backbone |
-| Headless | yes (mandatory) |
-| Status | Not started (Jolt 5.2.0 is already pinned) |
+| Headless | yes |
+| Status | Not started |
 
 ## Purpose
 
-Jolt-backed physical world, collision, character queries, shapes, bodies, and
-spatial queries behind Runic types.
+Physics answers geometric questions with Jolt v5.6 in double precision, kept behind Runic types: bodies, shapes, CharacterVirtual, queries, collision layers, debug-geometry extraction and the Jolt job system on the Core worker pool (ARCH § Simulation core: Flecs and Jolt). Jolt results are facts; Runic decides what they mean.
 
 ## Owns
 
-- `PhysicsWorld`.
-- Body and shape handles.
-- Character controller integration.
-- Ray casts, shape casts, overlaps.
-- Collision layers.
-- Physics debug extraction (plain data for Renderer/Editor).
+- `PhysicsWorld`, bodies, shapes and collision layers on Jolt v5.6 in double precision (`JPH_DOUBLE_PRECISION`), kept private (PHYS-1).
+- CharacterVirtual integration and ground movement (PHYS-2).
+- Debug-geometry extraction: Jolt's debug interface implemented inside Physics (`Source/Jolt`), written into Core `DebugGeometry` buffers (PHYS-3).
+- The JobSystem adapter that runs Jolt on the Core worker pool, so Jolt never owns threads (PHYS-4).
+- Gameplay queries (ray, shape cast, overlap) with per-worker query queues (PHYS-5).
+- A shape registry: shapes are immutable and shared (many abilities reuse one arc shape).
+
+| Runic concept | Jolt representation |
+| --- | --- |
+| Terrain, buildings | Static Body |
+| Doors, elevators, platforms | Kinematic Body |
+| Ships, crates, physical objects | Dynamic Body |
+| Players and combat NPCs | CharacterVirtual (not a Body) |
+| Melee volumes, AoEs | Shape used in CollideShape |
+| Projectiles | Shape used in CastShape, one cast per tick segment |
+| Triggers | Sensor Body |
+
+Rules:
+
+- Structural changes are batched at the 30 Hz boundary (AddBodiesPrepare and AddBodiesFinalize).
+- Characters are discovered through the Runic cell grid and tested exactly with `CharacterVirtual::GetTransformedShape`. The same test with a past transform serves capped-rewind abilities.
+- CharacterVirtuals update every 30 Hz tick even without input, so moving platforms and ships carry them.
+- The Jolt version is pinned in the build; v5.6 (tag v5.6.0) is the documented baseline, built with its AVX2 path on the x86-64-v3 baseline.
 
 ## Does not own
 
-Damage rules, faction checks, ability rules, renderer commands, simulation
-ownership, Game semantics. Physics answers geometric/physical questions only.
+- What a contact or hit means: damage, factions, blocks and dodges (Combat, Gameplay, RunicGame).
+- Movement modes and their parameters (Gameplay), water forces (Water applies them before the step), the scheduler (Simulation).
+- Drawing anything: the Renderer's physics view draws the plain buffers Physics fills.
+- Collision cooking (Cooker uses Jolt cooking itself). Collision shapes and render meshes are different data.
 
-## Allowed dependencies
+## Depends on
 
-- Core, World.
-- Jolt — **private** backend dependency.
+| Kind | Allowed |
+| --- | --- |
+| Engine modules | Core, World |
+| Third-party (PRIVATE) | Jolt Physics v5.6, double precision |
 
-## Forbidden dependencies
+### Must never depend on
 
-Simulation, Combat, Renderer, networking, Editor, RunicGame, RunicPlatform
-services. [J.13.1, J.11.2]
+- Combat, Gameplay or Game code: Physics never knows damage, factions, blocks or dodges.
+- Renderer, and the Renderer never links Physics.
+- Jolt types in `Public/`. Jolt has no approved exception.
+- RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
-## Primary consumers
+## Public API sketch
 
-Simulation, Combat, Water, Gameplay movement, Editor.
-
-## Public API (conceptual)
-
-```text
-Physics/
-├── Public/
-│   ├── PhysicsWorld.hpp
-│   ├── PhysicsTypes.hpp
-│   ├── PhysicsBody.hpp
-│   ├── PhysicsCharacter.hpp
-│   ├── PhysicsShape.hpp
-│   ├── PhysicsQuery.hpp
-│   └── PhysicsDebug.hpp
-├── Source/
-│   ├── Queries/
-│   ├── Characters/
-│   └── Jolt/
-├── Tests/
-└── CMakeLists.txt
-```
+Physics' public API carries no Jolt types (ARCH § Debug renderer, physics debug view):
 
 ```cpp
-PhysicsHit hit = physics.CastShape(shape, from, delta);
-// hit says what geometry/body was intersected.
-// Combat decides whether that hit means damage, block, dodge, etc.
+// Physics public API, no Jolt types:
+physicsWorld.ExtractDebugGeometry(cameraOrigin, settings, debugGeometry);
 ```
 
-Jolt types must not escape the backend unless an explicit public-contract
-exception is approved. [J.4.7]
+Inside `Source/Jolt`, development builds only:
 
-## Threading / tick model (derived)
+```cpp
+// Runic::Physics, Source/Jolt (development builds only)
+class JoltDebugExtractor final : public JPH::DebugRendererSimple {
+public:
+    explicit JoltDebugExtractor(DebugGeometry& out) : m_out(out) {}
 
-- Physics has no clock of its own; Simulation owns "physics synchronization
-  timing" and calls the step. [J.4.8]
-- Queries are called from simulation phases; no mutation from other threads.
-- Jolt's internal job threads are an implementation detail of `Source/Jolt/`.
+    void DrawLine(JPH::RVec3Arg from, JPH::RVec3Arg to, JPH::ColorArg color) override {
+        m_out.AddLine(ToCameraRelative(from), ToCameraRelative(to), ToABGR(color));
+    }
+    void DrawTriangle(JPH::RVec3Arg a, JPH::RVec3Arg b, JPH::RVec3Arg c,
+                      JPH::ColorArg color, ECastShadow) override {
+        DrawLine(a, b, color); DrawLine(b, c, color); DrawLine(c, a, color);   // wireframe first
+    }
+    void DrawText3D(JPH::RVec3Arg, const JPH::string_view&, JPH::ColorArg, float) override {
+        // Optional; later exported as debug text.
+    }
+private:
+    DebugGeometry& m_out;   // plain Core type: lines and triangles, no bgfx
+};
+```
 
-## Data ownership (derived)
+Because Jolt runs in double precision, `ToCameraRelative` subtracts the render origin from each `JPH::RVec3` before converting to floats. Gameplay rendering never depends on `JPH_DEBUG_RENDERER`.
 
-`PhysicsWorld` owns bodies and shapes; ECS components hold opaque handles.
-Authoritative gameplay state (HP, faction, etc.) never lives here.
+Headers (sketch, fixed in the contract session): `PhysicsWorld.hpp`, `PhysicsBody.hpp`, `PhysicsShape.hpp`, `CollisionLayers.hpp`, `CharacterController.hpp`, `PhysicsQueries.hpp`, `PhysicsDebug.hpp`.
 
-## Integration points (derived)
+## Threading and tick rules
 
-- Simulation steps the world and syncs transforms with Flecs.
-- Combat calls casts/overlaps for hit detection and interprets results.
-- `PhysicsDebug` exposes plain shape data; Renderer draws it. Physics never calls
-  Renderer.
-- Cooker produces cooked collision consumed here (phase 3).
+Physics runs inside the 30 Hz realtime phase (ARCH § Simulation core: clock and threads):
 
-## Acceptance tests (Stage A, derived)
+1. Step 3: commit structural physics changes in batches (bodies created and removed).
+2. Step 4: apply kinematic targets, buoyancy forces and water-movement forces; step Jolt once.
+3. Step 5: update CharacterVirtuals against the new world; write positions to Flecs and spatial membership; record position history for capped-rewind abilities.
+4. Step 6 (Combat): combat, projectile and AoE queries use the gameplay queries.
 
-- [ ] Create a world with a static ground and a dynamic body; step N fixed ticks.
-- [ ] Ray cast hit/miss with correct body/handle and contact data.
-- [ ] Shape cast and overlap queries return geometry results only.
-- [ ] Character controller walks on ground and is blocked by a wall (phase 1
-      "movement/collision" proof).
-- [ ] Collision layers filter queries.
-- [ ] A translation unit including every `Public/` header compiles without the
-      Jolt include path.
-- [ ] Builds and runs headless.
+- Jolt jobs run on the Core worker pool through the adapter; no thread is created outside the pool.
+- Queries go through per-worker query queues; results are identical for a fixed scene with any worker count.
+- Only the simulation's phases mutate physics state; never from an I/O callback.
 
-## Future extensions
+## Work packages
 
-Cooked collision loading (phase 3); per-cell collision streaming (phase 7);
-buoyancy support needed by Water (phase 12).
+| ID | Package | Done when | Needs | Slice |
+| --- | --- | --- | --- | --- |
+| PHYS-1 | PhysicsWorld, bodies, shapes and collision layers on Jolt v5.6 in double precision, kept private | Bodies collide without jitter far from the origin | WORLD-1 | 7 |
+| PHYS-2 | CharacterVirtual integration and ground movement | A capsule walks, climbs steps and stops at walls | PHYS-1 | 7 |
+| PHYS-3 | Debug-geometry extraction: Jolt's debug interface implemented inside Physics, written into Core DebugGeometry buffers | Bodies and shapes come out as plain lines and triangles; Physics links no Renderer | PHYS-1, CORE-3 | 8 |
+| PHYS-4 | Jolt job system on the Core worker pool: a JobSystem adapter inside Physics, so Jolt never owns threads | A physics step on the pool matches a single-thread step; no thread is created outside the pool | PHYS-1, CORE-2 | 10 |
+| PHYS-5 | Gameplay queries: ray, shape cast, overlap, per-worker query queues | Results are identical for a fixed scene with any worker count | PHYS-1, SIM-3 | 15 |
 
-## Open questions
+## Acceptance tests
 
-- Physics step rate/tick domain and determinism requirements
-  ([OQ-12](../system/11-open-questions.md#oq-12)).
-- Character physics on the client for prediction
-  ([OQ-15](../system/11-open-questions.md#oq-15)).
+The Done when column is the acceptance list. Slice 7 also requires a capsule that walks on static terrain far from the origin under keyboard control (with CLI-2).
+
+## Open items
+
+- The build pin is still Jolt 5.2.0 in single precision with every SIMD extension off (see [current-state.md](../current-state.md)). The target is Jolt 5.6.0 (tag v5.6.0) in double precision with its AVX2 path on the x86-64-v3 baseline. BUILD-1 sets the CPU baseline and PHYS-1 moves the pin; the archive's SHA-256 is computed when the pin moves. `cmake/Dependencies.cmake` reuses `ThirdParty/JoltPhysics` whenever that folder exists, so the change must also make sure an old source tree cannot be reused silently.
+- The Jolt debug renderer is configured off (`DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF`). The PHYS-3 contract session decides how development builds enable it.
+- [OQ-5](../system/11-open-questions.md#oq-5) (decided): Physics extracts Jolt debug geometry; the debug pipeline lives in Renderer; DebugGeometry lives in Core RenderData.

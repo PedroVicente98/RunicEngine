@@ -1,126 +1,179 @@
-# 07 — Service-backed systems: inventory, trade, auction, economy, quests
+# 07 — Service-backed systems
 
-Durable, transactional game features are split three ways. Platform provides the
-reusable mechanism; a private RunicGame Go service owns the rule; the Engine
-provides the runtime representation used inside the simulation.
+This file defines how the simulation reaches durable services without ever blocking a tick, which services exist and who owns them, and how simulations are placed, monitored and run locally.
 
-## Generic path [J.10.1]
+Source: ARCH § Platform and operations, § Engine gameplay APIs (Quest runtime and the quest-creation API),
+§ Repositories, build targets and processes (Platform modules, Game modules), § Water system, § Environment.
 
-```text
-RunicGame Client
-      |
-      | typed request / command
-      v
-RunicPlatform networking / ServiceRuntime
-      |
-      v
-RunicGame Server domain service (Go)
-      |
-      | uses reusable transaction/persistence APIs
-      v
-RunicPlatform Persistence
-      |
-      v
-Database
-```
+## Services
 
-The Platform package is reusable infrastructure. The Game service owns the rule
-that decides whether a domain operation is legal and what durable mutation is
-committed.
+Every service is built on the Platform Go SDK. Persistence is PostgreSQL.
 
-## Inventory split [J.10.2]
+### Platform services (mechanisms, reusable by any MMORPG)
 
-| Layer | Responsibilities |
+| Service | Owns | Package |
+| --- | --- | --- |
+| Accounts and entitlements | Login, entitlements, `GlobalPlayerId` issue, connect tickets signed with rotating keys whose public halves the simulations load | PCS-1 |
+| World Coordinator | Region-to-simulation map, neighbor topology, handoff candidates, drains, placement requests to Agones, the world epoch | PCS-2 |
+| World directives | Weather events and other world-wide directives with an effective world time | PCS-3 |
+| Instance allocation | Instances (for example dungeons and raids) from Agones fleets | PCS-4 |
+| Chat and party groups | Social transport and party membership; group rules come from game data | PCS-5 |
+| Admission | Per-world capacity limits, login queue and cohort waves | PCS-6 |
+| Item ledger | Item instances, containers, slots, atomic transfers, operation IDs; mechanisms only, with no game rules | PBB-1 |
+| Currency wallets | Balances and atomic transfers (PBB-2), and one-transaction transfers together with the item ledger (PBB-3); mechanisms only | PBB-2, PBB-3 |
+
+### Game services (RunicGame, named only)
+
+Their rules are RunicGame code and are not described here.
+
+| Service | One line |
 | --- | --- |
-| Engine `Gameplay` | Runtime ItemId/ItemDefinition/ItemInstance/inventory/equipment representation used by the simulation. |
-| Platform | Authenticated service transport, transactions, persistence, idempotency primitives, DB adapters. |
-| Game Server `InventoryService` | Capacity, stack/bind/equip/trade restrictions, grant/removal policy, duplication-prevention checks, loot integration. |
-| Game Client | Inventory UI, drag/drop intent, visible metadata. No authoritative item ownership. |
+| Character | Characters and their durable character state |
+| Inventory | The game's item rules, applied through the Platform item ledger |
+| Quest | Stores quest progress, deduplicates quest facts and commits rewards; quest logic runs in the simulation |
+| Economy | The game's economy rules, including regional auction houses |
+| Trade | Trade between players; items and currency move in one transaction through the ledger and wallets (PBB-3) |
+| Guild | Guild membership and rules |
+| Mail | Mail delivery, with attachments through the ledger and wallets |
+| Housing | Housing and land rules |
+| World events | Decides world-wide overrides (such as storms) and delivers them as Platform world directives |
+| Rankings | Rankings and contribution tracking |
 
-## Trade split [J.10.3]
+Rules:
 
-| Platform mechanisms | Game Server rules | Client |
-| --- | --- | --- |
-| Atomic transaction primitives, locking/versioning, idempotency, RPC/service runtime, durable item/currency transfer. | Can these players trade? Can this item trade? Bound status? Tax? Cooldown? Region restriction? Confirmation rules? | Trade window, offered items, confirmation intent, display of the authoritative result. |
+- **The Platform owns mechanisms, never policy.** No game rule enters a Platform service, its tests or its contracts.
+- **Game services are built on Platform building blocks**, never by forking them.
+- **Durable water state** (for example a lock or level that must survive restarts) is stored by a Game service on the
+  Platform Go SDK. The Game decides it; it reaches the simulation through the service port when the owning region
+  loads. The Platform provides only the SDK persistence, never a water-specific service.
 
-## Auction split [J.10.4]
+## The simulation never waits
 
-| Platform mechanisms | Game Server `AuctionService` | Client-safe surface |
-| --- | --- | --- |
-| Service hosting, authentication context, pagination/query helpers, persistence, transactions, idempotency, event publication. | Listing rules, fees/taxes, min/max price, duration, listing caps, bid/buyout rules, regional markets, seller restrictions, anti-exploit logic, balancing algorithms. | SearchListings, CreateListing, CancelListing, PlaceBid, Buyout, plus displayable returned fields. |
+- The simulation never waits for a service or the database. Network, service and database work is queued and
+  applied at defined points.
+- Durable writes happen at explicit boundaries: logout, trade, periodic checkpoint and other explicit operations.
+- Flecs keeps only what the active simulation needs; durable state lives in Go services and PostgreSQL.
+- The Engine reaches services **only** through the Simulation's service port (SIM-5), shipped as the header-only
+  `Runic::SimulationPort` target. The Platform's ServicesBridgeLayer implements it on its own threads: asynchronous
+  gRPC calls from slice 27 (PBND-1), and NATS from slice 30 (PBND-4): durable facts published from the outbox, world
+  directives and other subscriptions delivered to the inbox.
+- Completions are queued and drained at **safe ticks**. A service callback never touches Flecs.
 
-The client never needs the internal economic algorithms, hidden modifiers,
-anti-abuse heuristics, or server-only market rules to present the auction house.
+## The durable-fact path
 
-## Quest persistence [J.10.5]
+Step by step, for any fact that must become durable (quest progress is the reference case):
 
-```go
-// Platform-side reusable interfaces (conceptual)
-type QuestStore interface {
-    Load(ctx context.Context, player PlayerID) (QuestStateSet, error)
-    Commit(ctx context.Context, tx QuestTransaction) error
-}
+1. A simulation system emits the fact once, with a stable event ID (SimulationId plus sequence, EVT-1).
+2. In-simulation consumers (for example the quest runtime) react in the same tick.
+3. The fact or operation is placed in the service port's outbox with its stable ID.
+4. The ServicesBridgeLayer sends it asynchronously: a gRPC call when an answer is needed (PBND-1), a NATS publish
+   when not (PBND-4).
+5. The owning service validates the source, deduplicates by ID and commits in one transaction.
+6. The accepted result is queued back; the simulation drains the inbox at a later safe tick and applies it.
+7. Replaying the same fact, or delivering the same result twice, changes nothing.
 
-type IdempotencyStore interface {
-    Begin(ctx context.Context, key OperationID) (Decision, error)
-    Complete(ctx context.Context, key OperationID, result Result) error
-}
+| Step owner | Engine | Platform | Game |
+| --- | --- | --- | --- |
+| Emit fact, apply result | Simulation, Events, the consuming module | — | Game rules registered into the simulation |
+| Carry it | Service port interface (SIM-5, `Runic::SimulationPort`) | ServicesBridgeLayer (PBND-1 gRPC, PBND-4 NATS), Go SDK (PSDK-1 to PSDK-3) | — |
+| Store it | — | Transactions and idempotency store (PSDK-2) | The service's domain logic |
 
-// RunicGame implements the actual quest progression policy on top.
-```
+## Idempotency
 
-The authoritative C++ simulation emits facts such as `EntityKilled` or
-`WorldInteractionCompleted`. The private Game `QuestService` validates
-origin/context, deduplicates operation/event identity, advances durable
-progression, commits rewards and other durable operations, and returns accepted
-state/results through Platform mechanisms.
+- Every durable change is an operation with an ID, so retries are safe.
+- The Go SDK owns transactions, migrations and the idempotency store: a retried operation commits once (PSDK-2).
+- Item movements use the ledger's atomic transfers with operation IDs: concurrent transfers never duplicate or lose an
+  item (PBB-1). A loot grant is applied once across reconnects.
+- A transfer that moves ledger items and wallet currency together (a trade, a purchase) commits in one transaction
+  (PBB-3); never split it into two operations that can half-succeed.
+- A fact published once on NATS is consumed once per subscriber (PSDK-3); JetStream is used only where replay is
+  required.
 
-> Open point: `QuestStore` is a quest-shaped interface in Platform, while J.1.3
-> says Platform owns no quest policy. Whether Platform exposes generic
-> repository/transaction helpers and Game defines `QuestStore` is tracked in
-> [OQ-16](11-open-questions.md#oq-16).
+## World directives
 
-## Simulation-originated loot flow [J.10.6]
+- World directives (PCS-3) carry an effective world time a few seconds ahead, so every simulation that owns an
+  affected region applies them on the same tick.
+- They reach the simulations through the services bridge: NATS subscriptions delivered to the service port's inbox at
+  safe ticks (PBND-4). A Game service decides the content (for example a storm); the Platform only delivers it.
+- World time itself counts from the world epoch the World Coordinator issues (PCS-2, slice 36). Until PCS-2 ships, the
+  Environment clock (ENV-1) reads the epoch from configuration.
 
-```text
-Client attack intent
-      |
-      v
-Authoritative Simulation
-      |
-Game Combat Rules
-      |
-EntityKilled gameplay fact
-      |
-Game Loot Rules
-      |
-async durable grant request
-      v
-Platform ServiceRuntime
-      |
-Game InventoryService
-      |
-Platform transaction/persistence
-      v
-Database
+## Simulation placement
 
-Simulation tick never blocks waiting for the database.
-```
+- **One region per simulation pod by default** (decided); quiet neighboring regions may share a pod to save cost.
+- Pods request whole vCPUs, and the simulation sizes its worker pool from them.
+- **Growing in place:** Kubernetes in-place pod resize (stable since Kubernetes 1.35) raises a running pod's CPU
+  without a restart; the simulation picks up the new worker count at a safe point.
+- **Pinned cores:** exclusive cores (the static CPU manager) give the steadiest tick, but Kubernetes does not allow
+  in-place resize with them. Use them only for hot fleets after profiling; those pods grow by moving.
+- **Moving to a bigger machine:** Kubernetes never moves a running process. The World Coordinator starts a new pod on
+  a bigger node, transfers the region's entities with the handoff protocol and retires the old pod, with no loading
+  screen for players.
+- **Several simulations for one region:** last resort; the region is split into ownership areas using the same border
+  handoff ([05 § Authority partitions](05-distributed-simulation.md#authority-partitions)).
+- A new open-world simulation is never allocated inside a handoff's critical path; neighbors already exist.
 
-The accepted result returns asynchronously and is applied at a later safe tick;
-service callbacks never mutate Flecs directly. [J.14.4]
+## Instances and geography
 
-## Private Game services (names only)
+- Instances are Agones-allocated game servers from fleets; the client preloads while the player approaches the
+  entrance.
+- Worlds are hosted in regional datacenters near their players, each with its own Kubernetes cluster and Agones.
+  Accounts are global.
 
-The concrete services are RunicGame code: CharacterService, InventoryService,
-QuestService, TradeService, AuctionService, EconomyService, GuildService,
-MailService. Their contracts live in RunicGame `docs/services/`. [J.6.3]
+## Staged access mechanisms
 
-## Client secrecy boundary [J.6.4]
+The Platform provides access-control mechanisms; when and how a game uses them is a Game decision.
 
-Client-safe schemas may expose identifiers, display metadata, visible stats,
-endpoint methods, and results needed for UI. Server-only packages keep drop
-probabilities, hidden rarity weighting, anti-abuse thresholds, economic
-coefficients, server-only spawn logic, hidden quest conditions, and encounter
-logic. Shipping less rule implementation reduces easy reverse engineering,
-although players can still infer behavior by observation.
+| Mechanism | Owner |
+| --- | --- |
+| Entitlement check at login | Platform accounts and entitlements (PCS-1) |
+| Per-world capacity limits | Platform admission (PCS-6, slice 44+) |
+| Admission waves by account cohort and a login queue per world, paced by server metrics | Platform admission (PCS-6, slice 44+) |
+
+## Monitoring: one panel
+
+Decided.
+
+- **Grafana is the single operations panel.** Agones exports its metrics (fleets, allocations, game server states) to
+  Prometheus and ships Grafana dashboards for them.
+- **The Core registry records, the Platform exporter publishes.** Each GameServer records its metrics in the Core
+  metrics registry (CORE-2); the Diagnostics layer (NET-7) adds network and replication metrics. The Platform's
+  Prometheus exporter (PBND-3) publishes the registry to the same Prometheus: time per clock domain and system, tick
+  backlog, players, entities, bandwidth per client, handoffs, ghosts. PBND-3 needs only CORE-2 and SIM-1; it does not wait
+  for the Diagnostics layer.
+- Go services export their metrics through the SDK. Logs join the same panel.
+- **Live inspection is the Editor's job, not the server's.** In development and staging the Editor attaches to a
+  running GameServer through a privileged debug channel (entity inspector, live behavior trees, resolver traces, a
+  stream of debug shapes). Production builds compile the attach channel out, expose metrics only through the Platform
+  exporter and never link ImGui.
+
+Metrics every process exports (ARCH § Tools):
+
+| Scope | Metrics |
+| --- | --- |
+| Per simulation tick | Time per clock domain and per major system (p50, p95, p99), backlog, Jolt counts, queries, events, worker utilization, time per layer |
+| Per client | Replication bytes, entities per visibility tier, snapshot age |
+| Per simulation | CPU, players, bandwidth, handoffs, ghosts |
+
+## Local development
+
+- **Gameplay work never needs Kubernetes.** Run GameServer directly, without a lifecycle layer or with the
+  LifecycleLayer's local stub mode (PBND-2), and, only when a feature needs them, local NATS and Go services.
+- PBND-2 is tested against the Agones local SDK server (Ready, health pings, drain on shutdown); its stub mode runs
+  with no Agones at all.
+- The local development stack (PINF-1) starts PostgreSQL and NATS with one command; the service tests pass against it.
+- Connect tickets are test-signed with a local key from slice 12 until PCS-1 (slice 27) issues real ones, signed with
+  rotating keys; the simulation verifies signature, expiry and key ID against its configured public keys (PTR-2).
+- Until PCS-2 (slice 36), the world epoch comes from configuration.
+- Agones fleets, Kubernetes manifests and dashboards (PINF-2) arrive in slice 39 and are needed only for operations.
+
+## Rules for any session touching this area
+
+- Never block a tick on a service, the network or disk.
+- Never touch Flecs from a service or I/O callback; queue the result for a safe tick.
+- Never give a durable operation an ID that changes on retry or replay.
+- Never link gRPC, NATS, Agones or a database client into an Engine module.
+- Never link a Platform C++ target to anything in the Engine but `Runic::Core`, `Runic::Application`,
+  `Runic::NetworkTransport` and `Runic::SimulationPort`.
+- Never carry per-tick traffic in Protobuf, NATS or gRPC.
+- Never put game rules into a Platform service or building block.

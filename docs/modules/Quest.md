@@ -1,123 +1,116 @@
 # Quest
 
-> **Contract seed.** When `Engine/Quest/` is created, copy this file to
-> `Engine/Quest/ARCHITECTURE.md`; from then on that file is authoritative.
-> Purpose, Owns, Does not own, Allowed dependencies, Primary consumers, layout,
-> and example come from Appendix J §J.4.19, §J.9, and §J.10.5. Other sections are
-> derived and are proposals until confirmed.
+Contract seed for `Runic::Quest`: what a Claude Code session needs to implement the Quest work packages. When `Engine/GameplayAPI/Quest/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
 
 | Field | Value |
 | --- | --- |
-| Directory | `Engine/Quest/` |
-| CMake target | `RunicQuest` → `Runic::Quest` |
+| Group | GameplayAPI (linked through the umbrella target `Runic::GameplayAPI`) |
+| Directory | `Engine/GameplayAPI/Quest/` |
+| CMake target | `Runic::Quest` |
 | Namespace | `Runic::Quest` |
-| Roadmap phase | 10 — GameplayFlow + Quest |
 | Headless | yes |
 | Status | Not started |
 
 ## Purpose
 
-Reusable quest/objective/trigger/condition/action runtime and world-interaction
-bridge.
+Quest is the quest runtime and the quest-creation API. The runtime runs inside the simulation on top of GameplayFlow, so a kill or an interaction advances a quest in the same tick that produced the fact. Durable progress lives in a Game service built on the Platform Go SDK. The Engine owns the runtime and the API; the Game owns every quest (ARCH § Engine gameplay APIs, quest runtime and the quest-creation API).
 
 ## Owns
 
-- `QuestId` and quest instances.
-- Objective, trigger, and condition abstractions.
-- `QuestAction` integration (with GameplayFlow).
-- `QuestContext`.
-- Runtime consumption of gameplay facts.
+- The quest runtime and the quest-creation API: definitions, objectives, triggers from facts, instances (QST-1).
+- Definitions as data. A quest is an ID, its states and objectives, and for each transition a trigger, conditions, actions and the next state. Designers write them without C++, and the Cooker validates them.
+- Registries that extend the vocabulary. The Engine ships generic entries under `engine:` IDs; the Game registers its own `game:` triggers, conditions and actions in C++.
+
+| Registry | Engine built-ins |
+| --- | --- |
+| Triggers | Entity killed, item acquired, interaction completed, area entered, sequence ended |
+| Conditions | Quest state, has item, entity alive, time window |
+| Actions | Set objective, start sequence, request an item grant or removal through a service, spawn |
+
+- A builder for code: the same definitions can be built in C++ for tests and generated content; data and code end in the same registry.
+- The durable bridge (QST-2): outgoing quest facts with stable IDs leave through the Simulation's service port; accepted results are applied at safe ticks.
+- Quest instances registered as a transfer-snapshot contributor (QST-3), so a quest in progress moves with its owner.
+
+The durable path:
+
+1. A module emits a fact once, with a stable event ID (for example EntityKilled from Combat).
+2. The quest runtime consumes the fact, advances its local state and may start a sequence.
+3. The fact leaves through the Simulation's service port, and the Platform's services-bridge layer carries it to the Game's Quest service, asynchronously.
+4. The service validates the source, deduplicates by event ID, updates progress and commits rewards in one transaction.
+5. The accepted result returns to the simulation and is applied at a later safe tick; a service callback never touches Flecs.
+6. Replaying the same fact changes nothing.
+
+On login the character's quest state loads from the service into the runtime. On handoff, quest instances travel in the transfer snapshot with the rest of the player's state.
 
 ## Does not own
 
-Actual RunicGame quests, story, rewards, and the private durable QuestService
-policy.
+- Sequences, timers and their termination path (GameplayFlow). Quest builds on GameplayFlow and never becomes a second scripting runtime.
+- Durable progress, deduplication and rewards: the Game's Quest service, on the Platform Go SDK's transactions and idempotency store (OQ-16).
+- The service port (Simulation, SIM-5) and the bridge that implements it (Platform, PBND-1 and PBND-4).
+- The transfer protocol and the snapshot-contributor registry (DistributedSimulation, DSIM-3).
+- The facts themselves: each emitting module defines its own fact types.
+- Every concrete quest, dialogue and `game:` registry entry (RunicGame).
 
-## Allowed dependencies
+## Depends on
 
-- Core, Events, Gameplay, GameplayFlow, Content, Simulation.
+| Kind | Allowed |
+| --- | --- |
+| Engine modules | GameplayFlow, DistributedSimulation (handoff snapshot) |
+| Third-party | — |
 
-## Forbidden dependencies
+DistributedSimulation is needed only for the handoff snapshot (QST-3); a package links only what it uses.
 
-Persistence/service clients, NetworkAdapter, Jolt/bgfx, RunicPlatform,
-RunicGame. Quest must not become a second scripting engine — sequences belong
-to GameplayFlow.
+### Must never depend on
 
-## Primary consumers
+- Combat or AI internals: quests act through Simulation commands and Gameplay APIs, the same doors players use (ARCH § Modules, work packages and the implementation contract, dependency rules).
+- gRPC, NATS, databases or any service client. Durable work goes only through the service port.
+- Presentation modules (Client, Renderer, UI, Audio).
+- Game quests, names or values in code or tests. Tests use neutral IDs such as `engine:test_quest`.
+- RunicPlatform or RunicGame code; Agones or Kubernetes.
 
-RunicGame quests, the Platform adapter/service bridge, Editor quest tooling
-(later).
+## Public API sketch
 
-## Public API (conceptual)
+ARCH's illustrative builder, with neutral test IDs in place of ARCH's example content:
 
-```text
-Quest/
-├── Public/
-│   ├── QuestId.hpp
-│   ├── QuestInstance.hpp
-│   ├── QuestObjective.hpp
-│   ├── QuestTrigger.hpp
-│   ├── QuestCondition.hpp
-│   ├── QuestAction.hpp
-│   ├── QuestContext.hpp
-│   ├── QuestRuntime.hpp
-│   └── QuestEvents.hpp
-├── Source/
-│   ├── Objectives/
-│   ├── Conditions/
-│   ├── Triggers/
-│   └── Runtime/
-├── Tests/
-└── CMakeLists.txt
+```cpp
+// Illustrative
+QuestDefinition quest = QuestBuilder("engine:test_quest")
+    .State("OpenDoor")
+        .On(Trigger::InteractionCompleted("engine:test_door"))
+        .If(Condition::HasItem("engine:test_key"))
+        .If(Condition::EntityAlive("engine:test_npc"))
+        .Do(Action::StartSequence("engine:test_sequence"))
+        .Do(Action::SetObjective("Leave"))
+        .GoTo("Leave")
+    .Build();
+
+quests.Register(std::move(quest));   // the same path loaded data takes
+conditions.Register("game:<condition>", GameCondition{});   // RunicGame, server only
 ```
 
-```text
-Trigger:     PlayerInteracted(PrisonDoor)
-Conditions:  QuestState == RescuePrincess.OpenCell
-             PlayerHasItem(CellKey)
-             PrincessAlive
-Actions:     OpenDoor
-             RemoveItem(CellKey)
-             StartSequence(PrincessRescue)
-             SetObjective(EscapeCastle)
-Transition:  OpenCell -> EscapeCastle
-```
+Headers (sketch, fixed in the contract session): `QuestDefinition.hpp`, `QuestBuilder.hpp`, `QuestRegistries.hpp`, `QuestRuntime.hpp`, `QuestInstance.hpp`, `QuestEvents.hpp`, `QuestDurableBridge.hpp`.
 
-Engine defines extensible action/condition/trigger registries, not a hard-coded
-enum of every possible RunicGame quest action. [J.4.19]
+## Threading and tick rules
 
-## Threading / tick model (derived)
+- The runtime runs on the simulation thread at phase boundaries and consumes facts after they are flushed, in the same tick that produced them.
+- Quest consumers are typical 10 Hz domain work (ARCH § Simulation core: clock and threads); the QST-1 contract session fixes the phase.
+- Outgoing facts carry their stable event IDs; the runtime never re-numbers them.
+- Accepted results are drained from the service port inbox at safe ticks. No I/O or service callback touches Flecs.
+- A replayed fact never advances progress twice.
 
-Runs on the simulation thread; consumes facts from Events readers each tick.
-Durable progression is asynchronous (below).
+## Work packages
 
-## Data ownership (derived)
+| ID | Package | Done when | Needs | Slice |
+| --- | --- | --- | --- | --- |
+| QST-1 | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances | A quest defined only in data advances from kill and interaction facts | FLOW-1 | 30 |
+| QST-2 | Durable bridge: outgoing quest facts with stable IDs through the service port; accepted results applied at safe ticks | A replayed fact never doubles progress; no service callback touches Flecs | QST-1, SIM-5 | 30 |
+| QST-3 | Quest instances registered as a transfer-snapshot contributor | A quest in progress crosses a simulation border with its objectives and timers intact | QST-1, DSIM-3 | 37 |
 
-- The simulation holds the *runtime* quest state needed for local world behavior.
-- Durable progression and rewards are owned by the private Game QuestService;
-  the accepted durable state is applied back at a later safe tick. [J.10.5, J.14.4]
+## Acceptance tests
 
-## Integration points (derived)
+The Done when column is the acceptance list. Slice 30 proves a persistent quest driven by gameplay facts; slice 37 proves that a quest survives handoff. In this repository both use Engine test quests and a fake service port, never RunicGame content.
 
-- Events: `EntityKilled`, `InteractionCompleted`, etc. drive triggers.
-- GameplayFlow: `StartSequence` and shared action/condition registries.
-- Durable bridge: Quest emits durable quest facts/operations with stable
-  identity; NetworkAdapter/Platform deliver them to QuestService. Quest itself
-  never calls a service.
+## Open items
 
-## Acceptance tests (Stage A, derived — subset of [J.14.4](../system/09-validation-scenarios.md#j144-quest-durability-test))
-
-- [ ] A test quest advances an objective on a matching fact and ignores
-      non-matching facts.
-- [ ] Trigger → conditions → actions → transition executes atomically within a
-      tick.
-- [ ] The same fact (same `EventId`) delivered twice does not advance progress
-      twice locally.
-- [ ] Durable operations are emitted with stable identity; an accepted result
-      is applied at a later tick, never from a callback.
-- [ ] Game-specific (`game:` test) triggers/conditions/actions register without
-      Engine changes.
-
-## Open questions
-
-- [OQ-16](../system/11-open-questions.md#oq-16) — `QuestStore` placement.
+- Decided in ARCH revision 369: the "entity killed" trigger reads the kill fact Gameplay publishes (GPL-2; Combat fills in the source), so Quest needs no Combat edge.
+- [OQ-16](../system/11-open-questions.md#oq-16) (decided): the Platform Go SDK owns transactions and the idempotency store; the Game Quest service stores progress.

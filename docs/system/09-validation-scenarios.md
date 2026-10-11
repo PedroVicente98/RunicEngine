@@ -1,97 +1,255 @@
-# 09 — Validation scenarios and acceptance gates
+# 09 — Validation scenarios
 
-These scenarios are the end-to-end tests that prove the architecture. Module
-acceptance tests (in each module contract) should be written so that these
-scenarios can be assembled from them. [J.14]
+This file turns ARCH's acceptance lists into checklists that CI or a person can run to prove a slice, and with it the architecture.
 
-## J.14.1 First true playable MMO slice
+Source: ARCH § Vertical-slice roadmap, § Modules, work packages and the implementation contract (Automated checks),
+§ Debug renderer, § AI architecture (Tests), § Water system, § Environment (Acceptance tests), § Sailing, swimming and
+naval play (Sea acceptance list), § Render data, extraction and world UI, § Audio (Acceptance tests),
+§ Networking: replication, interest and handoff.
 
-- A small streamed world with Region/Sector/Cell structure.
-- Two clients connected directly to an authoritative simulation through Platform
-  Realtime.
-- Server-authoritative movement with client prediction/reconciliation.
-- One wolf using Engine AI/Navigation and Game behavior.
-- Engine Combat with Game-specific melee/projectile data.
-- An `EntityKilled` gameplay fact observed by multiple consumers.
-- The private Game InventoryService grants a durable sword through Platform
-  service/persistence APIs.
-- Disconnect/reconnect reloads the durable result without a duplicate grant.
+## How to use these checklists
 
-## J.14.2 Hot-city two-simulation test
+- Each package's **Done when** ([12-work-packages.md](12-work-packages.md)) is an automated test inside its module.
+  The scenarios below assemble those tests into end-to-end proofs of a slice.
+- **CI** marks a check that runs unattended in CI. **Manual** marks a check a person runs (usually with the debug
+  renderer, the Editor or two clients) and records in the pull request or `docs/current-state.md`.
+- Scenarios that ARCH states with Game content are written neutrally. Engine and Platform tests use neutral IDs such as
+  `engine:test_ability`; the Game repeats them with its own content in RunicGame.
+- A scenario passes only when every box is checked.
 
-1. Load the same city static world data into Simulation A and Simulation B.
-2. WorldControl assigns adjacent AuthorityPartitions inside the same logical
-   Region/Sector/Cell working set.
-3. Alice is A-owned and Bob is B-owned; each appears as a ghost where relevant.
-4. Alice crosses the partition boundary with make-before-break client connection
-   promotion and an AuthorityEpoch increment.
-5. Alice attacks Bob before and after the handoff; Bob is damaged **exactly
-   once**, by his authoritative owner.
-6. A projectile or AoE crossing the boundary uses foreign effect context rather
-   than mutating remote ghosts.
-7. No local Flecs entity ID appears on the wire.
-8. Dropping a candidate/retiring connection cannot duplicate or roll back
-   authority.
+## Build and boundary checks (every pull request)
 
-## J.14.3 Cutscene safety test
+- [ ] CI: the GameServer target builds alone with no GLFW, bgfx, RmlUi, ImGui, audio backend or editor code.
+- [ ] CI: every module links only what its row in [03](03-dependency-rules.md#engine-modules) allows.
+- [ ] CI: no file includes another module's `Source/`.
+- [ ] CI: no library type appears in a `Public/` header, apart from GLM in Core, the Flecs world handle and
+      BehaviorTree.CPP node base types where approved.
+- [ ] CI: module tests pass for every merged package.
+- [ ] CI: a code change carries its `ARCHITECTURE.md` and package-status update.
+- [ ] CI: Engine and Platform code and tests contain no Game rules, names or numbers.
+- [ ] CI (RunicPlatform): the standalone C++ build links only `Runic::Core`, `Runic::Application`,
+      `Runic::NetworkTransport` and `Runic::SimulationPort` from the Engine and never configures Flecs, Jolt or the
+      gameplay modules.
 
-1. The server starts a GameplayFlow sequence and acquires input, movement,
-   ability, interaction, targeting, damage, and external-motion restrictions from
-   a stable `SequenceInstanceId`.
-2. The client disables controls and plays the cinematic presentation.
-3. A modified client keeps sending MoveCommand, UseAbility, and Interact; the
-   server rejects them.
-4. Hostile combat cannot damage/target/move the protected player according to the
-   restriction spec.
-5. Complete, Abort, Timeout, disconnect, quest abandon, and simulation shutdown
-   paths each release all sequence-owned restrictions.
-6. A watchdog test deliberately corrupts/loses normal completion and verifies
-   temporary restrictions cannot stay permanent without diagnostics/expiry.
-7. A `Transferable` sequence survives authority handoff with the same source IDs
-   and remaining timers; `PinAuthority` and `AbortOnTransfer` behave explicitly.
+## Debug renderer and physics view (slices 2, 5, 8)
 
-## J.14.4 Quest durability test
+- [ ] Manual: a grid, one movable capsule, one camera, one attack arc, one ray, and text showing the simulation tick
+      and network state draw.
+- [ ] Manual: every debug shape renders batched in one frame; filled shapes with opacity draw after the line batch;
+      the overlay batch shows hidden bounds without making every line x-ray.
+- [ ] Manual: a predicted capsule moves around a grid and the authoritative correction shows separately.
+- [ ] Manual: attack volumes render with the same dimensions combat uses.
+- [ ] Manual: Jolt collision state can be inspected; collision shapes line up with gameplay shapes; each debug layer
+      toggles.
+- [ ] CI: no simulation system calls bgfx; Physics links no Renderer and the Renderer links no Physics.
+- [ ] CI: entities are drawn from the RenderFrame only (CLI-1).
 
-1. Combat emits `EntityKilled` once with a stable event identity.
-2. The Game quest runtime consumes the relevant fact and may execute local world
-   behavior.
-3. NetworkAdapter/Platform transports the durable quest fact/operation
-   asynchronously.
-4. The private QuestService validates context, deduplicates identity, updates
-   progression, and commits rewards transactionally.
-5. Replaying the same event does not increment progress or duplicate rewards.
-6. The service callback never mutates Flecs directly; the accepted result is
-   queued for a later safe tick.
+## Combat prototype (slice 19)
 
-## J.14.5 Auction secrecy and authority test
+Engine-neutral form of ARCH's combat prototype acceptance list. The Game's own list, with its values, is in RunicGame.
 
-- The client contains only endpoint bindings, UI logic, displayable schemas, and
-  the visible data required for interaction.
-- Listing/tax/price/market/anti-abuse rules execute in the private Game
-  AuctionService.
-- Platform provides authenticated service runtime, transaction/persistence
-  primitives, query/pagination helpers, and idempotency.
-- Tampered client price/tax assumptions do not affect server validation or
-  committed transaction results.
+- [ ] Two players and a dummy are in one scene.
+- [ ] One melee attack and one projectile each hit the dummy exactly once.
+- [ ] A dodge spends a defensive resource and its invulnerability window blocks hits.
+- [ ] A directional block intercepts damage only from the configured direction.
+- [ ] A crowd-control chain applies, then an immunity window follows, as the test data says.
+- [ ] An AoE proves damage falloff and the crowd-control target cap.
+- [ ] One rule interaction: one status changes the effect of another, through the rule pipeline.
+- [ ] A FriendlyLock heal selects only a friendly target.
+- [ ] A PvE threat override changes the NPC's target through the threat table.
+- [ ] A PvP damage-redirect protection applies through damage interception.
+- [ ] Debug drawing shows all of the above.
 
-## J.14.6 Headless dependency test
+Package checks that the slice also needs (from the Done when of its packages):
 
-The authoritative server build must compile and run without GLFW, bgfx, RmlUi,
-ImGui, client audio, or editor linkage. ApplicationHost, Simulation, Events,
-World, Physics, Gameplay/Combat/AI/Quest/GameplayFlow, DistributedSimulation,
-NetworkAdapter, and the required Platform bindings must remain
-headless-compatible.
+- [ ] A crowd-control chain and its immunity follow the test data (CMB-6).
+- [ ] An early input fires on the first legal tick; a stun in between cancels it (CMB-7).
+- [ ] UI clicks never become attacks (UI-2).
 
-Suggested automation (derived): a CI job that configures the server-only build
-with presentation disabled and fails if any presentation target is configured or
-linked (e.g. inspect the link line or `cmake --graphviz` output for `glfw`,
-`bgfx`, `RmlUi`, `imgui`, or `RunicEditor`).
+## Durable path: accounts, items and quests (slices 26 to 30)
 
-## J.14.7 Outcome
+- [ ] CI: a retried operation commits once (PSDK-2).
+- [ ] CI: a fake service port that delivers a result twice is applied once; no I/O callback touches Flecs (SIM-5).
+- [ ] CI: a slow service never delays a tick (PBND-1).
+- [ ] Manual: log in, receive a real signed ticket, load and save a character (slice 27).
+- [ ] CI: bad or expired tickets are rejected with no service call (PTR-2); the check uses signature, expiry and key
+      ID against a configured set of public keys.
+- [ ] CI: concurrent ledger transfers never duplicate or lose an item (PBB-1).
+- [ ] CI: a wallet balance changes once per operation ID under concurrent requests (PBB-2, slice 33a).
+- [ ] Manual: kill, loot, log out, keep the item; a loot grant is applied once across reconnects (slice 28).
+- [ ] CI: a quest defined only in data advances from kill and interaction facts (QST-1).
+- [ ] CI: a replayed quest fact never doubles progress; no service callback touches Flecs (QST-2).
+- [ ] CI: a fact published once is consumed once per subscriber (PSDK-3).
+- [ ] CI: a fact published from a tick reaches a test subscriber once; a slow broker never delays a tick (PBND-4).
+- [ ] CI: C++ and Go round-trip the same Contracts message (PCT-1, slice 12).
+- [ ] Manual: the Contracts define service APIs, published facts and the connect-ticket format only; inputs,
+      snapshots, deltas and simulation-link messages are encoded by Runic::Network, never by Protobuf.
 
-The target is not a single monolithic MMO server library. It is a
-dependency-controlled graph of substantial reusable modules. Engine owns reusable
-game/runtime semantics; Platform owns reusable distributed mechanisms; Game owns
-all concrete RunicGame policy and content. Cross-cutting features — quests,
-cross-simulation combat, cutscenes, inventory, auctions — are deliberately split
-across those layers without duplicating authority.
+## Scripted sequence safety (slices 29 and 37)
+
+- [ ] The server starts a sequence and acquires input, movement, ability, interaction, targeting, damage and
+      external-motion restrictions under the sequence's source ID.
+- [ ] Commands blocked by a restriction are rejected on the server even if a modified client sends them.
+- [ ] Complete, abort, timeout, disconnect and shutdown each release everything the sequence held (FLOW-2).
+- [ ] A boss phase locks the arena; a cutscene protects the player; a disconnect releases everything (slice 29).
+- [ ] A temporary restriction expires and raises a watchdog diagnostic if no exit path released it.
+- [ ] A sequence waits, branches and acts only through commands and Gameplay APIs (FLOW-1).
+- [ ] Transferable keeps its timers across a handoff; PinAuthority blocks transfer; AbortOnTransfer cleans up (FLOW-3).
+- [ ] A quest in progress crosses a simulation border with its objectives and timers intact (QST-3).
+
+## AI (slices 32 to 35 and 38)
+
+Representative unit tests:
+
+- [ ] Perception: a hostile entering the detect radius wakes the NPC engaged; entering only the warn radius wakes it
+      alerted; high concealment shrinks the radii; the minimum radius still detects in total darkness; damage wakes
+      from outside both radii.
+- [ ] Target validity: death, concealment beyond detect range or a leash break invalidates or changes behavior
+      according to policy.
+- [ ] Reaction timing: a threat before `reactAt` fails HasReactableThreat; the same threat after `reactAt` succeeds.
+- [ ] Utility: unavailable actions score invalid; personality biases change ordering; a fixed seed reproduces a
+      choice.
+- [ ] Intent boundary: a tree action emits the expected intent and never changes combat state directly.
+- [ ] Command rejection: choosing a defense while committed is rejected; AI never bypasses combat rules.
+- [ ] Wake and sleep: a BrainHandle is created on wake and recycled on sleep; dormant entities never tick a tree.
+- [ ] Editor validation: unknown nodes, ports or content IDs are reported; valid assets round-trip without loss.
+
+Integration tests:
+
+1. [ ] An NPC detects a player, approaches, attacks, reacts to a telegraphed attack and returns home after a leash
+       break.
+2. [ ] At night an unlit player passes outside the reduced detect radius unnoticed, while a player carrying a light
+       emitter is detected from farther away.
+3. [ ] A player raises concealment while engaged; the target is dropped according to policy, and lowering it makes the
+       player detectable again.
+4. [ ] An NPC chooses a defense after its action became non-cancellable and correctly fails to execute it.
+5. [ ] A SkillStarted fact produced in the realtime phase reaches AI memory only in the post-realtime phase and is
+       acted on in a later pre-realtime tick.
+6. [ ] Runic::AI builds and runs headless with no ImGui, bgfx or editor dependency.
+7. [ ] Selecting a live NPC in the Editor shows the same BrainHandle, tree, memory and intents the runtime
+       instrumentation records.
+
+Scale (slice 38):
+
+- [ ] The tick budget holds with thousands of loaded NPCs at the target awake percentages (AI-6).
+
+## Interest and visibility (slice 25)
+
+- [ ] Only relevant entities arrive and per-client budgets hold (NET-4).
+- [ ] Visibility tiers change at the configured distances and light levels (PRC-2).
+- [ ] A Silhouette target sends coarse position and pose only; a Hidden target sends nothing.
+- [ ] Contact (hitting, being hit, a nearby heal, AoE contact) reveals for a few seconds.
+- [ ] Projectiles and effects from hidden players arrive without the caster's identity.
+- [ ] Combat resolves every hit regardless of tier.
+- [ ] Two simulations agree on the time of day; night starts at the same world time everywhere (ENV-1). Before
+      PCS-2 both read the same world epoch from configuration.
+
+## Multiple simulations and handoff (slices 36, 37, 42b, 44+)
+
+1. [ ] Load the same static world data into simulation A and simulation B; the World Coordinator names the candidates
+       for their border (PCS-2).
+2. [ ] Ghosts follow their owners near the border and stay in sync under packet loss (DSIM-2, NET-5).
+3. [ ] A message with a stale authority epoch is rejected (DSIM-1, NET-5).
+4. [ ] A player walks from A to B with no loading screen; the input sequence continues (DSIM-3).
+5. [ ] The client holds up to three candidate connections; promotion happens with no loading screen (PTR-3).
+6. [ ] Dropping a candidate or retiring connection never duplicates or rolls back authority.
+7. [ ] An attack across the border damages its target exactly once, by its owner (CMB-8).
+8. [ ] A foreign-interaction request carries enough context for the owner to resolve it (DSIM-4).
+9. [ ] A projectile or area effect crossing the border is applied by each simulation only to its own entities.
+10. [ ] No local Flecs entity ID appears on the wire.
+11. [ ] A sequence and a quest survive the handoff (FLOW-3, QST-3).
+12. [ ] A watercraft with passengers and cargo crosses the border with nothing lost or left behind (WATER-7).
+13. [ ] Wind, currents and weather sample identically on both sides of the border at the same world time.
+14. [ ] (44+) Two simulations share one busy city and each dynamic entity has exactly one owner (DSIM-5).
+
+## Battle scale (slice 38)
+
+- [ ] 200, then 500 bots fight in one region.
+- [ ] 500 bots in one region fit the per-client budget (NET-6).
+- [ ] Beyond the budget, degradation follows the fixed order (distant update rate, then cosmetic detail, then a cap on
+      visible effects); combat correctness never degrades.
+- [ ] 500 nameplates draw in one call (RND-10).
+- [ ] In a 500-player fight the frame budget holds and the target keeps its full nameplate (UI-5).
+- [ ] Simulation work per 30 Hz tick stays within the planning budget at p99.
+
+## World UI and render checks (slices 22, 23, 23a, 25a, 42a)
+
+- [ ] Cooked meshes appear at their entities' positions far from the origin and draw correctly (CLI-4, RND-4).
+- [ ] An animated character renders with blended clips and no pops (CLI-5, RND-5, ANIM-1).
+- [ ] Anchors follow entities; Hidden players produce none (CLI-6).
+- [ ] Nameplates follow entities and respect visibility tiers (UI-3).
+- [ ] A texture rendered offscreen appears on a quad in the world (RND-9).
+- [ ] A click on a world board reaches its RmlUi context and becomes a command the server validates (UI-4).
+- [ ] The UI reads only world anchors from the RenderFrame and Game view models; it never reads Flecs.
+- [ ] Darkness and light emitters on screen match the server's light values (CLI-7); light, skylight, darkness zones
+      and fog are visible and toggle (RND-7).
+- [ ] Grids re-extract only when the current or the wind changes (CLI-8); a river surface and the ocean current draw
+      from cooked data (RND-8).
+- [ ] Every RenderData kind round-trips through a frame packet (CORE-4, CORE-5); a frame is written on one thread and
+      read on another with no lock (CORE-3).
+- [ ] The ImGui overlay exists only in development builds (UI-1).
+
+## Audio (slice 24)
+
+- [ ] Default soundtrack: with no custom profile, the built-in default preset is active and every context resolves to
+      Game defaults with no backend service.
+- [ ] Custom preset: separate local albums for two contexts switch with the configured transition and resume from
+      stored state.
+- [ ] Radio behavior: an album resumes at its stored track and position after another context ends, and after a
+      client restart as the policy says.
+- [ ] Context compatibility: an old preset without a new context resolves it through fallback and stays editable.
+- [ ] Broken local track: a deleted file is skipped or falls back without a crash, and the editor reports it.
+- [ ] Sound-effect boundary: an event resolves through the registry, has no player remapping UI, and is inspectable
+      in tooling.
+- [ ] Headless boundary: the GameServer builds with no audio backend or soundtrack dependency, and gameplay is
+      identical whatever soundtrack clients use.
+
+## Water: first water slices (slices 40 to 42)
+
+- [ ] A descending river authored in Blender is cooked.
+- [ ] It streams across at least two cells with no seam.
+- [ ] The client renders it; the server samples its surface and current.
+- [ ] A boat with BuoyantBody and WatercraftMovement travels downstream faster than upstream.
+- [ ] A BuoyantBody-only object floats without drifting.
+- [ ] A crate with ObjectWaterMovement drifts with zero self-propulsion.
+- [ ] A character swims with current influence and no rigid-body buoyancy.
+- [ ] The river passes from one layer into another continuously (for example into a cave) and reaches a lake or ocean
+      without a teleport or instance.
+- [ ] Repeated with two networked clients, watercraft and character transitions stay continuous.
+
+## Water and watercraft acceptance (slices 41, 42, 42b, 43)
+
+Engine-neutral form of ARCH's sea acceptance list; the Game's version is in RunicGame.
+
+1. [ ] Board a watercraft at a dock and travel to a destination, faster with a favorable current and wind than against
+       them.
+2. [ ] Load cargo, cross a simulation border with passengers aboard, and arrive with nothing lost.
+3. [ ] Sink a watercraft with projectile fire: passengers switch to swimming, and the cargo floats and drifts with the
+       current.
+4. [ ] A diving character's WaterInteractionState reports head submerged, and a Game rule driven from it runs.
+5. [ ] An AI creature using CharacterWaterMovement, a behavior tree and perception attacks a small watercraft at night.
+6. [ ] A client map overlay shows a region's currents and winds drawn from the cooked fields.
+7. [ ] A weather override changes wind and swell, and makes steering harder, in two simulations at once.
+
+## Environment (slices 25, 42, 43)
+
+| Test | Passes when |
+| --- | --- |
+| Same wind everywhere | Two simulations and two clients sample identical wind at a shared border at the same world time |
+| Sailing angles | A sailing watercraft gains speed at favorable wind angles and none straight into the wind, matching its configured curve |
+| Leeway | A crosswind pushes a watercraft sideways in proportion to its lateral resistance |
+| Tidal path | At low tide a tidal path is walkable; at high tide characters swim there |
+| Storm override | A storm from a Game service applies on the same world time in two simulations; wind, waves and light change; clients follow without per-tick data |
+| Updraft | A glider gains altitude crossing an authored updraft volume |
+| Layer without weather | Wind and weather sample as calm in a layer configured without them (such as an underground layer); light comes only from ambient profiles and emitters |
+| Projectile flag | Projectiles ignore wind unless their skill sets the wind flag |
+
+## Operations (slice 39)
+
+- [ ] Against the Agones local SDK server the LifecycleLayer reports Ready, sends health pings and drains on
+      shutdown; the stub mode runs with no Agones (PBND-2).
+- [ ] A scrape returns time per tick domain in Prometheus format (PBND-3).
+- [ ] A fleet runs in a development cluster, servers report Ready, and Grafana shows time per tick domain (PINF-2).
+- [ ] The Editor attaches to a development server and sees its shapes; a production build has no attach endpoint
+      (NET-7).
+- [ ] Entity inspector and debug shapes come from a remote server (EDT-7).

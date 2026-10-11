@@ -1,162 +1,202 @@
 # 02 — Module contract
 
-## What counts as a module [J.1.1]
+This file defines what a module is, how it is laid out and named, what may cross its boundary, what its `ARCHITECTURE.md` must contain, and how it matures.
 
-A module is a **meaningful CMake target or Go service/package** with its own
-public boundary, tests, architectural contract, and implementation ownership.
+Source: ARCH § Modules, work packages and the implementation contract (Sizes of work, Why the code is segmented this
+way, Module contract, Maturity stages).
 
-- It must be large enough to justify `Public/`, `Source/`, `Tests/`,
-  `ARCHITECTURE.md`, and `CMakeLists.txt` (or the Go equivalent).
-- Small systems stay **subsystems** inside a larger module — for example
-  CooldownSystem, DamageSystem, targeting, effects, and hit detection live inside
-  `Combat`; DebugRenderer lives inside `Renderer`; physics queries live inside
-  `Physics`.
-- Extract a subsystem into its own module only when build isolation, independent
-  deployment, or a stable reusable ABI justifies it.
-- Exception: a deliberately narrow architectural seam (e.g. `NetworkAdapter`)
-  may be small, because its value is isolation rather than code volume.
+## Sizes of work
 
-## Standard C++ module layout [J.3.1, J.1.2]
+The code is organized at two working sizes. A **module** keeps the architecture honest; a **work package** keeps
+each piece of work small enough to be built well.
 
-```text
-ModuleName/
-├── Public/                    # the compilation boundary: only what other modules may include
-│   ├── ModuleName.hpp
-│   ├── ModuleNameTypes.hpp
-│   └── ...
-├── Source/                    # internal implementation, third-party adapters/backends
-│   └── <Backend>/             # e.g. Jolt/, Bgfx/, Flecs/
-├── Tests/
-├── ARCHITECTURE.md
-└── CMakeLists.txt
-```
+| Size | What it is | Example | Who uses it |
+| --- | --- | --- | --- |
+| Group | A folder plus an umbrella build target that links related modules under one name; no code of its own | `Runic::GameplayAPI` = Gameplay, Combat, GameplayFlow, Quest | The Game links one name; the documents categorize by it |
+| Module | A CMake target with its own folder, public headers, tests and `ARCHITECTURE.md`; the unit of ownership and dependency | `Runic::Combat` | Other modules link it and include only its public headers |
+| Subsystem | A folder inside a module's `Source/`; not linkable on its own | `Combat/Cooldowns` | Only its own module |
+| Work package | One Claude Code session and one pull request: a subsystem, or part of one, at a stated maturity stage, with its tests and docs | CMB-3: statuses, cooldowns and resource costs | The owner reviews and merges it; the roadmap lists it |
 
 Rules:
 
-- **No nested include path.** The earlier `Public/Runic/ModuleName/` nesting is
-  not used; the module directory already supplies the context.
-- **Explicit file names.** Prefer `PhysicsWorld.hpp`, `PhysicsTypes.hpp` over
-  `API.hpp`, `Types.hpp`. (derived) Because every module's `Public/` is a flat
-  include root, public header names must be unique across all modules that a
-  consumer can link — prefix them with the module or concept name.
-- **Explicit namespaces.** `Physics/Public/PhysicsWorld.hpp` declares
-  `namespace Runic::Physics`.
-- **`Public/` is a boundary, not a dumping ground.** Third-party types stay under
-  `Source/` whenever the dependency can be hidden. A consumer must not need Jolt,
-  bgfx, BehaviorTree.CPP, Recast, or any backend header to use a Runic
-  abstraction. Exposing a backend type publicly requires an explicitly approved
-  exception recorded in the module's `ARCHITECTURE.md`.
+- **Modules stay coarse on purpose.** Many tiny libraries add build, link and dependency overhead without making
+  the code better. Big modules are split into packages, not into more libraries.
+- **A subsystem becomes its own module only** when build isolation or reuse proves it necessary. That is an owner
+  decision recorded in ARCH; never create a module that is not in the catalogs in
+  [03-dependency-rules.md](03-dependency-rules.md).
+- Work packages are defined in [12-work-packages.md](12-work-packages.md); how one is built is in
+  [10-ai-development-workflow.md](10-ai-development-workflow.md).
 
-## CMake enforces architecture [J.3.2]
+## Folder layout
 
-```cmake
-add_library(RunicPhysics)
-
-target_include_directories(RunicPhysics
-    PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/Public
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source
-)
-
-target_link_libraries(RunicPhysics
-    PUBLIC  Runic::Core
-            Runic::World
-    PRIVATE Jolt
-)
-
-add_library(Runic::Physics ALIAS RunicPhysics)
-```
-
-```cmake
-# A consumer links only the Runic targets it is allowed to use.
-target_link_libraries(RunicCombat
-    PRIVATE Runic::Physics
-            Runic::Simulation
-            Runic::Gameplay
-)
-```
-
-Conventions:
-
-| Item | Convention |
-| --- | --- |
-| Real target name | `Runic<Module>` (e.g. `RunicPhysics`) |
-| Alias used by consumers | `Runic::<Module>` (e.g. `Runic::Physics`) |
-| Namespace | `Runic::<Module>` |
-| `PUBLIC` links | Only Runic modules whose types appear in this module's `Public/` headers. |
-| `PRIVATE` links | Backends (Jolt, bgfx, Flecs, RmlUi, …) and modules used only in `Source/`. |
-| Allowed links | Exactly the "Allowed dependencies" of the module's contract; nothing else. |
-
-A link that is not in the module's allowed list is an architecture change and
-must be approved first ([03-dependency-rules.md](03-dependency-rules.md)).
-
-## Go / Platform package layout [J.5]
-
-Platform modules follow the Go-style equivalent:
+Every C++ module in the three repositories has the same shape. A module inside a group nests under the group folder:
+`Engine/<Group>/<Module>/`.
 
 ```text
-ModuleName/
-├── api_or_pkg/     # public package surface other modules/repositories may import
-├── internal/       # implementation; Go's internal/ rule enforces privacy
-├── tests/
-└── build/deploy metadata as appropriate
+Engine/GameplayAPI/Combat/
+├── Public/                 # the only headers other modules may include
+│   ├── CombatModule.hpp
+│   ├── Ability.hpp
+│   └── CombatEvents.hpp
+├── Source/                 # implementation; each subsystem is a folder
+│   ├── Abilities/
+│   ├── Cooldowns/
+│   └── Damage/
+├── Tests/
+├── ARCHITECTURE.md         # the module's contract
+└── CMakeLists.txt
 ```
 
-Where a Platform module also needs a C++ binding (e.g. the simulation linking
-Realtime or Identity validation), the C++ part follows the C++ layout above.
-The per-module language split is not yet decided ([OQ-9](11-open-questions.md#oq-9)).
+Go packages follow the same idea with Go's own layout: one directory per package, `internal/` for private code,
+tests beside the code.
 
-## The per-module `ARCHITECTURE.md` contract [J.3.3]
+## CMake: one call per module
 
-Every module carries an `ARCHITECTURE.md` with these sections:
+The `runic_add_module` helper (delivered by BUILD-1) creates the target and its alias, wires `Public/`, `Source/` and
+`Tests/`, sets warnings, registers tests and adds the headless check.
 
-| Required section | What it must answer |
+```cmake
+# Illustrative: one call per module.
+# Combat at its final shape: DistributedSimulation is linked from CMB-8
+# (foreign combat) on, because a package links only what it uses.
+runic_add_module(Combat
+    GROUP        GameplayAPI
+    PUBLIC_DEPS  Runic::Gameplay Runic::Physics
+    PRIVATE_DEPS Runic::DistributedSimulation
+    HEADLESS)
+
+# A group is an umbrella that only links its modules.
+add_library(RunicGameplayAPI INTERFACE)
+target_link_libraries(RunicGameplayAPI INTERFACE
+    Runic::Gameplay Runic::Combat Runic::GameplayFlow Runic::Quest)
+add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
+```
+
+## Groups and umbrella targets
+
+- A group is a folder plus an `INTERFACE` target that only links its modules. It has no code of its own.
+- Each module inside a group keeps its own boundary, its own tests and its own `ARCHITECTURE.md`.
+- `Runic::GameplayAPI` links Gameplay, Combat, GameplayFlow and Quest so the Game links one name.
+- Engine groups: Foundation, Simulation core, GameplayAPI, World systems, Networking, Presentation, Tools
+  (membership in [03 § Engine modules](03-dependency-rules.md#engine-modules)). Their folders are `Foundation`,
+  `SimulationCore`, `GameplayAPI`, `WorldSystems`, `Networking`, `Presentation` and `Tools`; every module lives at
+  `Engine/<Group>/<Module>/`.
+- The transitional bundles `Runic::Runtime` and `Runic::Presentation` stay until RunicGame links per-module targets
+  (decided, see [11 § OQ-8](11-open-questions.md#oq-8)). Do not add new code to them.
+
+## Naming
+
+| Item | Engine | Platform | Game |
+| --- | --- | --- | --- |
+| Target alias | `Runic::<Module>` | `RunicPlatform::<Module>` | `RunicGame::<Module>` |
+| Namespace | Matches the module, for example `Runic::Physics` | Matches the module | Matches the module |
+| Group target | `INTERFACE` target, for example `Runic::GameplayAPI` | — | — |
+| Interface target for the Platform | Header-only, Core types only: `Runic::NetworkTransport`, `Runic::SimulationPort` | — (implements them) | — |
+
+- **One target per module.** A module may also export **one header-only interface target** for an interface the
+  Platform implements: `Runic::NetworkTransport` (from Network, NET-1) and `Runic::SimulationPort` (from Simulation,
+  SIM-5). Those headers include only Core types. No other module exports such a target unless ARCH adds it.
+- **Explicit file names.** Public files say what they hold (`PhysicsWorld.hpp`, never `Types.hpp`).
+- RenderData is a separate folder and namespace inside Core: `Core/Public/RenderData/`, `Runic::RenderData`.
+
+## Public/ is the compile boundary
+
+- Only `Public/` headers cross a module boundary. Never include another module's `Source/`.
+- **Library types never appear in a public header.** Flecs, Jolt, bgfx, RmlUi, ImGui, BehaviorTree.CPP, Detour and
+  GameNetworkingSockets stay in `Source/` behind Runic types.
+- An exception must be approved and recorded in the module's `ARCHITECTURE.md`. **Exactly three are approved:**
+  1. GLM math types in Core's public headers (the Engine's math vocabulary).
+  2. The Flecs world handle, for modules that register systems into the simulation (for example `AIModule`). ECS
+     re-exports Flecs only to the Engine modules that register systems.
+  3. BehaviorTree.CPP node base types, for Game custom AI nodes.
+- Jolt, bgfx, RmlUi, Detour and GameNetworkingSockets always stay hidden. There is no exception for them.
+- CI scans `Public/` for library types ([03 § How CI enforces the rules](03-dependency-rules.md#how-ci-enforces-the-rules)).
+
+## PUBLIC and PRIVATE dependencies
+
+- **Allowed dependencies are a ceiling.** A package links only what it uses, even if the module table allows more.
+  Example: Combat links DistributedSimulation only from CMB-8 on.
+- A module dependency is `PUBLIC` only when its types appear in this module's public headers. Otherwise it is
+  `PRIVATE`.
+- Third-party libraries are `PRIVATE`, except the approved exceptions: GLM is a `PUBLIC` dependency of Core.
+- A link that is not in the module's allowed list is an architecture change. Stop and report it
+  ([10 § Reporting a change in another module](10-ai-development-workflow.md#reporting-a-change-in-another-module)).
+
+## Headless modules
+
+- Headless modules never link GLFW, bgfx, RmlUi, ImGui, an audio backend or editor code.
+- The Window class in Application is compiled only in client and tools builds; Application is headless without it.
+- CI builds the server target alone and fails if any of those libraries appears.
+- Which modules are headless is the `Headless` column of [03 § Engine modules](03-dependency-rules.md#engine-modules).
+
+## Tests live inside the module
+
+- Tests are in the module's `Tests/` folder and register with CTest.
+- One C++ test framework is used in all three repositories. It is chosen in slice 0 by the BUILD-1 session, which
+  asks the owner. Go uses its standard `testing` package.
+- A package's **Done when** is written as automated tests in its contract session, before the implementation.
+
+## No game content in public repositories
+
+- RunicEngine and RunicPlatform are public. Game rules, names and numbers never appear in Engine or Platform code,
+  **tests included**, nor in `docs/system/`.
+- Tests and examples use neutral IDs such as `engine:test_ability`. `game:` IDs appear only as format examples
+  (`game:<something>`).
+- Never copy a RunicGame class, item, status, place or value into a public repository, even as a test fixture.
+
+## The module's ARCHITECTURE.md
+
+Each module's `ARCHITECTURE.md` is written from its catalog row in [03](03-dependency-rules.md) and the ARCH
+sections that concern it. It changes **in the same pull request** as the module's code. Until the module folder
+exists, the same contract lives in the owning repository's `docs/modules/<Module>.md`.
+
+Start the file with a header copied from the catalog row:
+
+```text
+Target:   Runic::<Module>        Group: <Group>
+Headless: yes | no | never shipped | tool
+Packages: <PREFIX>-1 to <PREFIX>-n
+```
+
+Then the sections ARCH requires, in this order:
+
+| Section | What it answers |
 | --- | --- |
-| Purpose | Why this module exists and what reusable capability it provides. |
-| Public API | Headers/types/interfaces that other modules may depend on. |
-| Owns | State, lifetime, threads, resources, schemas, or semantics owned here. |
-| Does not own | Explicitly forbidden responsibilities. |
-| Allowed dependencies | Targets/packages that may be included or linked. |
-| Forbidden dependencies | Modules whose inclusion would invert the architecture. |
-| Threading/tick model | Which threads/tick domains may call it and where mutations occur. |
-| Data ownership | Who owns authoritative state, cached state, handles, and IDs. |
-| Integration points | Commands/events/adapters used to communicate without coupling. |
-| Acceptance tests | Minimum behavioral tests before dependent work may rely on it. |
-| Future extensions | Permitted future work that must not leak into the current implementation. |
+| Purpose | Why the module exists and what it provides |
+| Public API | The headers and types other modules may use (a sketch until a contract session approves them) |
+| Owns | State, lifetimes, threads, resources and meanings owned here |
+| Does not own | Responsibilities that belong elsewhere |
+| Allowed dependencies | Modules and libraries it may link (the catalog row), and any approved Public/ exception |
+| Forbidden dependencies | Links that would invert the architecture |
+| Threading and tick model | Which threads and tick domains call it, and where mutation happens |
+| Data ownership | Who owns authoritative state, caches, handles and IDs |
+| Integration points | Commands, events, hooks and registries used to talk to other modules |
+| Work packages | Its packages, each with its acceptance tests (Done when) and status |
+| Future extensions | Work allowed later that must not leak into current packages |
 
-**Where the contract lives (convention for these repositories):**
+If an item in [11-open-questions.md](11-open-questions.md) affects the module, link it from the section it affects.
 
-1. Before a module directory exists, its contract lives in
-   `docs/modules/<Module>.md` (or `docs/services/<Service>.md` in RunicGame).
-2. When the module directory is created, copy that file to
-   `<Module>/ARCHITECTURE.md`. From then on `ARCHITECTURE.md` is authoritative,
-   and `docs/modules/<Module>.md` is reduced to status + a link to it.
-3. Any change to Public API, Owns/Does-not-own, or dependencies updates the
-   contract in the same change set as the code.
+## Maturity stages
 
-## Maturity stages [J.13.2, J.12]
+| Stage | Meaning | When |
+| --- | --- | --- |
+| A — vertical proof | The smallest real implementation that proves the module's boundaries inside a roadmap slice | Every package starts here |
+| B — generalize | Broader interface and data coverage once a second real consumer exists | When a later slice needs more |
+| C — harden | Performance, scale, recovery, tooling, compatibility and adversarial tests | Battle scale, operations and pre-launch slices |
 
-| Stage | Meaning |
-| --- | --- |
-| **A — vertical proof** | Smallest real implementation that proves ownership boundaries and works in a production-shaped vertical slice. |
-| **B — generalize** | Broaden API/data coverage once at least one real consumer proves the abstraction. |
-| **C — harden** | Performance, scale, recovery, tooling, diagnostics, backwards compatibility, migration, adversarial tests. |
+- Packages are Stage A unless the package table says otherwise.
+- A consumer never waits for its dependency to reach Stage C. Vertical slices validate the architecture first; then
+  it is generalized and hardened.
+- Build only what the Stage A tests need. No speculative features, no placeholders in other modules.
 
-Do not wait for a dependency to reach Stage C before building its consumer. The
-pattern is: Stage A proof → dependent Stage A → later Stage B generalization →
-Stage C hardening. The architecture is validated by vertical integration, then
-generalized and hardened.
+## Checklist: creating a module
 
-## Checklist: creating a new module (derived)
-
-1. Confirm the module is in the catalog (`docs/modules/README.md`). A new module
-   not in the catalog is an owner decision.
-2. Confirm its roadmap phase prerequisites are met
-   ([08-implementation-roadmap.md](08-implementation-roadmap.md)).
-3. Create the directory with `Public/`, `Source/`, `Tests/`, `ARCHITECTURE.md`
-   (from the docs contract), and `CMakeLists.txt`.
-4. Link only allowed dependencies; keep backends `PRIVATE`.
-5. Implement the Stage A scope only: what the acceptance tests require.
-6. Add tests; for headless modules, verify the headless build
-   ([09-validation-scenarios.md](09-validation-scenarios.md#j146-headless-dependency-test)).
-7. Update the module's status in `docs/modules/README.md` and the repository's
-   `docs/current-state.md`.
+1. Confirm the module is in the catalog in [03](03-dependency-rules.md). A module that is not there is an owner
+   decision, not an implementation detail.
+2. Confirm the package's Needs are merged ([12-work-packages.md](12-work-packages.md)).
+3. Create `Public/`, `Source/`, `Tests/`, `ARCHITECTURE.md` and `CMakeLists.txt` with one `runic_add_module` call.
+4. Link only what the package uses, within the allowed list; third-party libraries `PRIVATE`.
+5. Keep library types out of `Public/` unless the module uses one of the three approved exceptions.
+6. Write the tests; for headless modules make sure the server build stays headless.
+7. Update the module's `ARCHITECTURE.md`, the package status and the repository's `docs/current-state.md` in the
+   same pull request.

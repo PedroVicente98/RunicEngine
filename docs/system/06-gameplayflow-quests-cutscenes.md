@@ -1,213 +1,176 @@
-# 06 — GameplayFlow, quests, scripted actions, bosses, and cutscenes
+# 06 — GameplayFlow, quests and cutscenes
 
-## Quest is a consumer of GameplayFlow [J.9.1]
+This file defines the Engine's runtime for scripted gameplay (GameplayFlow), source-owned restrictions, cutscenes, and the quest runtime with its quest-creation API and durable bridge.
 
-Quest must not own the only scripting engine in the project. Bosses, dungeons,
-world events, escorts, tutorials, scripted interactions, and cinematics need the
-same authoritative sequence/action/condition machinery, so **GameplayFlow sits
-below Quest** and is reusable by all of them.
+Source: ARCH § Engine gameplay APIs (Behavior registry contract, Scripted sequences (GameplayFlow) and restrictions,
+Quest runtime and the quest-creation API), § Repositories, build targets and processes (Engine modules).
+
+All examples below are neutral format examples. Concrete sequences, quests, encounters and cues are RunicGame content
+and never appear in this folder.
+
+## Package map
+
+| Package | What | Needs | Slice |
+| --- | --- | --- | --- |
+| GPL-3 | Restrictions: source-owned restriction sets, acquire and release by source, command-validation hooks | GPL-2 | 18 |
+| GPL-5 | Interaction framework: interactables, reservation, interaction facts | GPL-2, EVT-1 | 29 |
+| FLOW-1 | Sequence runtime: trigger, condition and action registries, scheduler, timers on simulation time | GPL-5 | 29 |
+| FLOW-2 | Termination path, restriction ownership, watchdog, presentation cues | FLOW-1, GPL-3 | 29 |
+| FLOW-3 | Handoff policies and sequence state in the transfer snapshot | FLOW-2, DSIM-3 | 37 |
+| QST-1 | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances | FLOW-1 | 30 |
+| QST-2 | Durable bridge through the service port; accepted results applied at safe ticks | QST-1, SIM-5 | 30 |
+| QST-3 | Quest instances registered as a transfer-snapshot contributor | QST-1, DSIM-3 | 37 |
+
+## GameplayAPI group at a glance
+
+GameplayFlow and Quest belong to the GameplayAPI group with Gameplay and Combat. Each is its own module with its own
+boundary and tests. The Engine knows timelines, tags, statuses, rules, threat and perception, but no concrete rule.
+
+| API | Module | What the Engine provides | What a game supplies |
+| --- | --- | --- | --- |
+| Ability toolkit | Combat | Timeline runner in DomainTickCount (startup, active, recovery, cancel windows); hit volumes and projectile queries; cooldowns; resource pools; one-slot input queue | Ability definitions, timings, costs, queue window |
+| Hit timing | Combat | ServerTime and CappedRewind (with a per-character position history), chosen per ability | The choice per ability and the cap |
+| Tags | Gameplay | Hierarchical, interned tags on abilities, statuses and entities | The tag vocabulary |
+| Status container | Combat | Timed statuses with stacking policy, duration, periodic tick and immunity windows | Every concrete status |
+| Attributes and modifiers | Gameplay | Base values and modifier stacks (add, multiply, override) with caps | Stats and formulas |
+| Rule pipeline | Combat | Registration of typed conditions and modifiers; evaluation in named stages; outputs to per-worker buffers; compilation into a resolved loadout per character | Stage order and every condition and modifier |
+| Damage interception | Combat | Hooks before and after damage is applied; invulnerability windows | Defense rules, armor, the damage formula |
+| Threat table | Combat | Per-NPC threat storage read by AI target selection | What generates threat and how it is overridden |
+| Behavior registries | Combat | ID-to-C++ registration, parameter schemas, a fixed hook list, read-only context and output buffers | The behaviors |
+| Restrictions | Gameplay | Source-owned restriction sets (input, movement, abilities, interactions, targeting, damage, external motion), release by source, command validation | Which skills, effects and sequences acquire which restrictions |
+| Interactions | Gameplay | Interaction volumes, reach and permission checks, reservation, an interaction registry | The concrete interactions |
+| Movement | Gameplay | CharacterVirtual integration; walk, swim, glide (reads wind), mount and vehicle modes; prediction hooks; server validation | Speeds, dashes, mount and glider stats |
+| Item runtime | Gameplay | Runtime item instances and containers mirrored from services | Item definitions and rules |
+| Scripted sequences | GameplayFlow | Sequence runtime, trigger, condition and action registries, timers, termination path, handoff policies | Boss phases, cutscenes, dungeon and world-event scripts |
+| Quests | Quest | Quest runtime and quest-creation API, generic triggers, conditions and actions, durable-fact bridge | Every quest; Game-specific triggers, conditions and actions |
+
+## GameplayFlow model
+
+GameplayFlow is **the one authoritative runtime for scripted gameplay**. Quests, boss phases, dungeons, cutscenes,
+escorts, tutorials and world events all run on it instead of each inventing its own timers and state machines.
+
+A sequence is a graph of steps. Each step waits for a trigger, checks conditions, runs actions and moves to the next
+state:
 
 ```text
-Gameplay Events
-      |
-      +------> Quest -------------------+
-      |                                |
-      +------> Encounter --------------+
-      |                                v
-      +------> World Event ------> GameplayFlow
-      |                                |
-      +------> Boss Script ------------+
-                                       |
-                                       v
-                              Gameplay / Combat / AI / World
+TRIGGER → CONDITIONS → ACTIONS → STATE TRANSITION
 ```
 
-| Piece | Repository / module |
+- **Triggers and conditions** read authoritative facts and state.
+- **Actions change the world only through Simulation commands and Gameplay APIs**, the same doors players and AI use.
+  Starting an ability is a UseAbility command; changing an NPC's behavior is an AI profile command.
+- **GameplayFlow never calls Combat or AI internals** (decided, [11 § OQ-18](11-open-questions.md#oq-18)). Its
+  allowed dependencies are Gameplay and DistributedSimulation (handoff snapshot) only.
+- Sequences run on the simulation thread at phase boundaries.
+- **Timers use simulation time, never wall-clock time.** A wait is a time or a domain-tagged tick count.
+
+### Built-in action categories
+
+The Engine provides these under `engine:` IDs.
+
+| Category | Generic actions |
 | --- | --- |
-| Sequence runtime, steps, waits, timers, cleanup, action/condition registries | Engine `GameplayFlow` |
-| Quest instance/objective/trigger/condition/action runtime | Engine `Quest` |
-| Gameplay restrictions (source-owned) | Engine `Gameplay` (`GameplayRestrictions`) |
-| Concrete quests, encounters, boss phases, cutscene definitions, private actions | RunicGame (`GameQuests`, `GameEncounters`, `GameClientPresentation`) |
-| Durable quest progression and rewards | RunicGame private `QuestService` on Platform `ServiceRuntime`/`Persistence` |
+| Entity | Spawn, despawn, enable, disable |
+| State | Set a tag, state or value; set an objective or sequence variable |
+| Movement | Move an entity, follow a path, teleport where explicitly legal |
+| Interaction | Enable or disable an interaction; reserve or release a target |
+| Combat | Request an ability through a command; apply an approved effect; end an encounter state |
+| AI | Change a behavior profile or state through AI commands |
+| World | Open or close a door, activate an object, set a world-state value |
+| Timing | Delay, timeout, wait until a simulation time |
+| Sequence | Start, stop or wait for a nested sequence |
+| Event | Wait for or emit an authoritative fact |
+| Restriction | Acquire or release input, movement, ability, interaction, targeting or damage restrictions |
+| Presentation | Start dialogue or emit a presentation cue for clients |
+| Service | Submit an asynchronous durable operation and wait for its accepted result |
+| Branching | If, switch, random choice with an explicit seed |
+| Synchronization | Wait for an entity, party, event or encounter condition |
 
-## Trigger → conditions → actions → transition [J.9.2]
+## Registries and namespaces
 
-```text
-TRIGGER
-  |
-CONDITIONS
-  |
-ACTIONS
-  |
-STATE TRANSITION
-```
-
-Quest and encounter definitions may be data-driven graphs over **registered**
-triggers, conditions, and actions. Engine provides built-ins; Game registers
-private actions/conditions for mechanics that are not generally reusable. Engine
-defines extensible registries, **not** a giant hard-coded enum of every possible
-RunicGame action. [J.4.19]
-
-```text
-Trigger:     PlayerInteracted(PrisonDoor)
-Conditions:  QuestState == RescuePrincess.OpenCell
-             PlayerHasItem(CellKey)
-             PrincessAlive
-Actions:     OpenDoor
-             RemoveItem(CellKey)
-             StartSequence(PrincessRescue)
-             SetObjective(EscapeCastle)
-Transition:  OpenCell -> EscapeCastle
-```
+- Every extension is registered by ID into a registry; data refers to the ID.
+- **`engine:` IDs** are Engine built-ins. **`game:` IDs** are registered by RunicGame (server only) for mechanics that
+  are not reusable.
+- An unknown ID fails at load, not mid-encounter. Parameters have schemas checked at load and by the Cooker.
 
 ```cpp
-// Conceptual registration
-actions.Register("engine:spawn_entity",   SpawnEntityAction{});
+// Illustrative
+actions.Register("engine:spawn_entity", SpawnEntityAction{});
 actions.Register("engine:start_sequence", StartSequenceAction{});
 
-// Closed-source Game extension:
-actions.Register("game:set_trade_route_state", GameSetTradeRouteStateAction{});
+// RunicGame, server only (format example)
+actions.Register("game:<action_name>", GameActionType{});
 ```
 
-IDs are namespaced: `engine:` for built-ins, `game:` for RunicGame content
-(see Engine `Content`).
+Neutral example of a sequence (format only; the Game writes its own):
 
-## Built-in action categories [J.9.3]
+```text
+Sequence: game:<encounter>_phase_2
+  Wait:     Boss.Health <= <threshold>
+  Actions:  SetEncounterPhase(2)
+            CloseDoors(<arena doors>)
+            AcquireRestriction(Boss, DamageImmune)
+            PresentationCue("game:<cue>")
+            Spawn(<adds>)
+            WaitFor(AllSpawnedDead)
+            ReleaseRestriction(Boss)
+            RequestAbility("game:<ability>")
+```
 
-| Category | Representative generic actions |
+The phase, the spawned entities, the cue and the ability are Game content. The waits, the cleanup, the fact handling
+and the calls into Engine APIs are Engine behavior.
+
+### Behavior registry contract
+
+The same extension model serves abilities, item effects, AI nodes and interactions (ARCH § Engine gameplay APIs).
+
+| Rule | Why |
 | --- | --- |
-| Entity | Spawn, despawn, enable, disable. |
-| State | Set tag/state/value; set objective or generic state variable. |
-| Movement | Move entity, teleport when explicitly legal, follow path, scripted locomotion. |
-| Interaction | Enable/disable an interaction; reserve/release an interaction target. |
-| Combat | Start combat, request ability, apply approved effect through Combat, end encounter state. |
-| AI | Change behavior/profile/state through AI APIs. |
-| World | Open/close door, activate object, set world-state primitive. |
-| Timing | Delay, timeout, schedule, wait until simulation time. |
-| Sequence | Start/stop/wait for nested sequence. |
-| Event | Wait for or emit an authoritative gameplay fact where semantically valid. |
-| Player restriction | Acquire/release movement/input/ability/interaction/targeting/damage restrictions. |
-| Dialogue/presentation cue | Start dialogue or emit a client presentation cue; the server still owns gameplay state. |
-| Service | Submit an asynchronous durable operation and wait for an accepted result when required. |
-| Branching | If/else, switch, deterministic/random-with-explicit-seed selection. |
-| Synchronization | Wait for entity/party/event/encounter condition. |
+| Behaviors are registered by ID; data refers to the ID | Content stays data; an unknown ID fails at load, not mid-fight |
+| Parameters have a schema checked at load | Typos are caught by the Cooker, not by players |
+| Hooks are a fixed list: OnActivate, OnPhaseChange, OnHitCandidate, OnHit, OnEffectTick, OnEffectExpire, OnKill, OnInteract | The engine knows exactly when custom code runs |
+| A behavior subscribes only to the hooks it uses | Abilities without custom code cost nothing |
+| Behaviors read a context and write an output buffer | Safe in parallel phases; outputs merge in a fixed order |
+| Behaviors are stateless; per-instance state lives in components | Inspection and data reload stay simple |
+| The same registry serves abilities, item effects, AI nodes and interactions | One extension model for any game |
+| Data reloads live; changed C++ needs a restart | A scripting language can be added later behind the same registry |
 
-Every action goes through the owning Engine API (Combat, AI, World, Gameplay…);
-actions never touch Jolt, bgfx, or network backends. [J.11.2]
+## Source-owned restrictions
 
-## Boss sequence example [J.9.4]
-
-```text
-Sequence: BossPhase2
-
-Wait:
-    Boss.Health <= 70%
-
-Actions:
-    SetBossPhase(2)
-    LockArenaDoors
-    AcquireBossInvulnerability
-    StartPresentationCue("game:dragon_phase_2")
-    SpawnAdds
-    WaitFor(AllAddsDead)
-    ReleaseBossInvulnerability
-    RequestAbility("game:dragon_firestorm")
-```
-
-The phase, add set, presentation cue, and ability are Game content. The sequence
-runtime, waits, cleanup semantics, event integration, and calls into Engine APIs
-are reusable Engine behavior.
-
-## Server-authoritative cutscenes [J.9.5]
-
-The server does not render a cinematic. It runs an authoritative gameplay
-sequence and emits presentation cues; the client renders camera, animation,
-dialogue, letterboxing, VFX, music, and UI from the Game presentation definition.
-
-```text
-Server:
-    Start Sequence #12841
-    acquire gameplay restrictions
-    execute authoritative scripted actions
-    emit presentation cue
-
-Client:
-    play camera / animation / dialogue / audio
-    disable local controls for UX
-
-Server:
-    continue validating/rejecting blocked commands
-    complete or abort sequence
-    release sequence-owned restrictions
-    emit SequenceEnded
-```
-
-## Source-owned gameplay restrictions [J.9.6]
-
-Never implement a cutscene with scattered booleans (`invulnerable = true` …
-later `invulnerable = false`). That breaks under aborts, disconnects, handoff,
-exceptions, quest cancellation, or script failure. Restrictions are acquired with
-a stable **source** and released centrally.
+No scattered flags such as `invulnerable = true`. A sequence, a skill or an effect acquires a restriction set under its
+own source ID, and every exit path releases everything held by that source in one call. Restrictions live in
+Runic::Gameplay (GPL-3); invulnerability windows use the same mechanism.
 
 ```cpp
-// Conceptual
-RestrictionHandle handle = restrictions.Acquire(
-    player,
-    RestrictionSet{
-        .input           = Blocked,
-        .movement        = Blocked,
-        .abilities       = Blocked,
-        .interactions    = Blocked,
-        .targeting       = Untargetable,
-        .damage          = Immune,
-        .external_motion = Immune
-    },
-    sequenceInstanceId);
+// Illustrative
+RestrictionHandle handle = restrictions.Acquire(player, RestrictionSet{
+    .input = Blocked, .movement = Blocked, .abilities = Blocked,
+    .interactions = Blocked, .targeting = Untargetable,
+    .damage = Immune, .externalMotion = Immune }, sequenceInstanceId);
 
-// Every terminal path eventually calls:
-restrictions.ReleaseAllFromSource(sequenceInstanceId);
+restrictions.ReleaseAllFromSource(sequenceInstanceId);   // on every terminal path
 ```
 
-"Intangible during cutscene" is decomposed into independent authoritative
-policies: input suppression, movement lock, ability lock, interaction lock,
-untargetable state, damage immunity, external-motion immunity, optional collision
-policy, and sequence-controlled movement. There is no single overloaded
-`IsInCutscene` flag, and other systems may acquire restrictions independently.
+- "Intangible during a cutscene" is several separate policies (input, movement, abilities, interactions, targeting,
+  damage, external motion, optional collision), so other systems can hold their own restrictions at the same time.
+- Blocked commands are rejected by server command validation, whatever the client does.
 
-## Client control suppression is not security [J.9.7]
+## One termination path
 
-```text
-Client UI/input:
-    controls disabled
+Complete, abort, cancel, timeout, disconnect, owner destruction, quest abandon, shutdown and transfer failure all
+converge on **one routine** (FLOW-2). It:
 
-Hacked client still sends MoveCommand / UseAbility / Interact
-    |
-    v
-Server CommandValidation
-    |
-    restriction present?
-          yes -> reject
-```
-
-The client-side lock exists for presentation and feel only. The authoritative
-simulation independently rejects movement, ability, interaction, targeting, or
-any other command forbidden by the active restriction set.
-
-## Termination and watchdog rules [J.9.8]
-
-All terminal paths — Complete, Abort, Cancel, Timeout, disconnect handling, owner
-destruction, quest abandon, simulation shutdown, transfer failure — converge on
-**one** sequence-termination routine. It:
-
-1. cancels timers;
-2. releases sequence-owned restrictions and reservations;
+1. cancels the sequence's timers;
+2. releases the sequence's restrictions and reservations;
 3. clears sequence-owned control;
 4. emits `SequenceEnded` or `SequenceAborted`.
 
-Temporary restriction sources also support expiry/watchdog diagnostics so that
-corruption cannot leave a player permanently invulnerable.
+Temporary restrictions also carry an expiry and a watchdog diagnostic, so no fault can leave a player permanently
+invulnerable.
 
-## Handoff policy for active sequences [J.9.9]
+## Handoff policies
+
+Each sequence declares what happens when its owner's authority moves to another simulation (FLOW-3).
 
 ```cpp
 enum class HandoffPolicy { Transferable, PinAuthority, AbortOnTransfer };
@@ -215,20 +178,106 @@ enum class HandoffPolicy { Transferable, PinAuthority, AbortOnTransfer };
 
 | Policy | Behavior |
 | --- | --- |
-| `Transferable` | The active instance is serialized into the final transfer snapshot and resumes on the new owner. |
-| `PinAuthority` | Normal authority migration is blocked until the critical sequence finishes. |
-| `AbortOnTransfer` | A local ephemeral sequence aborts and runs cleanup before transfer. |
+| Transferable | Travels in the final transfer snapshot with its step, its timers relative to simulation time, its restriction source IDs and its quest or encounter context; timers are kept |
+| PinAuthority | Delays the transfer until a short, critical sequence ends |
+| AbortOnTransfer | Runs the termination path first, then the transfer proceeds |
+
+GameplayFlow registers its sequences as a transfer-snapshot contributor
+([05 § Transfer protocol](05-distributed-simulation.md#transfer-protocol)).
+
+## Cutscenes
+
+**Cutscenes are server sequences with client presentation.**
+
+- The server runs the sequence, acquires restrictions and emits presentation cues.
+- The client plays camera, animation, dialogue, music and UI from the Game's presentation definition and disables
+  local controls for feel.
+- The server keeps validating and rejecting blocked commands, so a modified client gains nothing.
+- Music that players cannot override during a cue is an explicit, rare Game exception.
+
+## Interactions
+
+The interaction framework (GPL-5) provides interactables, reach and permission checks, reservation and interaction
+facts. Two players cannot reserve the same target.
+
+Flow of a world interaction:
+
+1. The client sends an intent.
+2. The simulation checks reach, state and permissions, executes and emits an interaction fact.
+3. The quest runtime advances any quest in the same tick.
+4. The fact travels with its stable ID to the durable service (see the durable bridge below).
+
+## Quest runtime and the quest-creation API
+
+The quest runtime (Runic::Quest) runs inside the simulation on top of GameplayFlow, so a kill or an interaction
+advances a quest **in the same tick** that produced the fact. Durable progress lives in the Game's Go Quest service.
+The Engine owns the runtime and the API; the Game owns every quest.
+
+- **Definitions are data.** A quest is an ID, its states and objectives, and for each transition a trigger,
+  conditions, actions and the next state. Designers write them without C++; the Cooker validates them.
+- **Registries extend the vocabulary.** The Engine ships generic triggers (entity killed, item acquired, interaction
+  completed, area entered, sequence ended), conditions (quest state, has item, entity alive, time window) and actions
+  (set objective, start sequence, request an item grant or removal through a service, spawn). The Game registers
+  `game:` triggers, conditions and actions in C++.
+- **A builder for code.** The same definitions can be built in C++ for tests and generated content; data and code end
+  in the same registry.
+
+Neutral data example (format only):
 
 ```text
-FinalTransferSnapshot
-├── Player authoritative gameplay state
-├── active effects
-├── active restriction sources
-├── GameplayFlow SequenceInstance
-├── current step/state
-├── relative timers
-├── quest/encounter context
-└── authority epoch / last processed input sequence
+Quest: game:example_quest
+  State OpenDoor
+    Trigger:     InteractionCompleted(game:example_door)
+    Conditions:  HasItem(game:example_key), EntityAlive(game:example_npc)
+    Actions:     OpenDoor(game:example_door)
+                 RemoveItem(game:example_key)
+                 StartSequence(game:example_sequence)
+                 SetObjective(Escape)
+    Next:        Escape
 ```
 
-Timers are stored **relative to simulation time** so they survive the move.
+```cpp
+// Illustrative; Engine tests use engine: test IDs instead of game: IDs
+QuestDefinition quest = QuestBuilder("engine:test_quest")
+    .State("OpenDoor")
+        .On(Trigger::InteractionCompleted("engine:test_door"))
+        .If(Condition::HasItem("engine:test_key"))
+        .If(Condition::EntityAlive("engine:test_npc"))
+        .Do(Action::StartSequence("engine:test_sequence"))
+        .Do(Action::SetObjective("Escape"))
+        .GoTo("Escape")
+    .Build();
+
+quests.Register(std::move(quest));   // the same path loaded data takes
+conditions.Register("game:<condition_name>", GameConditionType{});   // RunicGame only
+```
+
+## Durable quest bridge
+
+Quest facts reach durable storage only through the Simulation's service port (QST-2, SIM-5).
+
+1. Combat emits `EntityKilled` once, with a stable event ID.
+2. The quest runtime consumes the fact, advances its local state and may start a sequence.
+3. The fact leaves through the Simulation's service port; the Platform's services-bridge layer carries it to the Quest
+   service, asynchronously (gRPC calls from PBND-1; NATS publishing and subscriptions from PBND-4, which slice 30
+   delivers together with QST-2).
+4. The service validates the source, deduplicates by event ID, updates progress and commits rewards in one
+   transaction.
+5. The accepted result returns to the simulation and is applied at a later safe tick; a service callback never touches
+   Flecs directly.
+6. Replaying the same fact changes nothing.
+
+- **On login** the character's quest state loads from the service into the runtime.
+- **On handoff** quest instances travel in the transfer snapshot with the rest of the player's state (QST-3).
+- Platform owns transactions and the idempotency store; the Game Quest service owns quest-shaped storage
+  (decided, [11 § OQ-16](11-open-questions.md#oq-16)).
+
+## Rules for any session touching this area
+
+- Do act only through Simulation commands and Gameplay APIs from GameplayFlow and Quest.
+- Do route every exit of a sequence through the one termination path.
+- Do acquire restrictions under a source ID and release them by source.
+- Never read the wall clock in a sequence or quest; use simulation time.
+- Never call Combat or AI internals from GameplayFlow or Quest.
+- Never wait synchronously for a service; submit through the service port and wait for the accepted result.
+- Never put a concrete quest, encounter, cue or status in Engine code, tests or this folder; use `engine:test_*` IDs.
