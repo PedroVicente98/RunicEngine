@@ -1,103 +1,72 @@
 # Content
 
-> **Contract seed.** When `Engine/Content/` is created, copy this file to
-> `Engine/Content/ARCHITECTURE.md`; from then on that file is authoritative.
-> Purpose, Owns, Does not own, Allowed dependencies, Primary consumers, layout,
-> and API sketch come from Appendix J §J.4.4. Other sections are derived and are
-> proposals until confirmed.
+Contract seed for `Runic::Content`: what a Claude Code session needs to implement the Content work packages. When `Engine/Foundation/Content/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
 
 | Field | Value |
 | --- | --- |
-| Directory | `Engine/Content/` |
-| CMake target | `RunicContent` → `Runic::Content` |
+| Group | Foundation |
+| Directory | `Engine/Foundation/Content/` |
+| CMake target | `Runic::Content` |
 | Namespace | `Runic::Content` |
-| Roadmap phase | 1 (basic) — expanded in 6 (data-driven content) |
 | Headless | yes |
 | Status | Not started |
 
 ## Purpose
 
-Stable data-driven definition identity, schemas, registration, lookup, and
-validation.
+Content makes the Engine data-first: skills, items, effects, AI, light values and balance are data with stable namespaced IDs and versioned schemas, reloadable without recompiling (ARCH § Principles and performance targets, principle 4). This module provides the IDs, registries, schemas, validation, loading and live reload that every other module uses for its definitions.
 
 ## Owns
 
-- Namespaced `ContentId`.
-- Versioned schemas.
-- `ContentRegistry`.
-- Definition lookup/loading contracts.
+- `ContentId` with the `engine:` and `game:` namespaces; registries and lookup (CNT-1).
+- Reporting duplicate and unknown IDs together with their source (CNT-1).
+- Versioned schemas, validation, loading and live-reload hooks (CNT-2).
 
 ## Does not own
 
-Concrete RunicGame item/ability/NPC/quest data; asset bytes; persistence.
+- Asset identity, handles and cached binary data (Assets).
+- Cooking and cook-time validation (Cooker; COOK-2 validates definitions through this module).
+- C++ behavior registries and their hook list (Combat, CMB-4), sequence registries (GameplayFlow), quest registries (Quest), extractor registry (Client). Those modules own their registries and refer to content by `ContentId`.
+- Every concrete definition. Game content is split into Shared, Client and Server definitions by RunicGame, and the Cooker emits separate client and server packages (OQ-17).
 
-## Allowed dependencies
+## Depends on
 
-- Core. Assets may consume Content IDs but must avoid cycles.
+| Kind | Allowed |
+| --- | --- |
+| Engine modules | Core |
+| Third-party | — |
 
-## Forbidden dependencies
+### Must never depend on
 
-Assets (Content must not depend back on it), ECS, Simulation, every gameplay
-module, RunicPlatform, RunicGame.
+- Any Engine module other than Core.
+- RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
+- Any game ID, name or value in code or tests. Tests use neutral IDs such as `engine:test_ability`.
 
-## Primary consumers
+## Public API sketch
 
-Gameplay, Combat, AI, Quest, Game content.
+Sketch, fixed in the contract session: `ContentId.hpp`, `ContentRegistry.hpp`, `ContentSchema.hpp`, `ContentLoader.hpp`, `ContentReload.hpp`.
 
-## Public API (conceptual)
+Rules the API must keep (ARCH § Engine gameplay APIs, behavior registry contract):
 
-```text
-Content/
-├── Public/
-│   ├── ContentId.hpp
-│   ├── ContentRegistry.hpp
-│   ├── ContentSchema.hpp
-│   ├── ContentDefinition.hpp
-│   └── ContentLoader.hpp
-├── Source/
-├── Tests/
-└── CMakeLists.txt
-```
+- Data refers to definitions by ID; an unknown ID fails at load, not at use.
+- Parameters have a schema checked at load, so the Cooker catches typos.
+- Data reloads live; changed C++ needs a restart.
 
-```cpp
-ContentId engine_id = "engine:default_interaction";
-ContentId game_id   = "game:infernal_slash";
-```
+## Threading and tick rules
 
-Engine knows how definitions are named, versioned, validated, and looked up;
-Game supplies the actual definitions. [J.4.4]
+- Loading and reloading never block a simulation tick (principle 5: nothing blocks the tick).
+- A reloaded definition reaches live simulation state only at a safe point; only the simulation's own phases mutate the Flecs world.
 
-## Threading / tick model (derived)
+## Work packages
 
-- Registration happens at load time or at safe boundaries (e.g. during
-  streaming), never concurrently with simulation reads of the same entry.
-- During ticks the registry is read-only, so lookups need no locks.
+| ID | Package | Done when | Needs | Slice |
+| --- | --- | --- | --- | --- |
+| CNT-1 | ContentId with `engine:` and `game:` namespaces, registries, lookup | Duplicate and unknown IDs are reported with their source | CORE-1 | 9 |
+| CNT-2 | Versioned schemas, validation, loading, live-reload hooks | A changed definition reloads without a restart | CNT-1 | 20 |
 
-## Data ownership (derived)
+## Acceptance tests
 
-Definitions are immutable after registration. Runtime instances refer to a
-definition by `ContentId` (or an interned handle derived from it).
+The Done when column is the acceptance list. Slice 20 also requires skills, items and effects as data with live reload, using Engine test data in this repository.
 
-## Integration points (derived)
+## Open items
 
-- Feature modules (Gameplay, Combat, AI, Quest, GameplayFlow) register their
-  schemas; Game registers concrete definitions under the `game:` namespace.
-- Cooker validates content against the same schemas at build time.
-
-## Acceptance tests (Stage A, derived)
-
-- [ ] Parse/validate namespaced IDs; reject malformed IDs.
-- [ ] Reject duplicate registration of the same ID.
-- [ ] Detect schema version mismatch.
-- [ ] Lookup of an unknown ID returns an error `Result`.
-- [ ] Engine tests use only `engine:`/test namespaces — no Game content.
-
-## Future extensions
-
-Phase 6: expanded Ability/Item/Effect/Character/NPC schemas. Editor-time hot
-reload.
-
-## Open questions
-
-- Definition file format is not chosen ([OQ-12](../system/11-open-questions.md#oq-12)).
-- Client-safe vs. server-only definitions ([OQ-17](../system/11-open-questions.md#oq-17)).
+- [OQ-17](../system/11-open-questions.md#oq-17) (decided): content is split into Shared, Client and Server definitions; the Cooker emits separate client and server packages.

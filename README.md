@@ -1,94 +1,58 @@
 # RunicEngine
 
-C++20 MMORPG engine foundation. This is **step 0.0: build setup only**.
-The sandbox checks dependency headers and linkage; no simulation, window,
-renderer, input system, or gameplay is implemented.
+RunicEngine is an open-source (MIT) C++20 engine of generic mechanisms for a server-authoritative MMORPG: a headless multi-rate simulation on Flecs and Jolt, 64-bit world space, gameplay and combat toolkits, AI, water and environment, realtime replication and distributed simulation, client presentation, and the Editor and Cooker tools.
 
-## Debug and Release
+It is one of three repositories. RunicGame (proprietary) builds its game on it; RunicPlatform (MIT) supplies the realtime transport, services and infrastructure and implements the Engine's interfaces. The Engine contains no game rules or content and depends on neither.
 
-Requires CMake 3.24+, Ninja, C/C++ compilers, and the Linux X11/OpenGL development
-libraries used by GLFW/bgfx. From this repository:
+## Status
+
+Bootstrap only. The build skeleton, pinned third-party dependencies and a disposable dependency check (`RunicSandbox`) exist; **no Engine module is implemented yet (0 of 27)**. The next work is slice 0 (BUILD-1: module helper, CI, test framework, headless checks, CPU baseline) and slice 1 (CORE-1, APP-1, APP-2). Details: [docs/current-state.md](docs/current-state.md).
+
+## Build
+
+Requires CMake 3.24+, Ninja, a C++20 compiler, and on Linux the X11 and OpenGL development libraries that GLFW and bgfx use.
 
 ```sh
 cmake --preset debug
 cmake --build --preset debug --parallel 2
-./build/debug/bin/RunicSandbox
+./build/debug/bin/RunicSandbox          # prints "RunicSandbox ready."
 
 cmake --preset release
 cmake --build --preset release --parallel 2
 ./build/release/bin/RunicSandbox
 ```
 
-Both executables check Flecs **C++ bindings**, GLM, Jolt, GLFW, bgfx, and ImGui,
-then print `RunicSandbox ready.`. The check needs no display or GPU context.
-Debug includes symbols; Release is optimized.
-
-## VS Code / Cursor
-
-Open **Runic.code-workspace** from this repository to see all three sibling
-repositories and use the repository-owned launch tasks. Opening RunicEngine
-directly also works. Opening only the parent directory does not load a nested
-`.vscode/launch.json`.
-
-In Run and Debug, select **Debug** or **Release** and press F5. Each launch
-configures and builds its matching preset first. The configurations use the
-C/C++ extension's debugger and `/usr/bin/gdb` on Linux. Source stepping is intended
-for Debug; optimized Release may skip variables/lines.
-
-The presets write `compile_commands.json`; `.clangd` selects the Debug database.
-CMake supplies the include paths, definitions, library locations, and transitive
-OS libraries. No manual editor include paths or global linker directories are needed.
-
-## Files and boundaries
-
-- `CMakeLists.txt`: project, two build choices, helper includes, sandbox.
-- `cmake/Dependencies.cmake`: every third-party pin, option, source, and link target,
-  separated into library sections.
-- `cmake/CompilerWarnings.cmake`: warnings for Runic targets only.
-- `cmake/Targets.cmake`: C++20/include root and headless target boundaries.
-- `cmake/Sandbox.cmake`: the single disposable executable.
-- `apps/Sandbox/Main.cpp`: two marked dependency-check blocks. Delete both blocks
-  to leave a plain `main()`; no library implementation relies on them.
-- `include/RunicEngine/`, `src/`: empty Core, Simulation, Physics, Platform,
-  Input, Renderer, Debug, and UI directories for later slices.
-- `tests/`: reserved; there are no duplicate bootstrap test executables.
-- `ThirdParty/`: downloaded source trees, ignored by Git.
-
-Future headers use `<RunicEngine/Module/Header.hpp>`. Platform and Input remain
-separate, and simulation must stay independent of presentation. bgfx remains the
-renderer dependency; the supplied Vulkan roadmap is not implemented.
-
-## Dependencies
-
-Sources are fetched only when their local ThirdParty directory is missing;
-existing source trees are reused across build configurations. Downloads use
-pinned revisions and SHA-256 checks. Keep downloaded trees unmodified. To update
-a dependency, update its pin/hash and remove its old source directory before
-configuring again. Configure shared-source build trees sequentially.
-
-| Dependency | Pin |
-| --- | --- |
-| Flecs | 4.0.4, C++ API in `flecs.h` |
-| GLM | 1.0.1 |
-| Jolt | 5.2.0 |
-| GLFW | 3.4 |
-| ImGui | 1.91.8, core sources only |
-| bgfx.cmake | `0fb9ec06bdaa7c3ae31ce6a3521e211183a0cead`, matching bx/bimg/bgfx revisions in CMake |
-
-`Runic::Core` is an interface include/C++20 target with no dummy version source.
-`Runic::Runtime` adds Flecs, GLM, and Jolt. `Runic::Presentation` adds only the
-client dependencies. The sandbox links both groups. Their libraries keep their
-own licenses; RunicEngine is MIT licensed.
-
-RunicGame consumes this sibling repository through `RUNIC_ENGINE_DIR`.
-For a server-only game build, use a separate build directory:
+Headless engine-only build (no GLFW, bgfx or ImGui configured):
 
 ```sh
-cmake -S ../RunicGame -B ../RunicGame/build/headless \
-  -DRUNIC_GAME_BUILD_CLIENT=OFF -DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF
-cmake --build ../RunicGame/build/headless --target RunicGameServer --parallel 2
+cmake -S . -B build/headless -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DRUNIC_BUILD_SANDBOX=OFF -DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF
+cmake --build build/headless --parallel 2
 ```
 
-An engine-only headless build can disable both `RUNIC_BUILD_SANDBOX` and
-`RUNIC_ENGINE_ENABLE_PRESENTATION`. No third-party-free build mode or engine
-systems are introduced.
+Third-party sources are downloaded on the first configure into `ThirdParty/` (git-ignored) from pinned archives with SHA-256 checks, and reused afterwards. To change a pin, update its URL and hash in `cmake/Dependencies.cmake` and delete the old source folder.
+
+| Dependency | Pin today |
+| --- | --- |
+| Flecs | 4.0.4 (C++ API) |
+| GLM | 1.0.1 |
+| Jolt Physics | 5.2.0 (moving to 5.6.0 in double precision with the AVX2 path in BUILD-1 and PHYS-1) |
+| GLFW | 3.4 (client and tools builds only) |
+| bgfx, bx, bimg | bgfx.cmake `0fb9ec06bdaa7c3ae31ce6a3521e211183a0cead` with matching revisions (client and tools builds only) |
+| Dear ImGui | 1.91.8, core only (client development builds and tools only) |
+
+Today's targets: `Runic::Core` (bootstrap include root), `Runic::Runtime` (headless bundle: Flecs, GLM, Jolt) and `Runic::Presentation` (client bundle: GLFW, bgfx, ImGui). RunicGame links the two bundles until it moves to per-module targets.
+
+Editors: open `Runic.code-workspace` to see all three sibling repositories; the `.vscode` launch configurations build the matching preset first, and `.clangd` reads the Debug compile database.
+
+## Documentation
+
+- [docs/README.md](docs/README.md) — documentation index
+- [docs/architecture.md](docs/architecture.md) — how the Engine is organized
+- [docs/modules/README.md](docs/modules/README.md) — module catalog and contracts
+- [docs/current-state.md](docs/current-state.md) — what exists and what comes next
+- [CLAUDE.md](CLAUDE.md) — rules for Claude Code sessions in this repository
+
+## License
+
+MIT. Third-party libraries keep their own licenses.

@@ -1,122 +1,73 @@
 # Events
 
-> **Contract seed.** When `Engine/Events/` is created, copy this file to
-> `Engine/Events/ARCHITECTURE.md`; from then on that file is authoritative.
-> Purpose, Owns, Does not own, Allowed dependencies, Primary consumers, layout,
-> and API sketch come from Appendix J §J.4.3 and §J.7. Other sections are derived
-> and are proposals until confirmed.
+Contract seed for `Runic::Events`: what a Claude Code session needs to implement the Events work package. When `Engine/Foundation/Events/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
 
 | Field | Value |
 | --- | --- |
-| Directory | `Engine/Events/` |
-| CMake target | `RunicEvents` → `Runic::Events` |
+| Group | Foundation |
+| Directory | `Engine/Foundation/Events/` |
+| CMake target | `Runic::Events` |
 | Namespace | `Runic::Events` |
-| Roadmap phase | 1 — authoritative backbone |
 | Headless | yes |
 | Status | Not started |
 
 ## Purpose
 
-Typed, tick-safe, authoritative gameplay fact/event streams inside a simulation.
-Application events and distributed messages are separate families
-([04](../system/04-events-and-messages.md)).
+Events carries simulation facts (for example HitEvent, DamageEvent, EntityKilled, RegionChanged) in typed, tick-safe buffers that every consumer receives. It is one of three event families (ARCH § Repositories, build targets and processes):
+
+| Family | Examples | Delivery | Owner |
+| --- | --- | --- | --- |
+| Application events | Key press, resize, UI focus, connection state | LayerStack: top layer first, can be marked handled | Application |
+| Simulation facts | HitEvent, DamageEvent, EntityKilled, RegionChanged | Tick-safe buffers; every consumer receives them | **Events** |
+| Distributed messages | Quest facts, inventory operations, world-event directives | Transport, gRPC or NATS, with explicit reliability and idempotency | Realtime messages: Network encoding over the Platform transport. Durable operations and facts: the Simulation's service port, implemented by the Platform services bridge |
 
 ## Owns
 
-- `EventId` and event metadata.
-- Typed event buffers, streams, and readers.
-- Event registration.
-- Multi-consumer delivery semantics.
+- Typed tick-safe event buffers and readers (EVT-1).
+- Multi-consumer delivery: a fact is never "handled away"; every reader sees it.
+- Stable event IDs: `SimulationId` plus a sequence number (EVT-1; decided in OQ-2). Services deduplicate durable facts by these IDs, so a replayed fact changes nothing.
 
 ## Does not own
 
-Window/input propagation; network serialization; service message transport;
-durable replay policy.
+- When facts become visible: the Simulation flushes events at phase barriers (SIM-2).
+- Concrete fact types. Each feature module defines its own (for example `CombatEvents.hpp` in Combat).
+- Application events (Application) and distributed messages (Network encodes realtime messages; durable facts leave through the Simulation's service port).
+- Lifecycle bookkeeping through Flecs observers (ECS conventions).
 
-## Allowed dependencies
+## Depends on
 
-- Core. (Simulation integrates ownership and tick boundaries.)
+| Kind | Allowed |
+| --- | --- |
+| Engine modules | Core |
+| Third-party | — |
 
-## Forbidden dependencies
+### Must never depend on
 
-ECS, Simulation (Simulation depends on Events, not the reverse), every gameplay
-module, NetworkAdapter, any serialization/transport library, RunicPlatform,
-RunicGame.
+- Any Engine module other than Core (no ECS, no Simulation).
+- Flecs or any other library.
+- RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
-## Primary consumers
+## Public API sketch
 
-Combat, AI, Quest, GameplayFlow, Spawn, Game simulation modules, NetworkAdapter.
+Sketch, fixed in the contract session: `EventBuffer.hpp` (typed buffer, per-worker writers), `EventReader.hpp` (independent read cursor per consumer), `EventId.hpp` (`SimulationId` plus sequence).
 
-## Public API (conceptual)
+## Threading and tick rules
 
-```text
-Events/
-├── Public/
-│   ├── EventId.hpp
-│   ├── EventMeta.hpp
-│   ├── GameplayEvent.hpp
-│   ├── EventBuffer.hpp
-│   ├── EventStream.hpp
-│   ├── EventReader.hpp
-│   └── EventRegistry.hpp
-├── Source/
-├── Tests/
-└── CMakeLists.txt
-```
+- Inside a parallel phase, workers write facts into per-worker buffers that are merged at the barrier in a fixed order, so results never depend on thread timing (ARCH § Simulation core: clock and threads).
+- Facts written in one phase are visible to the next phase after the flush (SIM-2).
+- Hot facts (combat, damage, death) travel in event buffers, never through Flecs observers (ARCH § Simulation core: Flecs and Jolt).
+- A fact carries its stable ID from the moment it is emitted; consumers never re-number it.
 
-```cpp
-struct EntityKilled {
-    EventId        id;
-    TickId         tick;
-    GlobalEntityId killer;
-    GlobalEntityId victim;
-};
+## Work packages
 
-events.Publish(EntityKilled{ .id = events.NextId(), .tick = tick,
-                             .killer = attacker, .victim = target });
-```
+| ID | Package | Done when | Needs | Slice |
+| --- | --- | --- | --- | --- |
+| EVT-1 | Typed tick-safe event buffers and readers, multi-consumer delivery, stable event IDs (SimulationId plus sequence) | Two consumers read the same fact; IDs stay stable on replay | CORE-1 | 4 |
 
-**Rule.** Gameplay facts are not handled-away like UI events. Multiple legitimate
-consumers must be able to observe the same authoritative fact. [J.4.3]
+## Acceptance tests
 
-## Threading / tick model (derived)
+The Done when column is the acceptance list. Slice 4 also requires that one fact reaches two consumers.
 
-- Facts are published on the simulation thread during simulation phases.
-- Each reader has its own cursor; reading never removes a fact for others.
-- Buffer rotation/retention happens at tick boundaries decided by Simulation.
+## Open items
 
-## Data ownership (derived)
-
-- Events owns the buffers. Payloads are plain values — no pointers into Flecs
-  storage — so a fact stays valid after the entity changes or dies.
-- Payloads reference entities by `GlobalEntityId` so NetworkAdapter can forward
-  them without translation.
-
-## Integration points (derived)
-
-- Simulation: tick stamping, buffer rotation.
-- Quest / GameplayFlow: "wait for fact" conditions.
-- NetworkAdapter: reads facts that must leave the process (e.g. durable quest
-  facts) and turns them into distributed messages.
-
-## Acceptance tests (Stage A, derived)
-
-- [ ] Two independent readers each observe every published fact exactly once.
-- [ ] Publication order is preserved within a tick.
-- [ ] Every fact carries an `EventId` and `TickId`; IDs are unique within a
-      simulation.
-- [ ] No API exists to mark a fact as handled/consumed.
-- [ ] A reader that falls behind the retention window gets an explicit
-      diagnostic, not silent loss.
-- [ ] Builds headless with Core only.
-
-## Future extensions
-
-Typed fact registration for Game-defined facts; tooling to inspect streams in
-the Editor. Durable replay stays out of this module.
-
-## Open questions
-
-- [OQ-2](../system/11-open-questions.md#oq-2) — where `TickId`/`GlobalEntityId`
-  are declared, and how `EventId` stays stable for deduplication.
-- Retention length (ticks) per stream is not specified.
+- [OQ-2](../system/11-open-questions.md#oq-2) (decided): stable event IDs are `SimulationId` plus sequence; the ID types live in Core.

@@ -2,33 +2,54 @@
 
 RunicEngine is the public (MIT) C++20 engine of a three-repository MMORPG project:
 
-- **RunicEngine** (this repo) — reusable real-time/game mechanisms.
-- **RunicPlatform** (`../RunicPlatform`) — networking, services, persistence, orchestration.
-- **RunicGame** (`../RunicGame`, proprietary) — all concrete game rules, content, presentation.
+- **RunicEngine** (this repo) — generic real-time and game mechanisms: 27 modules in seven groups
+  (Foundation, Simulation core, GameplayAPI, World systems, Networking, Presentation, Tools), the
+  entry point and layers, the Editor and the Cooker.
+- **RunicPlatform** (`../RunicPlatform`, MIT) — realtime transport, Protobuf contracts, server
+  bindings, Go SDK, core services, infrastructure. It implements Engine interfaces.
+- **RunicGame** (`../RunicGame`, proprietary) — all concrete game rules, content and executables.
+
+The source of truth is ARCH (RunicEngine — Technical Architecture v3); these docs are generated from it.
 
 ## Read before changing anything
 
 1. `docs/README.md`
 2. `docs/system/01-architecture-overview.md`, `02-module-contract.md`, `03-dependency-rules.md`
-3. `docs/current-state.md`
-4. The module you are working on: `docs/modules/<Module>.md` (or `Engine/<Module>/ARCHITECTURE.md` once it exists)
-5. `docs/system/10-ai-development-workflow.md` — how a module task is done
+3. `docs/architecture.md` and `docs/current-state.md`
+4. The module you are working on: `docs/modules/<Module>.md` (or `Engine/<Group>/<Module>/ARCHITECTURE.md` once it exists)
+5. `docs/system/12-work-packages.md` and `docs/system/10-ai-development-workflow.md` — how a package is done
 
 ## Hard rules
 
-- Work on **one module at a time**. Write only inside that module, its CMake target,
-  its tests, and its docs. If another module needs a change, report the required
-  interface change instead of making it.
-- Link only the module's **allowed dependencies**. Backend types (Jolt, bgfx, Flecs,
-  RmlUi, BehaviorTree.CPP, Recast/Detour) never appear in `Public/` headers.
-- The authoritative server is **headless**: no GLFW, bgfx, RmlUi, ImGui, client audio,
-  or editor code in headless modules.
-- No RunicGame rules, names, or content in this repository (tests included).
-- No Agones, Kubernetes, database, gRPC, or NATS dependency in Engine.
-- Never block a simulation tick on I/O; never mutate Flecs from an I/O callback.
-- Local Flecs entity IDs never leave the process; use `GlobalEntityId`.
-- Do not silently resolve items in `docs/system/11-open-questions.md`; ask.
-- Implement Stage A only (what the acceptance tests need); no speculative features.
+- **One work package = one module = one PR.** Write only inside that module's folder, its CMake
+  target and its docs. If another module needs a change, stop and report the interface change
+  instead of making it.
+- **Contract first.** The module's `ARCHITECTURE.md`, the public headers and the acceptance tests
+  are approved before any `Source/` code. Implement **Stage A only**: what the tests need, no
+  speculative features, no placeholders in other modules.
+- **Link only the module's allowed dependencies** (the Depends on column is a ceiling). A package's
+  Needs orders merges; it never grants a link. Third-party libraries are always PRIVATE.
+- **Public headers carry no library types** (Flecs, Jolt, bgfx, RmlUi, ImGui, BehaviorTree.CPP,
+  Detour, GameNetworkingSockets). Exactly two exceptions are approved: the Flecs world handle for
+  modules that register systems (for example `AIModule`), and BehaviorTree.CPP node base types for
+  Game custom AI nodes. Record a used exception in the module's `ARCHITECTURE.md`.
+- **Headless modules** never link GLFW, bgfx, RmlUi, ImGui, an audio backend or editor code. The
+  Window class in Application is compiled only in client and tools builds.
+- **No game content.** No RunicGame rules, names, numbers or content anywhere in this repository,
+  tests and docs included. Tests use neutral IDs such as `engine:test_ability`.
+- **No Agones, Kubernetes, database, gRPC or NATS** dependency anywhere in the Engine.
+- **The Engine never depends on RunicPlatform or RunicGame.** The Platform implements Engine
+  interfaces through header-only interface targets whose headers include only Core types
+  (`Runic::NetworkTransport`, `Runic::SimulationPort`), plus `Runic::Core` and `Runic::Application`.
+  Keep those headers free of anything above Core.
+- **Network encodes every realtime message**, envelope included. Protobuf (Platform) carries only
+  service APIs, published facts and the connect-ticket format.
+- **Never block a simulation tick.** I/O and service work run on their own threads and only
+  enqueue; results are applied at safe ticks through the Simulation's service port.
+- **Never mutate Flecs from an I/O callback.** Only the simulation's own phases mutate the world.
+- **Local Flecs entity IDs never leave the process.** Across processes use `GlobalEntityId`,
+  `GlobalPlayerId` and the other plain ID types in Core.
+- **Do not silently resolve items in `docs/system/11-open-questions.md`;** ask the owner.
 
 ## Build
 
@@ -38,9 +59,11 @@ cmake --preset debug && cmake --build --preset debug --parallel 2
 ```
 
 Headless engine-only build: configure with `-DRUNIC_BUILD_SANDBOX=OFF -DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF`.
+Do not change a pin in `cmake/Dependencies.cmake` without its SHA-256 and without making sure the old
+`ThirdParty/` source folder cannot be reused.
 
 ## Docs maintenance
 
-- Update the module contract, `docs/modules/README.md` status, and `docs/current-state.md`
+- Update the module contract, `docs/modules/README.md` status and `docs/current-state.md`
   in the same change as the code.
 - `docs/system/` is mirrored in all three repositories; edit all copies together.

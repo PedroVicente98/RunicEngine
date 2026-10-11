@@ -1,78 +1,78 @@
 # Navigation
 
-> **Contract seed.** When `Engine/Navigation/` is created, copy this file to
-> `Engine/Navigation/ARCHITECTURE.md`; from then on that file is authoritative.
-> Purpose, Owns, Does not own, Allowed dependencies, and Primary consumers come
-> from Appendix J §J.4.16. Other sections are derived and are proposals until
-> confirmed.
+Contract seed for `Runic::Navigation`: what a Claude Code session needs to implement the Navigation work package. When `Engine/WorldSystems/Navigation/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
 
 | Field | Value |
 | --- | --- |
-| Directory | `Engine/Navigation/` |
-| CMake target | `RunicNavigation` → `Runic::Navigation` |
+| Group | World systems |
+| Directory | `Engine/WorldSystems/Navigation/` |
+| CMake target | `Runic::Navigation` |
 | Namespace | `Runic::Navigation` |
-| Roadmap phase | 11 — Navigation/Spawn/AI |
 | Headless | yes |
-| Status | Not started — Detour not yet added |
+| Status | Not started |
 
 ## Purpose
 
-Runtime path and navigation queries over cooked navigation data.
+Navigation is the runtime pathfinding of the authoritative server: the Detour and DetourTileCache runtime, nav tiles streamed by cell, and path queries behind the MoveTo and MoveGoal contract that AI and scripted movement use (ARCH § Repositories, build targets and processes; ARCH § AI architecture).
 
 ## Owns
 
-`NavigationWorld`, path query/result, agent/query handles, the Detour-backed
-runtime.
+- The Detour and DetourTileCache runtime, kept private (NAV-1).
+- Nav tiles streamed by cell: tiles load and unload with their cells (NAV-1).
+- Path queries behind the MoveTo and MoveGoal contract (NAV-1). An AI intent becomes a `MoveGoalCommand` with an actor and a destination; Navigation answers the path that movement follows.
+- Navmesh tiles as the module's own spatial structure; Region, Sector and Cell stay the shared vocabulary (ARCH § World space: coordinates, layers and partitions).
 
 ## Does not own
 
-Recast navmesh building (Cooker); AI decision policy (AI); Game route rules.
+- Navmesh cooking with Recast (Cooker, COOK-6). Recast is a tool library and never ships in the runtime.
+- Decisions about where to go (AI, GameplayFlow) and movement execution (Gameplay movement modes on Physics CharacterVirtual).
+- The decision which cells are loaded (World streaming state, WORLD-3) and package I/O (see OQ-3).
+- Water navigation graphs and AI vessel routes (Water, a later stage).
 
-## Allowed dependencies
+## Depends on
 
-- Core, World.
-- Detour backend (private).
+| Kind | Allowed |
+| --- | --- |
+| Engine modules | World, Simulation |
+| Third-party (PRIVATE) | Detour and DetourTileCache |
 
-## Forbidden dependencies
+### Must never depend on
 
-Recast (tool-only, Cooker), AI, Combat, Simulation mutation, RunicPlatform,
-RunicGame.
+- AI, Gameplay, Combat or any module above it; they call Navigation.
+- Detour types in `Public/`. Detour has no approved exception.
+- Recast at runtime.
+- RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
-## Primary consumers
+## Public API sketch
 
-AI, Gameplay movement, Game NPC logic.
+ARCH's command bridge turns move intents into this command (ARCH § AI architecture, intents become ordinary commands):
 
-## Public API (conceptual)
-
-```text
-Navigation/
-├── Public/
-│   └── Navigation.hpp       # split into explicit headers as the API grows
-├── Source/
-├── Tests/
-└── CMakeLists.txt
+```cpp
+// Illustrative
+case AIIntentType::MoveTo:
+case AIIntentType::Investigate: commands.Push(MoveGoalCommand{ .actor = intent.actor,
+                                    .destination = intent.position }); break;
 ```
 
-## Threading / tick model (derived)
+Headers (sketch, fixed in the contract session): `NavigationWorld.hpp`, `NavTile.hpp`, `PathQuery.hpp`, `MoveGoal.hpp`.
 
-Path queries are called from simulation phases; long queries may be sliced
-across ticks but never block a tick.
+## Threading and tick rules
 
-## Data ownership (derived)
+- Path queries run inside simulation phases; AI emits move goals at 20 Hz and movement runs at 30 Hz.
+- Tile registration follows cell streaming at safe points; loading never blocks a tick.
+- Queries are read-only and may run on workers in parallel phases; results reach entities through commands, never by direct mutation.
 
-Owns loaded navmesh data (per Region/Sector/Cell as streamed) and query state.
+## Work packages
 
-## Integration points (derived)
+| ID | Package | Done when | Needs | Slice |
+| --- | --- | --- | --- | --- |
+| NAV-1 | Detour runtime, nav tiles streamed by cell, path queries behind MoveGoal | Paths cross cell borders; tiles load and unload with cells | WORLD-3, COOK-6 | 31 |
 
-- Cooker produces navmesh data with Recast; Navigation loads it.
-- AI requests paths; movement follows them via commands.
+## Acceptance tests
 
-## Acceptance tests (Stage A, derived)
+The Done when column is the acceptance list. Slice 31 shows spawned NPCs walking navmesh paths across cells, using tiles cooked by COOK-6 from Engine test geometry.
 
-- [ ] Load a cooked navmesh; find a path between two reachable points.
-- [ ] Unreachable target returns a clear failure result.
-- [ ] No Detour type in `Public/`; builds headless.
+## Open items
 
-## Future extensions
-
-Per-cell navmesh streaming; dynamic obstacles if a consumer requires them.
+- [OQ-3](../system/11-open-questions.md#oq-3) (still open, narrowed): who performs the load of streamed cell data. Nav tiles stream with cells like other cooked data, and Navigation does not depend on Assets. The NAV-1 contract session must ask the owner how tiles reach Navigation. Do not decide it silently.
+- The exact MoveTo and MoveGoal contract is fixed in the NAV-1 contract session together with its first consumer, AI-2.
