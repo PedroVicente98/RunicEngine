@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/gameplay-api
+  - headless/yes
+  - slice/29
+aliases:
+  - "Runic::GameplayFlow"
+---
+
 # GameplayFlow
 
 Contract seed for `Runic::GameplayFlow`: what a Claude Code session needs to implement the GameplayFlow work packages. When `Engine/GameplayAPI/GameplayFlow/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::GameplayFlow`: what a Claude Code session needs to imp
 
 ## Purpose
 
-GameplayFlow is the one authoritative runtime for scripted gameplay. Quests, boss phases, dungeons, cutscenes, escorts, tutorials and world events all run on it instead of each inventing its own timers and state machines (ARCH § Engine gameplay APIs, scripted sequences and restrictions). The Game supplies every concrete sequence.
+GameplayFlow is the one authoritative runtime for scripted gameplay. Quests, boss phases, dungeons, cutscenes, escorts, tutorials and world events all run on it instead of each inventing its own timers and state machines (ARCH[^arch] § Engine gameplay APIs, scripted sequences and restrictions). The Game supplies every concrete sequence.
 
 ## Owns
 
@@ -34,7 +47,7 @@ TRIGGER → CONDITIONS → ACTIONS → STATE TRANSITION
 | State | Set a tag, state or value; set an objective or sequence variable |
 | Movement | Move an entity, follow a path, teleport where explicitly legal |
 | Interaction | Enable or disable an interaction; reserve or release a target |
-| Combat | Request an ability through a command; apply an approved effect; end an encounter state |
+| Combat[^engine-combat] | Request an ability through a command; apply an approved effect; end an encounter state |
 | AI | Change a behavior profile or state through AI commands |
 | World | Open or close a door, activate an object, set a world-state value |
 | Timing | Delay, timeout, wait until a simulation time |
@@ -53,29 +66,29 @@ TRIGGER → CONDITIONS → ACTIONS → STATE TRANSITION
 ## Does not own
 
 - Restrictions as a mechanism (Gameplay); GameplayFlow acquires and releases them under the sequence's source ID.
-- Combat and AI internals: sequences act through Simulation commands and Gameplay APIs, the same doors players and AI use.
-- Quests (Quest builds on this module), the transfer protocol (DistributedSimulation), durable services (reached through the Simulation's service port).
+- Combat[^engine-combat] and AI internals: sequences act through Simulation commands and Gameplay APIs, the same doors players and AI use.
+- Quests (Quest builds on this module), the transfer protocol (DistributedSimulation[^engine-distributedsimulation]), durable services (reached through the Simulation's service port).
 - Every concrete sequence, cue and `game:` action (RunicGame, server only).
 
 ## Depends on
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Gameplay, DistributedSimulation (handoff snapshot) |
+| Engine modules | Gameplay[^engine-gameplay], DistributedSimulation[^engine-distributedsimulation] (handoff snapshot) |
 | Third-party | — |
 
 DistributedSimulation is needed only for the handoff snapshot (FLOW-3); a package links only what it uses.
 
 ### Must never depend on
 
-- Combat or AI internals (decided in OQ-18: GameplayFlow acts only through Simulation commands and Gameplay APIs).
+- Combat[^engine-combat] or AI internals (decided in OQ-18[^oq-18]: GameplayFlow acts only through Simulation commands and Gameplay APIs).
 - Quest (Quest depends on GameplayFlow).
 - Presentation modules: cues are data for clients, never calls into Client, UI or Audio.
 - Game content in code or tests; RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
 ## Public API sketch
 
-Registration (ARCH, illustrative):
+Registration (ARCH[^arch], illustrative):
 
 ```cpp
 actions.Register("engine:spawn_entity", SpawnEntityAction{});
@@ -105,9 +118,9 @@ Headers (sketch, fixed in the contract session): `Sequence.hpp`, `SequenceRuntim
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| FLOW-1 | Sequence runtime: trigger, condition and action registries, scheduler, timers on simulation time | A sequence waits, branches and acts only through commands and Gameplay APIs | GPL-5 | 29 |
+| FLOW-1 | Sequence runtime: trigger, condition and action registries, scheduler, timers on simulation time | A sequence waits, branches and acts only through commands and Gameplay APIs | GPL-5[^engine-gameplay] | 29 |
 | FLOW-2 | Termination path, restriction ownership, watchdog, presentation cues | Complete, abort, timeout, disconnect and shutdown all release everything the sequence held | FLOW-1, GPL-3 | 29 |
-| FLOW-3 | Handoff policies and sequence state in the transfer snapshot | Transferable keeps its timers; PinAuthority blocks transfer; AbortOnTransfer cleans up | FLOW-2, DSIM-3 | 37 |
+| FLOW-3 | Handoff policies and sequence state in the transfer snapshot | Transferable keeps its timers; PinAuthority blocks transfer; AbortOnTransfer cleans up | FLOW-2, DSIM-3[^engine-distributedsimulation] | 37 |
 
 ## Acceptance tests
 
@@ -116,4 +129,23 @@ The Done when column is the acceptance list. Slice 29's runnable result (a scrip
 ## Open items
 
 - [OQ-18](../system/11-open-questions.md#oq-18) (decided, option 1): GameplayFlow acts only through Simulation commands and Gameplay APIs (FLOW-1).
-- FLOW-3 registers sequence state into DistributedSimulation's snapshot-contributor registry (DSIM-3).
+- FLOW-3 registers sequence state into DistributedSimulation[^engine-distributedsimulation]'s snapshot-contributor registry (DSIM-3).
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Gameplay|Gameplay]] · [[../modules/DistributedSimulation|DistributedSimulation]]
+- **Depended on by:** [[../modules/Quest|Quest]]
+- **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
+[^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-gameplay]: [[../modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
+[^oq-18]: [[../system/11-open-questions#OQ-18 — GameplayFlow built-in actions versus its dependency list (decided 2026-10-09)|OQ-18]] — open question or decision

@@ -1,3 +1,11 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/build-contract
+---
+
 # BUILD-1 — Build skeleton (contract)
 
 This file is the contract for BUILD-1, the slice 0 package that builds the skeleton every later package stands on: the `runic_add_module` helper, presets, CI, the test framework, the automated checks, the submodule pins and the CPU baseline. It is the canonical contract for all three repositories; RunicPlatform and RunicGame each keep a short `docs/build/BUILD-1.md` with their part.
@@ -8,13 +16,13 @@ This file is the contract for BUILD-1, the slice 0 package that builds the skele
 | Repositories | RunicEngine (this file, the helpers and checks), RunicPlatform, RunicGame |
 | Needs | — |
 | Status | **Contract — awaiting owner review.** The acceptance tests in `tests/build/` exist and fail; no helper or CI code exists yet |
-| Source | ARCH § Modules, work packages and the implementation contract (Module contract, Automated checks, Work packages); [docs/system/02](../system/02-module-contract.md), [03](../system/03-dependency-rules.md), [10](../system/10-ai-development-workflow.md), [12](../system/12-work-packages.md) |
+| Source | ARCH[^arch] § Modules, work packages and the implementation contract (Module contract, Automated checks, Work packages); [docs/system/02](../system/02-module-contract.md), [03](../system/03-dependency-rules.md), [10](../system/10-ai-development-workflow.md), [12](../system/12-work-packages.md) |
 
 ## Done when
 
 From [12-work-packages.md](../system/12-work-packages.md): every repository configures and builds; the server target links no graphics library; a forbidden link fails CI.
 
-Slice 0's runnable result ([08](../system/08-implementation-roadmap.md)): the Engine library plus empty GameClient, GameServer, Editor and Cooker build in CI in all three repositories, and the server links no graphics.
+Slice 0's runnable result ([08](../system/08-implementation-roadmap.md)): the Engine library plus empty GameClient, GameServer, Editor[^engine-editor] and Cooker[^engine-cooker] build in CI in all three repositories, and the server links no graphics.
 
 The acceptance tests below turn that into checks that fail today and pass when BUILD-1 is implemented.
 
@@ -33,10 +41,10 @@ Approving this contract approves these choices. Items marked **Proposal** are th
 | 7 | CPU baseline option `RUNIC_CPU_BASELINE`, default `x86-64-v3` (`-march=x86-64-v3` on GCC and Clang, `/arch:AVX2` on MSVC); `none` turns it off for old machines | Proposal (the baseline itself is decided) |
 | 8 | Warnings: `-Wall -Wextra -Wpedantic` (or `/W4 /permissive-`) on every module target; CI turns warnings into errors with `RUNIC_WARNINGS_AS_ERRORS=ON` | Proposal |
 | 9 | The pre-v3 scaffold (the empty `include/RunicEngine/*` and `src/*` folders and `tests/.gitkeep`) is removed; `Engine/<Group>/<Module>/` folders are created by each module's first package, never here | Follows [OQ-4](../system/11-open-questions.md#oq-4), [OQ-5](../system/11-open-questions.md#oq-5), [OQ-8](../system/11-open-questions.md#oq-8) |
-| 10 | The empty Editor and Cooker executables live in `apps/Editor/` and `apps/Cooker/` (one `Main.cpp` each, returning 0). EDT-1 and COOK-1 replace them with the real modules | Proposal |
+| 10 | The empty Editor[^engine-editor] and Cooker[^engine-cooker] executables live in `apps/Editor/` and `apps/Cooker/` (one `Main.cpp` each, returning 0). EDT-1 and COOK-1 replace them with the real modules | Proposal |
 | 11 | The transitional bundles `Runic::Runtime` and `Runic::Presentation` stay ([OQ-8](../system/11-open-questions.md#oq-8)) and gain one switch, `RUNIC_ENGINE_BUNDLES`, so the Platform's standalone build configures the helpers without Flecs, GLM or Jolt | Proposal |
 
-Not in BUILD-1: Jolt 5.6.0 in double precision (PHYS-1; the pin stays 5.2.0 and `docs/current-state.md` keeps it as a known gap), any module code (CORE-1 onward), the canonical Go module path ([OQ-9](../system/11-open-questions.md#oq-9), before PCT-1).
+Not in BUILD-1: Jolt 5.6.0 in double precision (PHYS-1[^engine-physics]; the pin stays 5.2.0 and `docs/current-state.md`[^doc-current-state] keeps it as a known gap), any module code (CORE-1[^engine-core] onward), the canonical Go module path ([OQ-9](../system/11-open-questions.md#oq-9), before PCT-1[^platform-contracts]).
 
 ## Interface: CMake helpers
 
@@ -51,7 +59,7 @@ All helpers live in `cmake/` in this repository. A consumer gets them with `list
 | `cmake/RunicModuleCatalog.cmake` | The Engine catalog: one `runic_catalog_module` call per row of [03 § Engine modules](../system/03-dependency-rules.md#engine-modules) |
 | `cmake/checks/PublicHeaderScan.cmake` | Script: library types and includes in `Public/` |
 | `cmake/checks/SourceIncludeScan.cmake` | Script: includes of another module's `Source/` |
-| `cmake/checks/CatalogSync.cmake` | Script: the catalog equals the tables in `docs/system/03-dependency-rules.md` |
+| `cmake/checks/CatalogSync.cmake` | Script: the catalog equals the tables in `docs/system/03-dependency-rules.md`[^doc-system-03-dependency-rules] |
 | `cmake/checks/DocsCheck.cmake` | Script: a code change without its contract or status update |
 
 ### runic_catalog_module
@@ -66,9 +74,9 @@ runic_catalog_module(<Name>
     HEADLESS <yes|no|tool|never-shipped>)  # the Headless column; "yes (Window excluded)" is written yes
 ```
 
-Declares what a module may link. A module that is not in the catalog cannot be created ([02 § Checklist](../system/02-module-contract.md#checklist-creating-a-module)). `ALLOWS` is a ceiling: a module links only what its packages use. A target name in `ALLOWS` uses the full alias (`Runic::Core`, `RunicPlatform::Contracts`).
+Declares what a module may link. A module that is not in the catalog cannot be created ([02 § Checklist](../system/02-module-contract.md#checklist-creating-a-module)). `ALLOWS` is a ceiling: a module links only what its packages use. A target name in `ALLOWS` uses the full alias (`Runic::Core`[^engine-core], `RunicPlatform::Contracts`[^platform-contracts]).
 
-The Engine catalog is written in this contract ([cmake/RunicModuleCatalog.cmake](../../cmake/RunicModuleCatalog.cmake)) so its rows can be reviewed with it. Third parties in it are library IDs taken from the parentheses in 03 and the module contracts (`jolt`, `detour`, `behaviortree`, `bgfx`, `rmlui`, `imgui`, …). The Flecs world-handle exception is listed for ECS and AI, the two modules 03 names; another module that registers systems gets it from its own package, with the owner's approval.
+The Engine catalog is written in this contract ([cmake/RunicModuleCatalog.cmake](../../cmake/RunicModuleCatalog.cmake)) so its rows can be reviewed with it. Third parties in it are library IDs taken from the parentheses in 03 and the module contracts (`jolt`, `detour`, `behaviortree`, `bgfx`, `rmlui`, `imgui`, …). The Flecs world-handle exception is listed for ECS[^engine-ecs] and AI, the two modules 03 names; another module that registers systems gets it from its own package, with the owner's approval.
 
 ```cmake
 runic_catalog_interface(<Name> FROM <Module>)   # a header-only interface target; it may link Runic::Core only
@@ -108,7 +116,7 @@ Called once in `<Group>/<Name>/CMakeLists.txt` (in the Engine: `Engine/<Group>/<
 runic_add_interface_target(<Name> FROM <Module> HEADERS <dir>)
 ```
 
-The one header-only interface target a module may export for an interface the Platform implements (`Runic::NetworkTransport` from Network, `Runic::SimulationPort` from Simulation). It is an INTERFACE library with `<dir>` as include root, linking only `Runic::Core`; configure fails at the end of configure if anything else was linked to it. It needs a `runic_catalog_interface` row.
+The one header-only interface target a module may export for an interface the Platform implements (`Runic::NetworkTransport`[^engine-network] from Network, `Runic::SimulationPort`[^engine-simulation] from Simulation). It is an INTERFACE library with `<dir>` as include root, linking only `Runic::Core`; configure fails at the end of configure if anything else was linked to it. It needs a `runic_catalog_interface` row.
 
 ### runic_add_group
 
@@ -129,7 +137,7 @@ runic_check_headless(<target>...)      # executables and libraries that must sta
 - At the end of configure (a deferred call in the top-level directory), every target registered with `runic_check_headless` — and, in builds where presentation is off (`RUNIC_ENGINE_ENABLE_PRESENTATION` OFF or not defined), every module registered with `HEADLESS` — has its full link closure walked (`LINK_LIBRARIES` and `INTERFACE_LINK_LIBRARIES`, through `$<LINK_ONLY:…>`). Reaching a marked target fails configure with the chain, for example `RUNIC: headless target RunicGameServer reaches presentation target glfw through Runic::Presentation`.
 - When every deferred check passes, configure prints `RUNIC: link checks passed (<n> targets)`; the tests use this line to know the helpers ran.
 - Module `HEADLESS` checks run only where presentation is off, because Application's Window class links GLFW in client and tools builds ("yes (Window excluded)" in 03). The `headless` presets and the Game's `server-only` presets are those builds, and their CI jobs are required.
-- RunicGame registers `RunicGameServer`. Together with the `server-only` preset (which never configures presentation libraries), this is the headless build of GameServer that ARCH's Automated checks require.
+- RunicGame registers `RunicGameServer`. Together with the `server-only` preset (which never configures presentation libraries), this is the headless build of GameServer that ARCH[^arch]'s Automated checks require.
 
 ### runic_enable_tests
 
@@ -146,11 +154,11 @@ Fetches GoogleTest (decision 2), sets `INSTALL_GTEST OFF` and `gtest_force_share
 | `PublicHeaderScan.cmake` | `-DROOT=<repo> -DCATALOG=<file>` | A header under any `Public/` includes or names a library from the forbidden list (Flecs, Jolt, bgfx/bx/bimg, RmlUi, ImGui, BehaviorTree.CPP, Detour/Recast, GameNetworkingSockets, gRPC, NATS, Agones, Protobuf, Prometheus) — except a module's approved `PUBLIC_EXCEPTIONS` (glm in Core; the Flecs world handle; BehaviorTree.CPP node base types) |
 | `SourceIncludeScan.cmake` | `-DROOT=<repo>` | Any file includes a path inside another module's `Source/` |
 | `CatalogSync.cmake` | `-DCATALOG=<file> -DDOCS=<03 file> -DTABLE=<engine\|platform\|game>` | A module, its group, an allowed module dependency or its Headless value differs between the catalog and the table in 03 (third-party IDs are reviewed with the catalog, since 03 names only some of them) |
-| `DocsCheck.cmake` | `-DCHANGED=<file with changed paths> -DROOT=<repo> [-DRULES=<file>]` | A change under a module folder has no change to that module's `ARCHITECTURE.md` (or `docs/modules/<Module>.md` before the folder exists), or no change to `docs/current-state.md` |
+| `DocsCheck.cmake` | `-DCHANGED=<file with changed paths> -DROOT=<repo> [-DRULES=<file>]` | A change under a module folder has no change to that module's `ARCHITECTURE.md` (or `docs/modules/<Module>.md` before the folder exists), or no change to `docs/current-state.md`[^doc-current-state] |
 
-`CatalogSync` reads names the way 03 writes them: parentheses are notes and are dropped; a bare module name after a `Runic::` name is `Runic::<Name>` in the Engine and Game tables; "Contracts" in the Platform table is `RunicPlatform::Contracts`; "Platform server bindings and contracts" in the Game table is `RunicPlatform::ServerBindings` and `RunicPlatform::Contracts`; "Most modules" is `ALLOWS_ANY_MODULE`.
+`CatalogSync` reads names the way 03 writes them: parentheses are notes and are dropped; a bare module name after a `Runic::` name is `Runic::<Name>` in the Engine and Game tables; "Contracts" in the Platform table is `RunicPlatform::Contracts`[^platform-contracts]; "Platform server bindings[^platform-serverbindings] and contracts" in the Game table is `RunicPlatform::ServerBindings` and `RunicPlatform::Contracts`; "Most modules" is `ALLOWS_ANY_MODULE`.
 
-The scans skip `tests/build/fixtures/` (whose trees break the rules on purpose), `ThirdParty/`, `external/` and build folders. `DocsCheck` maps a changed path to its required contract with per-repository rules (`cmake/checks/DocsRules.cmake` in the Engine: `Engine/<Group>/<Module>/…` needs `Engine/<Group>/<Module>/ARCHITECTURE.md`, or `docs/modules/<Module>.md` before the folder exists); RunicPlatform and RunicGame pass their own with `-DRULES`. In CI, `DocsCheck` gets the pull request's changed files (`git diff --name-only origin/<base>...HEAD`). A failing check is fixed by changing the code, never by widening the catalog; widening a row is an owner decision recorded in ARCH first ([03 § How CI enforces the rules](../system/03-dependency-rules.md#how-ci-enforces-the-rules)).
+The scans skip `tests/build/fixtures/` (whose trees break the rules on purpose), `ThirdParty/`, `external/` and build folders. `DocsCheck` maps a changed path to its required contract with per-repository rules (`cmake/checks/DocsRules.cmake` in the Engine: `Engine/<Group>/<Module>/…` needs `Engine/<Group>/<Module>/ARCHITECTURE.md`, or `docs/modules/<Module>.md` before the folder exists); RunicPlatform and RunicGame pass their own with `-DRULES`. In CI, `DocsCheck` gets the pull request's changed files (`git diff --name-only origin/<base>...HEAD`). A failing check is fixed by changing the code, never by widening the catalog; widening a row is an owner decision recorded in ARCH[^arch] first ([03 § How CI enforces the rules](../system/03-dependency-rules.md#how-ci-enforces-the-rules)).
 
 ## Options and presets (this repository)
 
@@ -159,7 +167,7 @@ The scans skip `tests/build/fixtures/` (whose trees break the rules on purpose),
 | `RUNIC_ENGINE_BUILD_TESTS` | top-level project | Calls `runic_enable_tests`, adds module tests and `tests/build/` |
 | `RUNIC_ENGINE_BUNDLES` | `ON` | Configures `Runic::Runtime`, `Runic::Presentation` and their third parties. RunicPlatform sets it `OFF` |
 | `RUNIC_ENGINE_ENABLE_PRESENTATION` | as today | Configures GLFW, bgfx and ImGui (client and tools builds) |
-| `RUNIC_ENGINE_BUILD_TOOLS` | top-level project | Builds the empty `RunicEditor` and `RunicCooker` (decision 10); requires presentation for the Editor |
+| `RUNIC_ENGINE_BUILD_TOOLS` | top-level project | Builds the empty `RunicEditor` and `RunicCooker` (decision 10); requires presentation for the Editor[^engine-editor] |
 | `RUNIC_BUILD_SANDBOX` | as today | The disposable dependency check |
 | `RUNIC_CPU_BASELINE` | `x86-64-v3` | Decision 7 |
 | `RUNIC_WARNINGS_AS_ERRORS` | `OFF` | CI sets `ON` |
@@ -208,7 +216,7 @@ Merge order: RunicEngine, then RunicPlatform, then RunicGame.
 | `build.forbidden_link` | `forbidden_link` | A module linking a target outside its catalog row fails configure with `RUNIC:` naming both |
 | `build.public_third_party` | `public_third_party` | A third party in `PUBLIC_DEPS` without a `PUBLIC_EXCEPTIONS` entry fails configure |
 | `build.wrong_direction` | `wrong_direction` | A `Runic::` module linking a `RunicPlatform::` target fails configure, even when its row allows it |
-| `build.interface_target` | `interface_target` | An interface target that links anything but `Runic::Core` fails configure |
+| `build.interface_target` | `interface_target` | An interface target that links anything but `Runic::Core`[^engine-core] fails configure |
 | `build.headless_module` | `headless_module` | A `HEADLESS` module that reaches a marked presentation target through another target fails configure with the chain |
 | `build.headless_executable` | `headless_executable` | `runic_check_headless` on an executable that reaches a marked target fails configure |
 | `build.headless_executable_clean` | `headless_executable` | The same executable without the edge passes and prints `RUNIC: link checks passed` |
@@ -219,8 +227,8 @@ Merge order: RunicEngine, then RunicPlatform, then RunicGame.
 | `checks.public_header_exception` | `scan_tree/public_exception` | The scan passes on GLM in Core, an approved exception |
 | `checks.source_include_scan` | `scan_tree/source_include` | The scan fails on an include of another module's `Source/` |
 | `checks.docs_check_missing` | `scan_tree/docs_check` | A change list with module code and no contract update fails |
-| `checks.docs_check_complete` | `scan_tree/docs_check` | The same change with the module's `ARCHITECTURE.md` and `docs/current-state.md` passes |
-| `checks.catalog_sync` | this repository | `cmake/RunicModuleCatalog.cmake` equals the Engine modules table in `docs/system/03-dependency-rules.md` |
+| `checks.docs_check_complete` | `scan_tree/docs_check` | The same change with the module's `ARCHITECTURE.md` and `docs/current-state.md`[^doc-current-state] passes |
+| `checks.catalog_sync` | this repository | `cmake/RunicModuleCatalog.cmake` equals the Engine modules table in `docs/system/03-dependency-rules.md`[^doc-system-03-dependency-rules] |
 
 The tests run on their own without configuring any Engine third party (only `build.engine_headless_configure` downloads the Engine's pinned sources, and `build.module_layout` GoogleTest): `cmake -S tests/build -B build/build-tests -G Ninja && ctest --test-dir build/build-tests`.
 
@@ -229,3 +237,26 @@ CI jobs are part of the implementation: they are accepted when they run these te
 ## After merge
 
 Update in the same pull request: [docs/current-state.md](../current-state.md) (BUILD-1 done, the gaps it closes, the remaining Jolt gap), [docs/modules/README.md](../modules/README.md) (the build skeleton note), the README build section and this file's status.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../README|Engine docs README]] · [[../system/README|System README]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^doc-current-state]: [[../current-state|Engine current state]] — RunicEngine doc
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
+[^platform-contracts]: [[../../../RunicPlatform/docs/modules/Contracts|Contracts]] — Platform module · Protobuf
+[^doc-system-03-dependency-rules]: [[../system/03-dependency-rules|03 — Dependency rules]] — System doc (mirrored)
+[^engine-ecs]: [[../modules/ECS|ECS]] — Engine module · Simulation core
+[^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++

@@ -1,8 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/index
+---
+
 # RunicEngine documentation
 
 This folder documents RunicEngine: the shared system rules, this repository's architecture and state, and one contract seed per Engine module.
 
-Everything here is generated from ARCH (RunicEngine — Technical Architecture v3). When a file here disagrees with ARCH, ARCH wins; report the difference.
+Everything here is generated from ARCH[^arch] (RunicEngine — Technical Architecture v3). When a file here disagrees with ARCH, ARCH wins; report the difference.
 
 ## Start here
 
@@ -48,6 +56,18 @@ Everything here is generated from ARCH (RunicEngine — Technical Architecture v
 
 ## Rules for these docs
 
-- Write in plain English with short sentences and tables for anything with rows. Cite ARCH sections by name.
+- Write in plain English with short sentences and tables for anything with rows. Cite ARCH[^arch] sections by name.
 - No game rules, names, numbers or content anywhere in this folder; this repository is public.
 - Change a module's contract, its catalog row and `current-state.md` in the same pull request as its code.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Start here:** [[../docs/architecture|Engine architecture]] · [[../docs/current-state|Engine current state]] · [[../docs/modules/README|Engine module catalog]] · [[../docs/build/BUILD-1|Engine BUILD-1 contract]] · [[../docs/system/01-architecture-overview|01 — Architecture overview]] · [[../docs/system/02-module-contract|02 — Module contract]] · [[../docs/system/03-dependency-rules|03 — Dependency rules]] · [[../docs/system/04-events-and-messages|04 — Events and messages]] · [[../docs/system/05-distributed-simulation|05 — Distributed simulation]] · [[../docs/system/06-gameplayflow-quests-cutscenes|06 — Gameplayflow quests cutscenes]] · [[../docs/system/07-service-backed-systems|07 — Service backed systems]] · [[../docs/system/08-implementation-roadmap|08 — Implementation roadmap]] · [[../docs/system/09-validation-scenarios|09 — Validation scenarios]] · [[../docs/system/10-ai-development-workflow|10 — Ai development workflow]] · [[../docs/system/11-open-questions|11 — Open questions]] · [[../docs/system/12-work-packages|12 — Work packages]] · [[../docs/system/README|System README]] · [[../docs/system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)

@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/tools
+  - headless/never-shipped
+  - slice/6
+aliases:
+  - "Runic::Editor"
+---
+
 # Editor
 
 Contract seed for `Runic::Editor`: what a Claude Code session needs to implement the Editor work packages. When `Engine/Tools/Editor/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,14 +26,14 @@ Contract seed for `Runic::Editor`: what a Claude Code session needs to implement
 
 ## Purpose
 
-The Editor is a development-only executable on the Engine's ApplicationHost: the editor host and panels, the world, ECS and physics inspectors, the resolver debugger, the AI editor, live attach to development and staging servers, and the Cooker launcher (ARCH § Tools; ARCH § AI architecture, AI editor). It is never distributed to players. The Engine defines its `CreateApplication()`; its stack is the editor host with tool panels, under an ImGui overlay, in a frame loop.
+The Editor is a development-only executable on the Engine's ApplicationHost: the editor host and panels, the world, ECS[^engine-ecs] and physics inspectors, the resolver debugger, the AI editor, live attach to development and staging servers, and the Cooker[^engine-cooker] launcher (ARCH[^arch] § Tools; ARCH § AI architecture, AI editor). It is never distributed to players. The Engine defines its `CreateApplication()`; its stack is the editor host with tool panels, under an ImGui overlay, in a frame loop.
 
 ## Owns
 
-- The editor host, the panel framework, and the world and ECS inspectors (EDT-1).
+- The editor host, the panel framework, and the world and ECS[^engine-ecs] inspectors (EDT-1).
 - The physics inspector (EDT-2).
 - The resolver debugger: which rules applied to a hit and why it landed or missed (EDT-3).
-- The Cooker launcher: background cooking with progress over a local protocol, so a long cook never freezes or crashes the Editor (EDT-4).
+- The Cooker[^engine-cooker] launcher: background cooking with progress over a local protocol, so a long cook never freezes or crashes the Editor (EDT-4).
 - The AI editor (EDT-5, EDT-6) and live attach (EDT-7).
 
 The AI editor is a native Runic ImGui editor on a node-canvas library (such as imnodes); Groot2 is not embedded. BehaviorTree.CPP remains the executor; the Editor owns the authoring experience.
@@ -56,8 +69,8 @@ Live attach: in development and staging, the Editor attaches to a running GameSe
 ## Does not own
 
 - The AI runtime (AI); the Editor's AI panels use public AI definition and debug interfaces only.
-- The attach endpoint and debug-shape stream (Network, NET-7).
-- Cooking (Cooker): the Editor only launches it as a separate process.
+- The attach endpoint and debug-shape stream (Network, NET-7[^engine-network]).
+- Cooking (Cooker[^engine-cooker]): the Editor only launches it as a separate process.
 - Authoritative simulation ownership; no direct mutation of live combat state.
 - Game content: trees, personalities and NPC definitions are RunicGame assets the Editor edits.
 
@@ -65,7 +78,7 @@ Live attach: in development and staging, the Editor attaches to a running GameSe
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Most modules (ARCH's catalog row); the contract session lists the exact set each package links |
+| Engine modules | Most modules (ARCH[^arch]'s catalog row); the contract session lists the exact set each package links |
 | Third-party (PRIVATE) | Dear ImGui, imnodes (node canvas) |
 
 ### Must never depend on
@@ -76,7 +89,7 @@ Live attach: in development and staging, the Editor attaches to a running GameSe
 
 ## Public API sketch
 
-ARCH's illustrative node registration, one call feeding both execution and editor discovery:
+ARCH[^arch]'s illustrative node registration, one call feeding both execution and editor discovery:
 
 ```cpp
 struct AINodeMetadata {
@@ -102,20 +115,20 @@ Headers (sketch, fixed in the contract session): `EditorHost.hpp`, `EditorPanel.
 
 - The Editor runs a frame loop: events, OnUpdate, OnRender, OnImGuiRender.
 - A local world opened in the Editor runs the normal SimulationRuntime; inspectors read it and change it only through explicit debug commands at safe points.
-- The Cooker runs as a separate background process; the Editor reads its progress over a local protocol.
+- The Cooker[^engine-cooker] runs as a separate background process; the Editor reads its progress over a local protocol.
 - Trees are saved independently of the live simulation; hot reload is a development-only safe-point operation.
 
 ## Work packages
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| EDT-1 | Editor host, panel framework, world and ECS inspectors | The Editor opens a local world and inspects entities | APP-2, UI-1, SIM-2 | 6 |
-| EDT-2 | Physics inspector | Bodies are selectable with their properties | EDT-1, PHYS-3 | 8 |
-| EDT-3 | Resolver debugger | It shows which rules applied to a hit and why | EDT-1, CMB-4 | 17 |
-| EDT-4 | Cooker launcher: background cooking with progress over a local protocol | A long cook never freezes the Editor | EDT-1, COOK-2 | 20 |
-| EDT-5 | AI editor: behavior-tree canvas, palette, inspector, asset browser, XML save and load | A tree is edited, saved and reloaded | EDT-1, AI-2 | 35 |
+| EDT-1 | Editor host, panel framework, world and ECS[^engine-ecs] inspectors | The Editor opens a local world and inspects entities | APP-2[^engine-application], UI-1[^engine-ui], SIM-2[^engine-simulation] | 6 |
+| EDT-2 | Physics[^engine-physics] inspector | Bodies are selectable with their properties | EDT-1, PHYS-3 | 8 |
+| EDT-3 | Resolver debugger | It shows which rules applied to a hit and why | EDT-1, CMB-4[^engine-combat] | 17 |
+| EDT-4 | Cooker[^engine-cooker] launcher: background cooking with progress over a local protocol | A long cook never freezes the Editor | EDT-1, COOK-2 | 20 |
+| EDT-5 | AI editor: behavior-tree canvas, palette, inspector, asset browser, XML save and load | A tree is edited, saved and reloaded | EDT-1, AI-2[^engine-ai] | 35 |
 | EDT-6 | AI tools: NPC definition and personality editors, content-ID validation, live NPC debugger | A running NPC's tree state is visible live | EDT-5, AI-5 | 35 |
-| EDT-7 | Live attach to development and staging servers | Entity inspector and debug shapes come from a remote server | EDT-1, NET-7 | 39 |
+| EDT-7 | Live attach to development and staging servers | Entity inspector and debug shapes come from a remote server | EDT-1, NET-7[^engine-network] | 39 |
 
 ## Acceptance tests
 
@@ -123,6 +136,28 @@ The Done when column is the acceptance list. Editor validation: unknown nodes, p
 
 ## Open items
 
-- ARCH's catalog row says "Most modules". Each Editor package's contract session lists the exact modules it links and asks the owner before adding one.
+- ARCH[^arch]'s catalog row says "Most modules". Each Editor package's contract session lists the exact modules it links and asks the owner before adding one.
 - Decided in ARCH revision 369: the attach channel is compiled into development and staging builds, never production.
 - Decided in ARCH revision 369: the attach channel runs over a development socket transport inside Network (see [Network.md](Network.md)).
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Core|Core]] · [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Gameplay|Gameplay]] · [[../modules/Combat|Combat]] · [[../modules/GameplayFlow|GameplayFlow]] · [[../modules/Quest|Quest]] · [[../modules/Perception|Perception]] · [[../modules/Navigation|Navigation]] · [[../modules/AI|AI]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Network|Network]] · [[../modules/DistributedSimulation|DistributedSimulation]] · [[../modules/Client|Client]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/UI|UI]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^engine-ecs]: [[../modules/ECS|ECS]] — Engine module · Simulation core
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
+[^engine-application]: [[../modules/Application|Application]] — Engine module · Foundation
+[^engine-ui]: [[../modules/UI|UI]] — Engine module · Presentation
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
+[^engine-ai]: [[../modules/AI|AI]] — Engine module · World systems

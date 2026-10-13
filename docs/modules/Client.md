@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/presentation
+  - headless/no
+  - slice/5
+aliases:
+  - "Runic::Client"
+---
+
 # Client
 
 Contract seed for `Runic::Client`: what a Claude Code session needs to implement the Client work packages. When `Engine/Presentation/Client/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,20 +26,20 @@ Contract seed for `Runic::Client`: what a Claude Code session needs to implement
 
 ## Purpose
 
-Client is the Engine's client runtime: the Prediction and Presentation layers, the render-extractor registry and the Engine's extractors, the camera, interpolation, input mapping and the command builder (ARCH § Client runtime; ARCH § Render data, extraction and world UI). A game's client executable composes it with its own presentation; the client predicts with the shared game code, presents an interpolated world and runs the UI the server never has.
+Client is the Engine's client runtime: the Prediction and Presentation layers, the render-extractor registry and the Engine's extractors, the camera, interpolation, input mapping and the command builder (ARCH[^arch] § Client runtime; ARCH § Render data, extraction and world UI). A game's client executable composes it with its own presentation; the client predicts with the shared game code, presents an interpolated world and runs the UI the server never has.
 
 ## Owns
 
 - The Presentation layer, the extractor registry, the first extractor (entities as debug shapes) and the camera (CLI-1).
-- Input mapping, actions and the command builder: raw application events become commands (CLI-2; decided in OQ-4).
+- Input mapping, actions and the command builder: raw application events become commands (CLI-2; decided in OQ-4[^oq-4]).
 - The Prediction layer, which drives the prediction subset and reconciliation each frame (CLI-3).
-- Engine extractors: mesh instances with interpolation and camera-relative conversion (CLI-4), skinned instances with poses from Animation (CLI-5), world anchors (CLI-6), lights, environment and volumes (CLI-7), water surfaces and field grids (CLI-8).
+- Engine extractors: mesh instances with interpolation and camera-relative conversion (CLI-4), skinned instances with poses from Animation[^engine-animation] (CLI-5), world anchors (CLI-6), lights, environment and volumes (CLI-7), water surfaces and field grids (CLI-8).
 
 Client layer stack, bottom to top: Network → Prediction → Presentation (interpolation, camera, render extraction, audio), with GameUI (RmlUi) and, in development builds only, the ImGui overlay above them. Input reaches the top first, so UI clicks never become attacks.
 
 ### Extraction rules
 
-- Extraction runs in the Presentation layer once per frame, after the latest simulation results are applied. Extractors read Flecs and the domain APIs (Water, Perception, Environment, Animation) read-only and write RenderData; they never change the simulation.
+- Extraction runs in the Presentation layer once per frame, after the latest simulation results are applied. Extractors read Flecs and the domain APIs (Water[^engine-water], Perception[^engine-perception], Environment[^engine-environment], Animation) read-only and write RenderData; they never change the simulation.
 - A registry of extractors: each fills one or more RenderData kinds. The Engine registers its own under `engine:` IDs; RunicGame registers its own under `game:` IDs.
 - Parallel: independent extractors run on the worker pool into per-worker arenas merged into the frame packet in a fixed order.
 - Change-driven when the source is slow: field grids, water state and the environment re-extract only when their source version changes.
@@ -36,9 +49,9 @@ Client layer stack, bottom to top: Network → Prediction → Presentation (inte
 
 ## Does not own
 
-- Drawing: both render pipelines (Renderer). Client fills the RenderFrame; the Renderer reads only that frame.
-- The world UI mechanism (UI), animation evaluation (Animation), sound and music playback (Audio).
-- The prediction subset itself (Simulation, SIM-4) and the code it runs (RunicGame::Shared); reconciliation math (Network, NET-3).
+- Drawing: both render pipelines (Renderer[^engine-renderer]). Client fills the RenderFrame; the Renderer reads only that frame.
+- The world UI mechanism (UI), animation evaluation (Animation[^engine-animation]), sound and music playback (Audio).
+- The prediction subset itself (Simulation, SIM-4[^engine-simulation]) and the code it runs (RunicGame::Shared); reconciliation math (Network, NET-3[^engine-network]).
 - The Window and raw input events (Application).
 - RenderData types (Core).
 - Game extractors, camera rules, GameUI screens, input bindings and presentation content (RunicGame::Client).
@@ -47,19 +60,19 @@ Client layer stack, bottom to top: Network → Prediction → Presentation (inte
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Application, Simulation, Network, Perception, Environment, Water, Renderer, Animation, Audio, UI, Assets |
+| Engine modules | Application[^engine-application], Simulation[^engine-simulation], Network[^engine-network], Perception[^engine-perception], Environment[^engine-environment], Water[^engine-water], Renderer[^engine-renderer], Animation[^engine-animation], Audio[^engine-audio], UI[^engine-ui], Assets[^engine-assets] |
 | Third-party | — |
 
 ### Must never depend on
 
-- Editor or Cooker.
+- Editor[^engine-editor] or Cooker[^engine-cooker].
 - RunicPlatform or RunicGame code. The game composes Client; Client never includes game headers.
 - Mutation of the simulation: extractors are read-only.
 - Client is not headless, so no headless module may link it, and the server never links it.
 
 ## Public API sketch
 
-ARCH's illustrative extractor registration (Engine extractors only):
+ARCH[^arch]'s illustrative extractor registration (Engine extractors only):
 
 ```cpp
 // Illustrative
@@ -75,7 +88,7 @@ Headers (sketch, fixed in the contract session): `PresentationLayer.hpp`, `Predi
 
 ## Threading and tick rules
 
-- The client runs a frame loop (vsync or capped). Extraction writes frame N+1 while the Renderer reads frame N; the two never lock each other.
+- The client runs a frame loop (vsync or capped). Extraction writes frame N+1 while the Renderer[^engine-renderer] reads frame N; the two never lock each other.
 - Extractors never write the simulation and never run during a simulation phase that mutates what they read.
 - The client applies its own input immediately and keeps a short history of numbered inputs; the server returns authoritative state with the last input it processed, and the client replays the inputs after it. Small errors blend; large ones snap.
 - Skill starts are predicted cosmetically and cancelled in the rare case the server refuses.
@@ -84,14 +97,14 @@ Headers (sketch, fixed in the contract session): `PresentationLayer.hpp`, `Predi
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| CLI-1 | Presentation layer and extractor registry; the first extractor writes entities as debug shapes; camera | Entities are drawn from the RenderFrame only | ECS-1, RND-2, CORE-3 | 5 |
-| CLI-2 | Input mapping, actions and command builder | Key presses become movement commands | APP-2, SIM-2 | 7 |
-| CLI-3 | Prediction layer driving the prediction subset and reconciliation each frame | The local player moves at once and corrects on server state | SIM-4, NET-3 | 14 |
+| CLI-1 | Presentation layer and extractor registry; the first extractor writes entities as debug shapes; camera | Entities are drawn from the RenderFrame only | ECS-1[^engine-ecs], RND-2[^engine-renderer], CORE-3[^engine-core] | 5 |
+| CLI-2 | Input mapping, actions and command builder | Key presses become movement commands | APP-2[^engine-application], SIM-2[^engine-simulation] | 7 |
+| CLI-3 | Prediction layer driving the prediction subset and reconciliation each frame | The local player moves at once and corrects on server state | SIM-4, NET-3[^engine-network] | 14 |
 | CLI-4 | Mesh-instance extractor with interpolation and camera-relative conversion | Cooked meshes appear at their entities' positions far from the origin | CLI-1, CORE-4 | 22 |
-| CLI-5 | Skinned-instance extractor with poses from Animation | Characters animate in the debug pipeline | CLI-4, ANIM-1 | 23 |
+| CLI-5 | Skinned-instance extractor with poses from Animation[^engine-animation] | Characters animate in the debug pipeline | CLI-4, ANIM-1 | 23 |
 | CLI-6 | World-anchor extractor: position, distance, visibility tier and priority per entity | Anchors follow entities; Hidden players produce none | CLI-1, CORE-4 | 23a |
-| CLI-7 | Light, environment and volume extractors from Perception and Environment | Darkness and torches on screen match the server's light values | CLI-1, CORE-5, PRC-1 | 25a |
-| CLI-8 | Water-surface and field-grid extractors from Water and Environment, change-driven | Grids re-extract only when the current or the wind changes | CLI-1, CORE-6, WATER-5 | 42a |
+| CLI-7 | Light, environment and volume extractors from Perception[^engine-perception] and Environment[^engine-environment] | Darkness and torches on screen match the server's light values | CLI-1, CORE-5, PRC-1 | 25a |
+| CLI-8 | Water[^engine-water]-surface and field-grid extractors from Water and Environment, change-driven | Grids re-extract only when the current or the wind changes | CLI-1, CORE-6, WATER-5 | 42a |
 
 ## Acceptance tests
 
@@ -99,6 +112,36 @@ The Done when column is the acceptance list. Runnable results by slice: 5, entit
 
 ## Open items
 
-- Extractors read Flecs. ECS re-exports Flecs only to the Engine modules that register systems (ARCH revision 369); the CLI-1 contract session must ask whether Client's extractors count as such or read through Runic types.
+- Extractors read Flecs. ECS[^engine-ecs] re-exports Flecs only to the Engine modules that register systems (ARCH[^arch] revision 369); the CLI-1 contract session must ask whether Client's extractors count as such or read through Runic types.
 - [OQ-4](../system/11-open-questions.md#oq-4) (decided): input mapping lives in Client; raw input is application events from the Window class.
 - [OQ-15](../system/11-open-questions.md#oq-15) (decided): prediction runs RunicGame::Shared on the client.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Application|Application]] · [[../modules/Simulation|Simulation]] · [[../modules/Network|Network]] · [[../modules/Perception|Perception]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/UI|UI]] · [[../modules/Assets|Assets]]
+- **Its packages need:** [[../modules/ECS|ECS]] · [[../modules/Core|Core]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^oq-4]: [[../system/11-open-questions#OQ-4 — OS window and input layer (decided 2026-10-09)|OQ-4]] — open question or decision
+[^engine-animation]: [[../modules/Animation|Animation]] — Engine module · Presentation
+[^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
+[^engine-perception]: [[../modules/Perception|Perception]] — Engine module · World systems
+[^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
+[^engine-application]: [[../modules/Application|Application]] — Engine module · Foundation
+[^engine-audio]: [[../modules/Audio|Audio]] — Engine module · Presentation
+[^engine-ui]: [[../modules/UI|UI]] — Engine module · Presentation
+[^engine-assets]: [[../modules/Assets|Assets]] — Engine module · Foundation
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^engine-ecs]: [[../modules/ECS|ECS]] — Engine module · Simulation core
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation

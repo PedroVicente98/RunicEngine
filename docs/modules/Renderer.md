@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/presentation
+  - headless/no
+  - slice/2
+aliases:
+  - "Runic::Renderer"
+---
+
 # Renderer
 
 Contract seed for `Runic::Renderer`: what a Claude Code session needs to implement the Renderer work packages. When `Engine/Presentation/Renderer/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,26 +26,26 @@ Contract seed for `Runic::Renderer`: what a Claude Code session needs to impleme
 
 ## Purpose
 
-The Renderer draws an extracted scene and never becomes game logic. It owns the bgfx device and views, the layered debug pipeline, render targets for diegetic UI, the batched world-UI feature and, later, the production pipeline (ARCH § Debug renderer; ARCH § Render data, extraction and world UI). **Core rule:** simulation owns meaning; the Renderer owns visualization. Flecs, Jolt, combat, networking and gameplay systems never issue bgfx commands.
+The Renderer draws an extracted scene and never becomes game logic. It owns the bgfx device and views, the layered debug pipeline, render targets for diegetic UI, the batched world-UI feature and, later, the production pipeline (ARCH[^arch] § Debug renderer; ARCH § Render data, extraction and world UI). **Core rule:** simulation owns meaning; the Renderer owns visualization. Flecs, Jolt, combat, networking and gameplay systems never issue bgfx commands.
 
 ## Owns
 
 - The bgfx device, views, a camera with a backend-correct projection, the vertex-color debug shader and the line batch (RND-1).
 - Debug shapes, filled shapes with opacity, depth and overlay batches, and debug text (RND-2).
-- The debug pipeline: one layer per kind of render data, drawn simply and toggled from the ImGui overlay or the Editor (RND-3 onward).
+- The debug pipeline: one layer per kind of render data, drawn simply and toggled from the ImGui overlay or the Editor[^engine-editor] (RND-3 onward).
 - Render targets and world quads for diegetic panels (RND-9) and the batched world-UI feature: instanced labels and bars from an atlas (RND-10).
 - The production pipeline, later: materials, shaders, lighting and shadows, terrain, water shading, VFX, decals and the UI renderer (RND-6, slice 44+).
 
 | Debug layer | Draws | Slice | Package |
 | --- | --- | --- | --- |
 | Debug shapes | Lines, shapes and text issued by any system | 2 | RND-2 |
-| Physics geometry | Collision bodies and shapes extracted by Physics, with cached debug meshes for large shapes | 8 | RND-3 |
+| Physics[^engine-physics] geometry | Collision bodies and shapes extracted by Physics, with cached debug meshes for large shapes | 8 | RND-3 |
 | Meshes | Cooked mesh instances, flat-shaded | 22 | RND-4 |
 | Skinned meshes | Characters with their poses, flat-shaded | 23 | RND-5 |
 | Lights, environment, volumes | Light gizmos and simple lighting, skylight and darkness, fog, darkness zones | 25a | RND-7 |
-| Water and fields | Flat water surfaces; currents and wind as arrows, streaks or heatmaps | 42a | RND-8 |
+| Water[^engine-water] and fields | Flat water surfaces; currents and wind as arrows, streaks or heatmaps | 42a | RND-8 |
 
-Debug renderer rules (ARCH § Debug renderer):
+Debug renderer rules (ARCH[^arch] § Debug renderer):
 
 - One bgfx view and one tiny vertex-color shader to start; every wire primitive becomes line-segment vertices.
 - Never one draw call per line: each frame appends vertices to a CPU list, copies them into one transient vertex buffer and submits one line list. Very large persistent debug geometry moves to dynamic or static buffers.
@@ -54,7 +67,7 @@ Debug renderer rules (ARCH § Debug renderer):
 
 ## Does not own
 
-- Physics and simulation state: the Renderer never reads them. Physics fills plain DebugGeometry buffers in Core; the physics view draws them, and neither module links the other.
+- Physics[^engine-physics] and simulation state: the Renderer never reads them. Physics fills plain DebugGeometry buffers in Core; the physics view draws them, and neither module links the other.
 - Render extraction and the camera's world position (Client); RenderData types (Core).
 - The Window and native handles (Application): the Window passes only generic handle data in.
 - RmlUi and ImGui integrations and the world-UI decisions (UI).
@@ -64,20 +77,20 @@ Debug renderer rules (ARCH § Debug renderer):
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Core, Assets |
+| Engine modules | Core[^engine-core], Assets[^engine-assets] |
 | Third-party (PRIVATE) | bgfx, bx, bimg |
 
 ### Must never depend on
 
-- Physics, Simulation, ECS, World or any simulation state.
-- Client, UI or Animation (they feed it data).
+- Physics[^engine-physics], Simulation, ECS[^engine-ecs], World or any simulation state.
+- Client, UI or Animation[^engine-animation] (they feed it data).
 - bgfx types in `Public/`. bgfx has no approved exception.
 - GLFW: native handles arrive as plain data from the Window class.
 - RunicPlatform or RunicGame code.
 
 ## Public API sketch
 
-ARCH's illustrative debug API, with bgfx kept out of the public header (sketch, fixed in the contract session):
+ARCH[^arch]'s illustrative debug API, with bgfx kept out of the public header (sketch, fixed in the contract session):
 
 ```cpp
 // Illustrative. Every bgfx type stays in Source/; the public config uses plain Runic enums.
@@ -118,7 +131,7 @@ public:
 };
 ```
 
-ARCH also sketches a `DebugShapeCommand` (shape, camera-relative transform, size, color, opacity, filled, depth-tested). The same command stream is what a GameServer's Diagnostics layer sends to an attached Editor.
+ARCH also sketches a `DebugShapeCommand` (shape, camera-relative transform, size, color, opacity, filled, depth-tested). The same command stream is what a GameServer's Diagnostics layer sends to an attached Editor[^engine-editor].
 
 ## Threading and tick rules
 
@@ -131,10 +144,10 @@ ARCH also sketches a `DebugShapeCommand` (shape, camera-relative transform, size
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| RND-1 | bgfx device, view, camera, vertex-color shader, line batch | A grid and axes draw on Vulkan, the first backend; other backends follow when their shaders are built | APP-2 | 2 |
+| RND-1 | bgfx device, view, camera, vertex-color shader, line batch | A grid and axes draw on Vulkan, the first backend; other backends follow when their shaders are built | APP-2[^engine-application] | 2 |
 | RND-2 | Shapes, filled shapes with opacity, depth and overlay batches, debug text | Every debug shape renders batched in one frame | RND-1 | 2 |
-| RND-3 | Debug pipeline layer registry and toggles; physics geometry layer with cached debug meshes | Collision shapes line up with gameplay shapes and each layer toggles | RND-2, PHYS-3, CORE-3 | 8 |
-| RND-4 | Debug pipeline mesh layer: mesh instances, flat shading, camera-relative | Cooked meshes draw correctly far from the origin | RND-3, ASSET-1, CLI-4 | 22 |
+| RND-3 | Debug pipeline layer registry and toggles; physics geometry layer with cached debug meshes | Collision shapes line up with gameplay shapes and each layer toggles | RND-2, PHYS-3[^engine-physics], CORE-3[^engine-core] | 8 |
+| RND-4 | Debug pipeline mesh layer: mesh instances, flat shading, camera-relative | Cooked meshes draw correctly far from the origin | RND-3, ASSET-1[^engine-assets], CLI-4[^engine-client] | 22 |
 | RND-5 | Debug pipeline skinned layer: skinned meshes with pose upload | An animated character renders | RND-4, CLI-5 | 23 |
 | RND-6 | Production pipeline: materials, shaders, lighting and shadows, terrain, water shading, VFX, decals, UI renderer | Defined when a substantial game slice justifies it | RND-4 | 44+ |
 | RND-7 | Debug pipeline layers for lights, environment and volumes | Torches, skylight, darkness zones and fog are visible and toggle | RND-4, CLI-7 | 25a |
@@ -148,7 +161,31 @@ The Done when column is the acceptance list. The debug renderer's first mileston
 
 ## Open items
 
-- Decided in ARCH revision 369: the public `RendererConfig` uses plain Runic enums (`NativeWindowType`, `RendererBackend`), and the Window class exposes a plain `NativeWindow` that the Client copies into the config. Because both Application and Renderer use `NativeWindowType` and neither links the other, the RND-1 and APP-2 contract sessions ask the owner where it lives (proposal: Core).
+- Decided in ARCH[^arch] revision 369: the public `RendererConfig` uses plain Runic enums (`NativeWindowType`, `RendererBackend`), and the Window class exposes a plain `NativeWindow` that the Client copies into the config. Because both Application and Renderer use `NativeWindowType` and neither links the other, the RND-1 and APP-2[^engine-application] contract sessions ask the owner where it lives (proposal: Core).
 - Decided in ARCH revision 369: RND-1 draws on Vulkan, the first backend; other backends follow when their shaders are built.
 - Decided in ARCH revision 369: the debug shaders live in `Engine/Presentation/Renderer/Shaders/Debug/`; the RND-1 contract session decides how the build compiles them.
-- [OQ-5](../system/11-open-questions.md#oq-5) (decided): no Debug module; the debug pipeline lives here, DebugGeometry in Core, extraction in Physics, inspectors in Editor, the Diagnostics layer in Network.
+- [OQ-5](../system/11-open-questions.md#oq-5) (decided): no Debug module; the debug pipeline lives here, DebugGeometry in Core, extraction in Physics[^engine-physics], inspectors in Editor[^engine-editor], the Diagnostics layer in Network.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Core|Core]] · [[../modules/Assets|Assets]]
+- **Depended on by:** [[../modules/Client|Client]] · [[../modules/UI|UI]]
+- **Its packages need:** [[../modules/Application|Application]] · [[../modules/Physics|Physics]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
+[^engine-assets]: [[../modules/Assets|Assets]] — Engine module · Foundation
+[^engine-ecs]: [[../modules/ECS|ECS]] — Engine module · Simulation core
+[^engine-animation]: [[../modules/Animation|Animation]] — Engine module · Presentation
+[^engine-application]: [[../modules/Application|Application]] — Engine module · Foundation
+[^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation

@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/foundation
+  - headless/yes
+  - slice/1
+aliases:
+  - "Runic::Core"
+---
+
 # Core
 
 Contract seed for `Runic::Core`: what a Claude Code session needs to implement the Core work packages. When `Engine/Foundation/Core/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -11,23 +24,23 @@ Contract seed for `Runic::Core`: what a Claude Code session needs to implement t
 | Headless | yes |
 | Status | Not started |
 
-Today `cmake/Targets.cmake` defines a bootstrap INTERFACE target with the same name (C++20 and the `include/` root). BUILD-1 and CORE-1 replace it.
+Today `cmake/Targets.cmake` defines a bootstrap INTERFACE target with the same name (C++20 and the `include/` root). BUILD-1[^doc-build-build-1] and CORE-1 replace it.
 
 ## Purpose
 
-Core is the foundation every Engine module links. It holds plain ID and time types, math, memory, logging, configuration, the worker pool and the metrics registry. It also holds RenderData: the plain render structs shared by the Client's extractors, both render pipelines, the world UI and the debug tools (ARCH § Repositories, build targets and processes; ARCH § Render data, extraction and world UI).
+Core is the foundation every Engine module links. It holds plain ID and time types, math, memory, logging, configuration, the worker pool and the metrics registry. It also holds RenderData: the plain render structs shared by the Client's extractors, both render pipelines, the world UI and the debug tools (ARCH[^arch] § Repositories, build targets and processes; ARCH § Render data, extraction and world UI).
 
 ## Owns
 
-- Plain ID types: `GlobalEntityId`, `GlobalPlayerId`, `SimulationId`, `WorldId`, `TickId`, `AuthorityEpoch` (CORE-1; decided in OQ-2). Core declares the types; their meaning belongs to whoever issues them: authority semantics belong to DistributedSimulation, the Platform accounts service (PCS-1) issues `GlobalPlayerId`, and World gives `WorldId` its meaning (each separate map is its own world).
-- Plain value types that other modules give meaning to: `AssetId` (Assets), `WaterBodyId` (Water), `FieldId` and `WidgetId` (CORE-1, ARCH revision 369).
+- Plain ID types: `GlobalEntityId`, `GlobalPlayerId`, `SimulationId`, `WorldId`, `TickId`, `AuthorityEpoch` (CORE-1; decided in OQ-2[^oq-2]). Core declares the types; their meaning belongs to whoever issues them: authority semantics belong to DistributedSimulation[^engine-distributedsimulation], the Platform accounts service (PCS-1[^platform-coreservices]) issues `GlobalPlayerId`, and World gives `WorldId` its meaning (each separate map is its own world).
+- Plain value types that other modules give meaning to: `AssetId` (Assets), `WaterBodyId` (Water[^engine-water]), `FieldId` and `WidgetId` (CORE-1, ARCH[^arch] revision 369).
 - `Result`, asserts and logging hooks (CORE-1).
 - Time types. Time comes from one clock as integer ticks or double seconds, never accumulated floats (ARCH § Application and LayerStack).
 - Math on GLM (CORE-1). GLM types may appear in Core's public headers: the third approved public-header exception.
 - Memory and configuration utilities (listed in the catalog row; no package names them yet).
 - The worker pool, sized from the process's CPU allotment (CORE-2).
-- The debug-stream registry where modules publish traces (CORE-2); the Diagnostics layer (NET-7) streams them to the Editor in development and staging builds.
-- The metrics registry: per-tick timings and counters per tick domain (CORE-2). Every GameServer records its metrics here: the Simulation records tick-domain timings (SIM-1) and the Network module's Diagnostics layer adds network and replication metrics (NET-7). The Platform exporter (PBND-3) publishes the whole registry to Prometheus.
+- The debug-stream registry where modules publish traces (CORE-2); the Diagnostics layer (NET-7[^engine-network]) streams them to the Editor[^engine-editor] in development and staging builds.
+- The metrics registry: per-tick timings and counters per tick domain (CORE-2). Every GameServer records its metrics here: the Simulation records tick-domain timings (SIM-1[^engine-simulation]) and the Network module's Diagnostics layer adds network and replication metrics (NET-7). The Platform exporter (PBND-3[^platform-serverbindings]) publishes the whole registry to Prometheus.
 - RenderData in `Public/RenderData/`: the double-buffered `RenderFrame`, `DebugGeometry` and the render-data kinds below (CORE-3 to CORE-7).
 
 ### RenderData rules
@@ -35,17 +48,17 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 - Plain data only: header-only structs with trivial helpers. No Flecs, Jolt, bgfx or RmlUi types. Nothing allocates on its own.
 - Camera-relative: each frame carries one 64-bit origin; every position inside it is a 32-bit float relative to that origin.
 - Stable references: meshes, materials and textures are `AssetId`s; entities are `GlobalEntityId`s; nothing points into Flecs memory.
-- Double-buffered: extraction writes frame N+1 while the Renderer reads frame N, so they never lock each other.
+- Double-buffered: extraction writes frame N+1 while the Renderer[^engine-renderer] reads frame N, so they never lock each other.
 - Grown by packages: a kind is added by the package that first needs it, so the folder never holds unused types.
 
 | Kind | Example | Filled from | Package |
 | --- | --- | --- | --- |
-| Debug geometry | Collision shapes, paths, cells, volumes, telegraphs | Physics, AI, any system; also the server | CORE-3 |
+| Debug geometry | Collision shapes, paths, cells, volumes, telegraphs | Physics[^engine-physics], AI, any system; also the server | CORE-3 |
 | Mesh instance | Buildings, props, ships, terrain pieces | Flecs Transform and RenderMesh | CORE-4 |
-| Skinned instance | Characters, creatures | Flecs and Animation poses | CORE-4 |
+| Skinned instance | Characters, creatures | Flecs and Animation[^engine-animation] poses | CORE-4 |
 | World anchor | Where a nameplate, prompt or panel belongs | Flecs Transform, visibility tier, distance | CORE-4 |
-| Light | Torches, spell lights, lanterns | Perception's emitters (the ones the server uses) | CORE-5 |
-| Environment frame | Sun, skylight, darkness, fog, wind, rain | Environment clock and weather state | CORE-5 |
+| Light | Torches, spell lights, lanterns | Perception[^engine-perception]'s emitters (the ones the server uses) | CORE-5 |
+| Environment[^engine-environment] frame | Sun, skylight, darkness, fog, wind, rain | Environment clock and weather state | CORE-5 |
 | Volume | Darkness zones, fog banks, area effects | Flecs components, Perception | CORE-5 |
 | Field grid | Ocean current, wind map, darkness map, fog of war | Water current fields, Environment wind | CORE-6 |
 | Water surface state | Tide level, wave strength, flow scale per water body | Water and Environment | CORE-6 |
@@ -53,9 +66,9 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 
 ## Does not own
 
-- The Flecs world (ECS wrapper, owned by the SimulationRuntime), Jolt objects (Physics), GPU resources and draw calls (Renderer), render extraction (Client).
-- The meaning of IDs: authority and epochs (DistributedSimulation), `ContentId` (Content), asset handles and cache (Assets).
-- Metrics export: the Platform exporter (PBND-3) publishes the registry. Core only stores what modules record.
+- The Flecs world (ECS[^engine-ecs] wrapper, owned by the SimulationRuntime), Jolt objects (Physics[^engine-physics]), GPU resources and draw calls (Renderer[^engine-renderer]), render extraction (Client).
+- The meaning of IDs: authority and epochs (DistributedSimulation[^engine-distributedsimulation]), `ContentId` (Content), asset handles and cache (Assets).
+- Metrics export: the Platform exporter (PBND-3[^platform-serverbindings]) publishes the registry. Core only stores what modules record.
 - Wire encoding (Network) and any game rule.
 
 ## Depends on
@@ -71,7 +84,7 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 - Flecs, Jolt, bgfx, RmlUi, ImGui, GLFW, BehaviorTree.CPP, Detour, GameNetworkingSockets.
 - RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
-Core's public headers are consumed outside the Engine: RunicPlatform's C++ links `Runic::Core` (the metrics registry), and the two header-only interface targets the Platform implements, `Runic::NetworkTransport` and `Runic::SimulationPort`, include only Core types. Keep every Core public header free of library types other than GLM, so the Platform sees GLM math types and nothing else.
+Core's public headers are consumed outside the Engine: RunicPlatform's C++ links `Runic::Core` (the metrics registry), and the two header-only interface targets the Platform implements, `Runic::NetworkTransport`[^engine-network] and `Runic::SimulationPort`[^engine-simulation], include only Core types. Keep every Core public header free of library types other than GLM, so the Platform sees GLM math types and nothing else.
 
 ## Public API sketch
 
@@ -85,7 +98,7 @@ Sketch, fixed in the contract session.
 | `WorkerPool.hpp`, `MetricsRegistry.hpp` | Worker pool, metrics registry | CORE-2 |
 | `RenderData/RenderFrame.hpp`, `RenderData/DebugGeometry.hpp` | Frame packet and debug geometry | CORE-3 |
 
-ARCH's illustrative `RenderFrame` (ARCH § Render data, extraction and world UI):
+ARCH[^arch]'s illustrative `RenderFrame` (ARCH § Render data, extraction and world UI):
 
 ```cpp
 // Illustrative: Core/Public/RenderData/RenderFrame.hpp
@@ -124,17 +137,17 @@ struct RenderFrame {
 ## Threading and tick rules
 
 - A `RenderFrame` is written on one thread and read on another with no lock (CORE-3).
-- Simulation phases and Jolt jobs run on the worker pool; Jolt never owns threads (PHYS-4). Network I/O and service clients run on their own threads and only enqueue.
+- Simulation phases and Jolt jobs run on the worker pool; Jolt never owns threads (PHYS-4[^engine-physics]). Network I/O and service clients run on their own threads and only enqueue.
 - Early slices run the pool with one worker. Code is phase-safe from day one, so more workers is a configuration change.
 - The worker count changes only at a safe point between ticks (for example after a CPU resize).
-- Metrics are recorded per tick domain; every clock domain and major system reports its cost per tick (ARCH § Principles and performance targets).
+- Metrics are recorded per tick domain; every clock domain and major system reports its cost per tick (ARCH[^arch] § Principles and performance targets).
 - Nothing in Core reads the wall clock on behalf of simulation systems; systems get time from the Simulation's `TickContext`.
 
 ## Work packages
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, WorldId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
+| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, WorldId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1[^doc-build-build-1] | 1 |
 | CORE-2 | Worker pool, metrics registry (per-tick timings and counters) and debug-stream registry where modules publish traces | Jobs run on the pool; metrics are recorded per tick domain | CORE-1 | 3 |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame and DebugGeometry (lines, triangles, text, cached debug meshes) | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload | CORE-1 | 5 |
 | CORE-4 | RenderData scene kinds: mesh instances, skinned instances with pose buffers, world anchors | Every kind round-trips through a frame packet in tests | CORE-3 | 22 |
@@ -144,11 +157,41 @@ struct RenderFrame {
 
 ## Acceptance tests
 
-The Done when column is the acceptance list; each contract session turns its row into failing tests first. The headless server also uses `DebugGeometry` for the Editor's live attach, so `RenderData/` must compile in the headless build.
+The Done when column is the acceptance list; each contract session turns its row into failing tests first. The headless server also uses `DebugGeometry` for the Editor[^engine-editor]'s live attach, so `RenderData/` must compile in the headless build.
 
 ## Open items
 
-- Decided in ARCH revision 369: `AssetId`, `WaterBodyId`, `FieldId` and `WidgetId` are plain value types in Core (CORE-1); the modules that own them (Assets, Water, UI) give them meaning. `RenderFrame` and Environment's API use them without depending on those modules.
+- Decided in ARCH[^arch] revision 369: `AssetId`, `WaterBodyId`, `FieldId` and `WidgetId` are plain value types in Core (CORE-1); the modules that own them (Assets, Water[^engine-water], UI) give them meaning. `RenderFrame` and Environment[^engine-environment]'s API use them without depending on those modules.
 - Decided in ARCH revision 369: GLM math types in Core's public headers are the third approved public-header exception, and GLM is a PUBLIC dependency of Core ([OQ-19](../system/11-open-questions.md#oq-19)). Record the exception in this module's ARCHITECTURE.md.
 - Memory and configuration utilities appear in the catalog row but in no package; add them only when a package's tests need them.
-- [OQ-2](../system/11-open-questions.md#oq-2) (decided): plain ID and time types live here. [OQ-7](../system/11-open-questions.md#oq-7) (decided): the test framework is GoogleTest, wired by BUILD-1.
+- [OQ-2](../system/11-open-questions.md#oq-2) (decided): plain ID and time types live here. [OQ-7](../system/11-open-questions.md#oq-7) (decided): the test framework is GoogleTest, wired by BUILD-1[^doc-build-build-1].
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depended on by:** [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Environment|Environment]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]]
+- **Its packages need:** [[../build/BUILD-1|Engine BUILD-1 contract]]
+- **Packages that need it:** [[../modules/Network|Network]] · [[../modules/Client|Client]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^doc-build-build-1]: [[../build/BUILD-1|Engine BUILD-1 contract]] — RunicEngine doc
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^oq-2]: [[../system/11-open-questions#OQ-2 — Where shared ID and time types live (decided 2026-10-09)|OQ-2]] — open question or decision
+[^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go
+[^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
+[^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-animation]: [[../modules/Animation|Animation]] — Engine module · Presentation
+[^engine-perception]: [[../modules/Perception|Perception]] — Engine module · World systems
+[^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
+[^engine-ecs]: [[../modules/ECS|ECS]] — Engine module · Simulation core

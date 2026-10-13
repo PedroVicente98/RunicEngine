@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/simulation-core
+  - headless/yes
+  - slice/4
+aliases:
+  - "Runic::ECS"
+---
+
 # ECS
 
 Contract seed for `Runic::ECS`: what a Claude Code session needs to implement the ECS work package. When `Engine/SimulationCore/ECS/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::ECS`: what a Claude Code session needs to implement th
 
 ## Purpose
 
-ECS integrates Flecs and fixes the conventions every module follows when it stores state in the simulation's Flecs world. Geometry answers spatial questions; Flecs answers what entities are, how they relate and which rules apply (ARCH § Simulation core: Flecs and Jolt).
+ECS integrates Flecs and fixes the conventions every module follows when it stores state in the simulation's Flecs world. Geometry answers spatial questions; Flecs answers what entities are, how they relate and which rules apply (ARCH[^arch] § Simulation core: Flecs and Jolt).
 
 ## Owns
 
@@ -42,15 +55,15 @@ ECS integrates Flecs and fixes the conventions every module follows when it stor
 
 ## Does not own
 
-- The world instance and when it is mutated: the SimulationRuntime owns the Flecs world; feature modules register into it (SIM-1, SIM-2).
-- `GlobalEntityId` (Core) and its mapping to local entities (DistributedSimulation, DSIM-1).
-- Spatial queries (World), physics state (Physics), fact delivery (Events).
+- The world instance and when it is mutated: the SimulationRuntime owns the Flecs world; feature modules register into it (SIM-1[^engine-simulation], SIM-2).
+- `GlobalEntityId` (Core) and its mapping to local entities (DistributedSimulation[^engine-distributedsimulation], DSIM-1).
+- Spatial queries (World), physics state (Physics[^engine-physics]), fact delivery (Events).
 
 ## Depends on
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Core |
+| Engine modules | Core[^engine-core] |
 | Third-party | Flecs (C++ API): PRIVATE, except that ECS re-exports it only to the Engine modules that register systems (the approved Flecs world-handle exception) |
 
 ### Must never depend on
@@ -74,13 +87,33 @@ Sketch, fixed in the contract session: `EcsWorld.hpp` (wrapper and the world-han
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| ECS-1 | Flecs world wrapper, component registration, query helpers, conventions | Entities are created, queried and destroyed; Flecs types appear in public headers only through the approved world-registration exception | CORE-1 | 4 |
+| ECS-1 | Flecs world wrapper, component registration, query helpers, conventions | Entities are created, queried and destroyed; Flecs types appear in public headers only through the approved world-registration exception | CORE-1[^engine-core] | 4 |
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. Slice 4 also requires entities with 64-bit positions (WORLD-1) to be created and queried.
+The Done when column is the acceptance list. Slice 4 also requires entities with 64-bit positions (WORLD-1[^engine-world]) to be created and queried.
 
 ## Open items
 
-- The approved exception is recorded here and in every module that uses it (ARCH § Modules, work packages and the implementation contract).
+- The approved exception is recorded here and in every module that uses it (ARCH[^arch] § Modules, work packages and the implementation contract).
 - Decided in ARCH revision 369: ECS re-exports Flecs only to the Engine modules that register systems (for example AI); other modules reach the world through Runic types. The ECS-1 contract session fixes the CMake shape of the re-export and proves no other module sees Flecs.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Core|Core]]
+- **Depended on by:** [[../modules/World|World]] · [[../modules/Simulation|Simulation]]
+- **Packages that need it:** [[../modules/Client|Client]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
+[^engine-world]: [[../modules/World|World]] — Engine module · Simulation core

@@ -1,8 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # 04 — Events and messages
 
 This file defines how information moves: application events inside a process, commands and facts inside the simulation, durable operations to services, and messages on the network.
 
-Source: ARCH § Repositories, build targets and processes (Three event families), § Application and LayerStack,
+Source: ARCH[^arch] § Repositories, build targets and processes (Three event families), § Application and LayerStack,
 § Simulation core: clock and threads, § Simulation core: Flecs and Jolt, § Engine gameplay APIs, § AI architecture,
 § Networking: stack, sessions and responsiveness, § Platform and operations.
 
@@ -10,8 +18,8 @@ Source: ARCH § Repositories, build targets and processes (Three event families)
 
 | Family | Examples | Delivery | Owner |
 | --- | --- | --- | --- |
-| Application events | Key press, resize, UI focus, connection state | LayerStack: top layer first, can be marked handled | Runic::Application |
-| Simulation facts | HitEvent, DamageEvent, EntityKilled, RegionChanged | Tick-safe buffers; every consumer receives them | Runic::Events, Runic::Simulation |
+| Application events | Key press, resize, UI focus, connection state | LayerStack: top layer first, can be marked handled | Runic::Application[^engine-application] |
+| Simulation facts | HitEvent, DamageEvent, EntityKilled, RegionChanged | Tick-safe buffers; every consumer receives them | Runic::Events[^engine-events], Runic::Simulation[^engine-simulation] |
 | Distributed messages | Quest facts, inventory operations, world-event directives | Transport, gRPC or NATS, with explicit reliability and idempotency | Engine service port and Network; Platform transport, bridge and SDK |
 
 Never mix the families: an application event is never a gameplay fact, a fact is never "handled" away, and a
@@ -24,14 +32,14 @@ distributed message never mutates the simulation directly.
   attacks: the UI overlay sits on top.
 - Other events (connections, service replies) are queued and drained once per loop by the owning layer.
 - No layer blocks: network, service and disk work run on their own threads and only enqueue.
-- Raw keyboard, mouse and gamepad input becomes application events (APP-2). Mapping input to gameplay commands is the
-  Client's input mapping and command builder (CLI-2).
+- Raw keyboard, mouse and gamepad input becomes application events (APP-2[^engine-application]). Mapping input to gameplay commands is the
+  Client's input mapping and command builder (CLI-2[^engine-client]).
 
 ## Commands, facts and durable facts
 
 | Kind | What it is | Who produces it | Who decides | Example |
 | --- | --- | --- | --- | --- |
-| Command | A request to attempt an action. Validated when it is applied, never trusted | Player input (through the Client's command builder and the network), AI intents, GameplayFlow actions | The authoritative simulation | Move, UseAbility, MoveGoal, a restriction-checked interaction |
+| Command | A request to attempt an action. Validated when it is applied, never trusted | Player input (through the Client's command builder and the network), AI intents, GameplayFlow[^engine-gameplayflow] actions | The authoritative simulation | Move, UseAbility, MoveGoal, a restriction-checked interaction |
 | Fact | Something the authority decided happened, in this tick | Simulation systems | Already decided | EntityKilled, DamageEvent, SkillStartedEvent, SequenceEnded |
 | Durable fact or operation | A fact or request that must reach a durable service, with a stable ID | The simulation, through the service port | The owning Go service accepts or rejects it | A quest fact, a loot grant request |
 
@@ -39,24 +47,24 @@ Rules:
 
 - **One command path.** AI intents and GameplayFlow actions become the same commands players send and pass the same
   validation. AI never mutates combat, movement, physics or persistent state directly.
-- **Commands apply in phase order.** Structural changes are deferred and applied at barriers (SIM-2).
-- **Blocked commands are rejected on the server.** Restrictions are checked by command validation hooks (GPL-3);
+- **Commands apply in phase order.** Structural changes are deferred and applied at barriers (SIM-2[^engine-simulation]).
+- **Blocked commands are rejected on the server.** Restrictions are checked by command validation hooks (GPL-3[^engine-gameplay]);
   a modified client gains nothing by sending them.
 - **A queued action is validated when it starts, not when it arrives.** Combat owns the one-slot input queue: at most
   one queued action per character, started on the first legal tick after recovery ends; a stun in between cancels
-  it; priority defensive inputs skip the queue when the current skill's cancel window allows (CMB-7). Network only
+  it; priority defensive inputs skip the queue when the current skill's cancel window allows (CMB-7[^engine-combat]). Network only
   carries the inputs.
 
 ## Stable event IDs
 
-- Every fact has a stable event ID: **SimulationId plus a monotonic sequence** (EVT-1).
+- Every fact has a stable event ID: **SimulationId plus a monotonic sequence** (EVT-1[^engine-events]).
 - IDs stay stable on replay, so durable consumers can deduplicate. An ID unique only within one process run is not
   enough.
 - The plain ID and time types (`GlobalEntityId`, `GlobalPlayerId`, `SimulationId`, `TickId`, `AuthorityEpoch`) live
-  in Core (CORE-1). PCS-1 issues `GlobalPlayerId`. DistributedSimulation owns the authority semantics.
-- Encodings: Runic::Network encodes every realtime message, envelope included. Platform Contracts (Protobuf) define
+  in Core (CORE-1[^engine-core]). PCS-1[^platform-coreservices] issues `GlobalPlayerId`. DistributedSimulation[^engine-distributedsimulation] owns the authority semantics.
+- Encodings: Runic::Network[^engine-network] encodes every realtime message, envelope included. Platform Contracts[^platform-contracts] (Protobuf) define
   service APIs, published facts and the connect-ticket format.
-- Durable operations carry stable **operation IDs** (SIM-5); the item ledger uses operation IDs for every transfer
+- Durable operations carry stable **operation IDs** (SIM-5[^engine-simulation]); the item ledger[^platform-buildingblocks] uses operation IDs for every transfer
   (PBB-1).
 
 ## Event buffers and barriers
@@ -101,14 +109,14 @@ The simulation advances in fixed steps on a 60 Hz master clock with 30, 20 and 1
 
 ## The service port
 
-The Simulation's service port (SIM-5) is the Engine's **only door to durable services**.
+The Simulation's service port (SIM-5[^engine-simulation]) is the Engine's **only door to durable services**.
 
 | Part | What it is |
 | --- | --- |
 | Outbox | Outgoing durable operations, each with a stable operation ID |
 | Inbox | Accepted results from services, drained at safe ticks |
 | Interface target | Header-only `Runic::SimulationPort` (Core types only), so the Platform implements the port without linking the Simulation module |
-| Implementation | The Platform's ServicesBridgeLayer, on its own threads: asynchronous gRPC calls (PBND-1, slice 27); NATS publishing of durable facts from the outbox and subscriptions such as world directives delivered to the inbox (PBND-4, slice 30). Completions are queued for safe ticks |
+| Implementation | The Platform's ServicesBridgeLayer[^platform-serverbindings], on its own threads: asynchronous gRPC calls (PBND-1, slice 27); NATS publishing of durable facts from the outbox and subscriptions such as world directives[^platform-coreservices] delivered to the inbox (PBND-4, slice 30). Completions are queued for safe ticks |
 
 Rules:
 
@@ -121,8 +129,8 @@ The full durable path, step by step, is in [07 § The durable-fact path](07-serv
 
 ## Network channels and delivery classes
 
-Clients talk directly to their simulation through the Engine's transport interface (NET-1), implemented by the
-Platform on GameNetworkingSockets (PTR-1). The transport interface is the only door between a process and the
+Clients talk directly to their simulation through the Engine's transport interface (NET-1[^engine-network]), implemented by the
+Platform on GameNetworkingSockets (PTR-1[^platform-transport]). The transport interface is the only door between a process and the
 network; it has tick-safe ingress and egress queues. The interface and the connect-ticket hook ship as the header-only
 `Runic::NetworkTransport` target (Core types only), which is all the Platform transport links from the Engine.
 
@@ -135,11 +143,11 @@ network; it has tick-safe ingress and egress queues. The interface and the conne
 | Protobuf contracts | Platform (games add messages) | Service APIs, published facts and the connect-ticket format; never per-tick traffic |
 | gRPC | Platform SDK | Calls that need an answer: load character, consume item, commit trade, allocate instance |
 | NATS | Platform SDK | Publish and subscribe without an answer; JetStream only where replay is required |
-| Go services | Platform and Game | Core services and game services |
+| Go services | Platform and Game | Core services[^platform-coreservices] and game services |
 | Agones and Kubernetes | Platform | Simulation lifecycle, placement, fleets, configuration |
 
 Runic::Network encodes every message on the realtime connection, envelope included; high-frequency payloads are
-bit-packed and quantized. Protobuf (Platform Contracts) defines service APIs, published facts and the connect-ticket
+bit-packed and quantized. Protobuf (Platform Contracts[^platform-contracts]) defines service APIs, published facts and the connect-ticket
 format, never per-tick traffic.
 
 | Traffic | Delivery |
@@ -156,7 +164,7 @@ Other delivery rules:
   codec (NET-5) and carried directly over GameNetworkingSockets, never NATS or gRPC in the hot path. A message with a
   stale authority epoch is dropped.
 - **Presentation cues** from sequences are facts sent to clients; they carry no authority.
-- **Environment overrides** (for example a storm) are world directives (PCS-3) delivered through the services bridge
+- **Environment overrides** (for example a storm) are world directives (PCS-3) delivered through the services bridge[^platform-serverbindings]
   (PBND-4) to every simulation owning the affected regions, with an effective world time; they reach clients once as
   a reliable fact. Wind, current and wave values are never replicated per tick.
 - **Projectiles and effects from hidden players** are sent without the caster's identity
@@ -169,16 +177,44 @@ Other delivery rules:
 ## Idempotency
 
 - Every durable change is an operation with an ID, so retries are safe.
-- The Platform Go SDK owns transactions and the idempotency store (PSDK-2): a retried operation commits once.
+- The Platform Go SDK[^platform-gosdk] owns transactions and the idempotency store (PSDK-2): a retried operation commits once.
 - Services deduplicate durable facts by their stable event ID; replaying the same fact changes nothing.
-- The item ledger's atomic transfers carry operation IDs; concurrent transfers never duplicate or lose an item.
+- The item ledger[^platform-buildingblocks]'s atomic transfers carry operation IDs; concurrent transfers never duplicate or lose an item.
 - NATS subscribers consume a fact published once exactly once per subscriber (PSDK-3).
 
 ## Local Flecs IDs never leave the process
 
 - `GlobalEntityId` is the stable identity across simulations, clients and services. Local Flecs entity IDs are
   process-local and never appear on the wire, in schemas, in durable records or in RenderData.
-- `GlobalPlayerId` is the plain player ID type in Core (CORE-1); the accounts service (PCS-1) issues it. Like
+- `GlobalPlayerId` is the plain player ID type in Core (CORE-1[^engine-core]); the accounts service (PCS-1[^platform-coreservices]) issues it. Like
   `GlobalEntityId`, it is what schemas and durable records use.
-- DistributedSimulation maps GlobalEntityId to local entities (DSIM-1).
+- DistributedSimulation[^engine-distributedsimulation] maps GlobalEntityId to local entities (DSIM-1).
 - RenderData refers to entities by GlobalEntityId and to resources by AssetId; nothing points into Flecs memory.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-application]: [[../../../RunicEngine/docs/modules/Application|Application]] — Engine module · Foundation
+[^engine-events]: [[../../../RunicEngine/docs/modules/Events|Events]] — Engine module · Foundation
+[^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-client]: [[../../../RunicEngine/docs/modules/Client|Client]] — Engine module · Presentation
+[^engine-gameplayflow]: [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^engine-gameplay]: [[../../../RunicEngine/docs/modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
+[^engine-combat]: [[../../../RunicEngine/docs/modules/Combat|Combat]] — Engine module · GameplayAPI
+[^engine-core]: [[../../../RunicEngine/docs/modules/Core|Core]] — Engine module · Foundation
+[^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go
+[^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-network]: [[../../../RunicEngine/docs/modules/Network|Network]] — Engine module · Networking
+[^platform-contracts]: [[../../../RunicPlatform/docs/modules/Contracts|Contracts]] — Platform module · Protobuf
+[^platform-buildingblocks]: [[../../../RunicPlatform/docs/modules/BuildingBlocks|BuildingBlocks]] — Platform module · Go
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++
+[^platform-transport]: [[../../../RunicPlatform/docs/modules/Transport|Transport]] — Platform module · C++
+[^platform-gosdk]: [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] — Platform module · Go

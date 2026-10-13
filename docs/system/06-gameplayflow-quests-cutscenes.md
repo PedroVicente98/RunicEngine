@@ -1,8 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # 06 — GameplayFlow, quests and cutscenes
 
-This file defines the Engine's runtime for scripted gameplay (GameplayFlow), source-owned restrictions, cutscenes, and the quest runtime with its quest-creation API and durable bridge.
+This file defines the Engine's runtime for scripted gameplay (GameplayFlow[^engine-gameplayflow]), source-owned restrictions, cutscenes, and the quest runtime with its quest-creation API and durable bridge.
 
-Source: ARCH § Engine gameplay APIs (Behavior registry contract, Scripted sequences (GameplayFlow) and restrictions,
+Source: ARCH[^arch] § Engine gameplay APIs (Behavior registry contract, Scripted sequences (GameplayFlow) and restrictions,
 Quest runtime and the quest-creation API), § Repositories, build targets and processes (Engine modules).
 
 All examples below are neutral format examples. Concrete sequences, quests, encounters and cues are RunicGame content
@@ -12,18 +20,18 @@ and never appear in this folder.
 
 | Package | What | Needs | Slice |
 | --- | --- | --- | --- |
-| GPL-3 | Restrictions: source-owned restriction sets, acquire and release by source, command-validation hooks | GPL-2 | 18 |
-| GPL-5 | Interaction framework: interactables, reservation, interaction facts | GPL-2, EVT-1 | 29 |
-| FLOW-1 | Sequence runtime: trigger, condition and action registries, scheduler, timers on simulation time | GPL-5 | 29 |
+| GPL-3[^engine-gameplay] | Restrictions: source-owned restriction sets, acquire and release by source, command-validation hooks | GPL-2 | 18 |
+| GPL-5 | Interaction framework: interactables, reservation, interaction facts | GPL-2, EVT-1[^engine-events] | 29 |
+| FLOW-1[^engine-gameplayflow] | Sequence runtime: trigger, condition and action registries, scheduler, timers on simulation time | GPL-5 | 29 |
 | FLOW-2 | Termination path, restriction ownership, watchdog, presentation cues | FLOW-1, GPL-3 | 29 |
-| FLOW-3 | Handoff policies and sequence state in the transfer snapshot | FLOW-2, DSIM-3 | 37 |
-| QST-1 | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances | FLOW-1 | 30 |
-| QST-2 | Durable bridge through the service port; accepted results applied at safe ticks | QST-1, SIM-5 | 30 |
+| FLOW-3 | Handoff policies and sequence state in the transfer snapshot | FLOW-2, DSIM-3[^engine-distributedsimulation] | 37 |
+| QST-1[^engine-quest] | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances | FLOW-1 | 30 |
+| QST-2 | Durable bridge through the service port; accepted results applied at safe ticks | QST-1, SIM-5[^engine-simulation] | 30 |
 | QST-3 | Quest instances registered as a transfer-snapshot contributor | QST-1, DSIM-3 | 37 |
 
 ## GameplayAPI group at a glance
 
-GameplayFlow and Quest belong to the GameplayAPI group with Gameplay and Combat. Each is its own module with its own
+GameplayFlow[^engine-gameplayflow] and Quest belong to the GameplayAPI group with Gameplay and Combat. Each is its own module with its own
 boundary and tests. The Engine knows timelines, tags, statuses, rules, threat and perception, but no concrete rule.
 
 | API | Module | What the Engine provides | What a game supplies |
@@ -46,7 +54,7 @@ boundary and tests. The Engine knows timelines, tags, statuses, rules, threat an
 
 ## GameplayFlow model
 
-GameplayFlow is **the one authoritative runtime for scripted gameplay**. Quests, boss phases, dungeons, cutscenes,
+GameplayFlow[^engine-gameplayflow] is **the one authoritative runtime for scripted gameplay**. Quests, boss phases, dungeons, cutscenes,
 escorts, tutorials and world events all run on it instead of each inventing its own timers and state machines.
 
 A sequence is a graph of steps. Each step waits for a trigger, checks conditions, runs actions and moves to the next
@@ -60,7 +68,7 @@ TRIGGER → CONDITIONS → ACTIONS → STATE TRANSITION
 - **Actions change the world only through Simulation commands and Gameplay APIs**, the same doors players and AI use.
   Starting an ability is a UseAbility command; changing an NPC's behavior is an AI profile command.
 - **GameplayFlow never calls Combat or AI internals** (decided, [11 § OQ-18](11-open-questions.md#oq-18)). Its
-  allowed dependencies are Gameplay and DistributedSimulation (handoff snapshot) only.
+  allowed dependencies are Gameplay and DistributedSimulation[^engine-distributedsimulation] (handoff snapshot) only.
 - Sequences run on the simulation thread at phase boundaries.
 - **Timers use simulation time, never wall-clock time.** A wait is a time or a domain-tagged tick count.
 
@@ -122,7 +130,7 @@ and the calls into Engine APIs are Engine behavior.
 
 ### Behavior registry contract
 
-The same extension model serves abilities, item effects, AI nodes and interactions (ARCH § Engine gameplay APIs).
+The same extension model serves abilities, item effects, AI nodes and interactions (ARCH[^arch] § Engine gameplay APIs).
 
 | Rule | Why |
 | --- | --- |
@@ -139,7 +147,7 @@ The same extension model serves abilities, item effects, AI nodes and interactio
 
 No scattered flags such as `invulnerable = true`. A sequence, a skill or an effect acquires a restriction set under its
 own source ID, and every exit path releases everything held by that source in one call. Restrictions live in
-Runic::Gameplay (GPL-3); invulnerability windows use the same mechanism.
+Runic::Gameplay[^engine-gameplay] (GPL-3); invulnerability windows use the same mechanism.
 
 ```cpp
 // Illustrative
@@ -158,7 +166,7 @@ restrictions.ReleaseAllFromSource(sequenceInstanceId);   // on every terminal pa
 ## One termination path
 
 Complete, abort, cancel, timeout, disconnect, owner destruction, quest abandon, shutdown and transfer failure all
-converge on **one routine** (FLOW-2). It:
+converge on **one routine** (FLOW-2[^engine-gameplayflow]). It:
 
 1. cancels the sequence's timers;
 2. releases the sequence's restrictions and reservations;
@@ -170,7 +178,7 @@ invulnerable.
 
 ## Handoff policies
 
-Each sequence declares what happens when its owner's authority moves to another simulation (FLOW-3).
+Each sequence declares what happens when its owner's authority moves to another simulation (FLOW-3[^engine-gameplayflow]).
 
 ```cpp
 enum class HandoffPolicy { Transferable, PinAuthority, AbortOnTransfer };
@@ -197,7 +205,7 @@ GameplayFlow registers its sequences as a transfer-snapshot contributor
 
 ## Interactions
 
-The interaction framework (GPL-5) provides interactables, reach and permission checks, reservation and interaction
+The interaction framework (GPL-5[^engine-gameplay]) provides interactables, reach and permission checks, reservation and interaction
 facts. Two players cannot reserve the same target.
 
 Flow of a world interaction:
@@ -209,7 +217,7 @@ Flow of a world interaction:
 
 ## Quest runtime and the quest-creation API
 
-The quest runtime (Runic::Quest) runs inside the simulation on top of GameplayFlow, so a kill or an interaction
+The quest runtime (Runic::Quest[^engine-quest]) runs inside the simulation on top of GameplayFlow[^engine-gameplayflow], so a kill or an interaction
 advances a quest **in the same tick** that produced the fact. Durable progress lives in the Game's Go Quest service.
 The Engine owns the runtime and the API; the Game owns every quest.
 
@@ -254,12 +262,12 @@ conditions.Register("game:<condition_name>", GameConditionType{});   // RunicGam
 
 ## Durable quest bridge
 
-Quest facts reach durable storage only through the Simulation's service port (QST-2, SIM-5).
+Quest facts reach durable storage only through the Simulation's service port (QST-2[^engine-quest], SIM-5[^engine-simulation]).
 
 1. Combat emits `EntityKilled` once, with a stable event ID.
 2. The quest runtime consumes the fact, advances its local state and may start a sequence.
 3. The fact leaves through the Simulation's service port; the Platform's services-bridge layer carries it to the Quest
-   service, asynchronously (gRPC calls from PBND-1; NATS publishing and subscriptions from PBND-4, which slice 30
+   service, asynchronously (gRPC calls from PBND-1[^platform-serverbindings]; NATS publishing and subscriptions from PBND-4, which slice 30
    delivers together with QST-2).
 4. The service validates the source, deduplicates by event ID, updates progress and commits rewards in one
    transaction.
@@ -274,10 +282,29 @@ Quest facts reach durable storage only through the Simulation's service port (QS
 
 ## Rules for any session touching this area
 
-- Do act only through Simulation commands and Gameplay APIs from GameplayFlow and Quest.
+- Do act only through Simulation commands and Gameplay APIs from GameplayFlow[^engine-gameplayflow] and Quest.
 - Do route every exit of a sequence through the one termination path.
 - Do acquire restrictions under a source ID and release them by source.
 - Never read the wall clock in a sequence or quest; use simulation time.
 - Never call Combat or AI internals from GameplayFlow or Quest.
 - Never wait synchronously for a service; submit through the service port and wait for the accepted result.
 - Never put a concrete quest, encounter, cue or status in Engine code, tests or this folder; use `engine:test_*` IDs.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
+
+[^engine-gameplayflow]: [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-gameplay]: [[../../../RunicEngine/docs/modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
+[^engine-events]: [[../../../RunicEngine/docs/modules/Events|Events]] — Engine module · Foundation
+[^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-quest]: [[../../../RunicEngine/docs/modules/Quest|Quest]] — Engine module · GameplayAPI
+[^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++

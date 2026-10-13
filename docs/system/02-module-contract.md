@@ -1,8 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # 02 — Module contract
 
 This file defines what a module is, how it is laid out and named, what may cross its boundary, what its `ARCHITECTURE.md` must contain, and how it matures.
 
-Source: ARCH § Modules, work packages and the implementation contract (Sizes of work, Why the code is segmented this
+Source: ARCH[^arch] § Modules, work packages and the implementation contract (Sizes of work, Why the code is segmented this
 way, Module contract, Maturity stages).
 
 ## Sizes of work
@@ -12,8 +20,8 @@ each piece of work small enough to be built well.
 
 | Size | What it is | Example | Who uses it |
 | --- | --- | --- | --- |
-| Group | A folder plus an umbrella build target that links related modules under one name; no code of its own | `Runic::GameplayAPI` = Gameplay, Combat, GameplayFlow, Quest | The Game links one name; the documents categorize by it |
-| Module | A CMake target with its own folder, public headers, tests and `ARCHITECTURE.md`; the unit of ownership and dependency | `Runic::Combat` | Other modules link it and include only its public headers |
+| Group | A folder plus an umbrella build target that links related modules under one name; no code of its own | `Runic::GameplayAPI` = Gameplay, Combat, GameplayFlow[^engine-gameplayflow], Quest | The Game links one name; the documents categorize by it |
+| Module | A CMake target with its own folder, public headers, tests and `ARCHITECTURE.md`; the unit of ownership and dependency | `Runic::Combat`[^engine-combat] | Other modules link it and include only its public headers |
 | Subsystem | A folder inside a module's `Source/`; not linkable on its own | `Combat/Cooldowns` | Only its own module |
 | Work package | One Claude Code session and one pull request: a subsystem, or part of one, at a stated maturity stage, with its tests and docs | CMB-3: statuses, cooldowns and resource costs | The owner reviews and merges it; the roadmap lists it |
 
@@ -22,7 +30,7 @@ Rules:
 - **Modules stay coarse on purpose.** Many tiny libraries add build, link and dependency overhead without making
   the code better. Big modules are split into packages, not into more libraries.
 - **A subsystem becomes its own module only** when build isolation or reuse proves it necessary. That is an owner
-  decision recorded in ARCH; never create a module that is not in the catalogs in
+  decision recorded in ARCH[^arch]; never create a module that is not in the catalogs in
   [03-dependency-rules.md](03-dependency-rules.md).
 - Work packages are defined in [12-work-packages.md](12-work-packages.md); how one is built is in
   [10-ai-development-workflow.md](10-ai-development-workflow.md).
@@ -52,7 +60,7 @@ tests beside the code.
 
 ## CMake: one call per module
 
-The `runic_add_module` helper (delivered by BUILD-1) creates the target and its alias, wires `Public/`, `Source/` and
+The `runic_add_module` helper (delivered by BUILD-1[^doc-build-build-1]) creates the target and its alias, wires `Public/`, `Source/` and
 `Tests/`, sets warnings, registers tests and adds the headless check.
 
 ```cmake
@@ -76,7 +84,7 @@ add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
 
 - A group is a folder plus an `INTERFACE` target that only links its modules. It has no code of its own.
 - Each module inside a group keeps its own boundary, its own tests and its own `ARCHITECTURE.md`.
-- `Runic::GameplayAPI` links Gameplay, Combat, GameplayFlow and Quest so the Game links one name.
+- `Runic::GameplayAPI` links Gameplay, Combat, GameplayFlow[^engine-gameplayflow] and Quest so the Game links one name.
 - Engine groups: Foundation, Simulation core, GameplayAPI, World systems, Networking, Presentation, Tools
   (membership in [03 § Engine modules](03-dependency-rules.md#engine-modules)). Their folders are `Foundation`,
   `SimulationCore`, `GameplayAPI`, `WorldSystems`, `Networking`, `Presentation` and `Tools`; every module lives at
@@ -89,13 +97,13 @@ add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
 | Item | Engine | Platform | Game |
 | --- | --- | --- | --- |
 | Target alias | `Runic::<Module>` | `RunicPlatform::<Module>` | `RunicGame::<Module>` |
-| Namespace | Matches the module, for example `Runic::Physics` | Matches the module | Matches the module |
+| Namespace | Matches the module, for example `Runic::Physics`[^engine-physics] | Matches the module | Matches the module |
 | Group target | `INTERFACE` target, for example `Runic::GameplayAPI` | — | — |
-| Interface target for the Platform | Header-only, Core types only: `Runic::NetworkTransport`, `Runic::SimulationPort` | — (implements them) | — |
+| Interface target for the Platform | Header-only, Core types only: `Runic::NetworkTransport`[^engine-network], `Runic::SimulationPort`[^engine-simulation] | — (implements them) | — |
 
 - **One target per module.** A module may also export **one header-only interface target** for an interface the
   Platform implements: `Runic::NetworkTransport` (from Network, NET-1) and `Runic::SimulationPort` (from Simulation,
-  SIM-5). Those headers include only Core types. No other module exports such a target unless ARCH adds it.
+  SIM-5). Those headers include only Core types. No other module exports such a target unless ARCH[^arch] adds it.
 - **Explicit file names.** Public files say what they hold (`PhysicsWorld.hpp`, never `Types.hpp`).
 - RenderData is a separate folder and namespace inside Core: `Core/Public/RenderData/`, `Runic::RenderData`.
 
@@ -115,7 +123,7 @@ add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
 ## PUBLIC and PRIVATE dependencies
 
 - **Allowed dependencies are a ceiling.** A package links only what it uses, even if the module table allows more.
-  Example: Combat links DistributedSimulation only from CMB-8 on.
+  Example: Combat links DistributedSimulation[^engine-distributedsimulation] only from CMB-8[^engine-combat] on.
 - A module dependency is `PUBLIC` only when its types appear in this module's public headers. Otherwise it is
   `PRIVATE`.
 - Third-party libraries are `PRIVATE`, except the approved exceptions: GLM is a `PUBLIC` dependency of Core.
@@ -133,7 +141,7 @@ add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
 
 - Tests are in the module's `Tests/` folder and register with CTest.
 - One C++ test framework is used in all three repositories: GoogleTest, with GoogleMock for interface doubles
-  (decided by the owner for BUILD-1, slice 0). BUILD-1 pins it and wires test discovery into CTest. Go uses its
+  (decided by the owner for BUILD-1[^doc-build-build-1], slice 0). BUILD-1 pins it and wires test discovery into CTest. Go uses its
   standard `testing` package.
 - A package's **Done when** is written as automated tests in its contract session, before the implementation.
 
@@ -147,7 +155,7 @@ add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
 
 ## The module's ARCHITECTURE.md
 
-Each module's `ARCHITECTURE.md` is written from its catalog row in [03](03-dependency-rules.md) and the ARCH
+Each module's `ARCHITECTURE.md` is written from its catalog row in [03](03-dependency-rules.md) and the ARCH[^arch]
 sections that concern it. It changes **in the same pull request** as the module's code. Until the module folder
 exists, the same contract lives in the owning repository's `docs/modules/<Module>.md`.
 
@@ -201,3 +209,25 @@ If an item in [11-open-questions.md](11-open-questions.md) affects the module, l
 6. Write the tests; for headless modules make sure the server build stays headless.
 7. Update the module's `ARCHITECTURE.md`, the package status and the repository's `docs/current-state.md` in the
    same pull request.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Engine modules:** [[../../../RunicEngine/docs/modules/Core|Core]] · [[../../../RunicEngine/docs/modules/Application|Application]] · [[../../../RunicEngine/docs/modules/Events|Events]] · [[../../../RunicEngine/docs/modules/Content|Content]] · [[../../../RunicEngine/docs/modules/Assets|Assets]] · [[../../../RunicEngine/docs/modules/ECS|ECS]] · [[../../../RunicEngine/docs/modules/World|World]] · [[../../../RunicEngine/docs/modules/Physics|Physics]] · [[../../../RunicEngine/docs/modules/Simulation|Simulation]] · [[../../../RunicEngine/docs/modules/Gameplay|Gameplay]] · [[../../../RunicEngine/docs/modules/Combat|Combat]] · [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] · [[../../../RunicEngine/docs/modules/Quest|Quest]] · [[../../../RunicEngine/docs/modules/Perception|Perception]] · [[../../../RunicEngine/docs/modules/Navigation|Navigation]] · [[../../../RunicEngine/docs/modules/AI|AI]] · [[../../../RunicEngine/docs/modules/Environment|Environment]] · [[../../../RunicEngine/docs/modules/Water|Water]] · [[../../../RunicEngine/docs/modules/Network|Network]] · [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] · [[../../../RunicEngine/docs/modules/Client|Client]] · [[../../../RunicEngine/docs/modules/Renderer|Renderer]] · [[../../../RunicEngine/docs/modules/Animation|Animation]] · [[../../../RunicEngine/docs/modules/UI|UI]] · [[../../../RunicEngine/docs/modules/Audio|Audio]] · [[../../../RunicEngine/docs/modules/Editor|Editor]] · [[../../../RunicEngine/docs/modules/Cooker|Cooker]]
+- **Platform modules:** [[../../../RunicPlatform/docs/modules/Transport|Transport]] · [[../../../RunicPlatform/docs/modules/Contracts|Contracts]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] · [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] · [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] · [[../../../RunicPlatform/docs/modules/BuildingBlocks|BuildingBlocks]] · [[../../../RunicPlatform/docs/modules/Infrastructure|Infrastructure]]
+- **Game:** [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-gameplayflow]: [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^engine-combat]: [[../../../RunicEngine/docs/modules/Combat|Combat]] — Engine module · GameplayAPI
+[^doc-build-build-1]: [[../build/BUILD-1|BUILD-1 contract]] — this repository
+[^engine-physics]: [[../../../RunicEngine/docs/modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-network]: [[../../../RunicEngine/docs/modules/Network|Network]] — Engine module · Networking
+[^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking

@@ -1,8 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # 10 — AI development workflow
 
 This file says how one work package is built with Claude Code: what a session may touch, the contract-first cycle, the task template, and what to do when something outside the package is needed.
 
-Source: ARCH § Modules, work packages and the implementation contract (Why the code is segmented this way, Work
+Source: ARCH[^arch] § Modules, work packages and the implementation contract (Why the code is segmented this way, Work
 packages, Building with Claude Code, Maturity stages, Parallel work, Automated checks).
 
 ## The unit of work
@@ -30,7 +38,7 @@ Why it is cut this way:
 - Reviewable size: as a rule of thumb a package changes at most about 1,500 to 2,500 lines, which fits a careful
   review of about 30 minutes.
 
-BUILD-1 (slice 0) is the one package ARCH defines across all three repositories: it creates the build skeleton, CI,
+BUILD-1[^doc-build-build-1] (slice 0) is the one package ARCH[^arch] defines across all three repositories: it creates the build skeleton, CI,
 presets, checks and submodule pins, not module code.
 
 ## Before you start
@@ -73,7 +81,7 @@ Small packages, with a few hundred lines and no new public types, may combine st
 
 ## Task template
 
-Use this shape for every implementation session. Example from ARCH, which is already neutral:
+Use this shape for every implementation session. Example from ARCH[^arch], which is already neutral:
 
 ```text
 TASK
@@ -135,12 +143,12 @@ Report it in the pull request description or to the owner, with:
 | Rule check | Whether it adds a dependency, and whether that dependency is allowed by [03](03-dependency-rules.md) |
 
 A change that adds a dependency outside a module's allowed list, a new module or a new package is an owner decision
-recorded in ARCH first.
+recorded in ARCH[^arch] first.
 
 ## Parallel work
 
 - Packages whose Needs are all merged can run at the same time, each in its own Claude Code session and git worktree.
-  Examples: RND-1 and RND-2 alongside SIM-1; PCT-1 alongside NET-1; EDT-1 alongside PHYS-1.
+  Examples: RND-1[^engine-renderer] and RND-2 alongside SIM-1[^engine-simulation]; PCT-1[^platform-contracts] alongside NET-1[^engine-network]; EDT-1[^engine-editor] alongside PHYS-1[^engine-physics].
 - Two or three sessions at once is the practical limit, because every contract and pull request still needs the
   owner's review.
 - **Two packages that write the same module never run at the same time.**
@@ -160,8 +168,27 @@ recorded in ARCH first.
 | Change | Update in the same pull request |
 | --- | --- |
 | A package is merged | The module's `ARCHITECTURE.md` (Work packages: status), the repository's module status and `docs/current-state.md` |
-| A module's public API, ownership or dependencies change | That module's `ARCHITECTURE.md`; if a dependency changes, ARCH first, then [03](03-dependency-rules.md) in all three repositories |
+| A module's public API, ownership or dependencies change | That module's `ARCHITECTURE.md`; if a dependency changes, ARCH[^arch] first, then [03](03-dependency-rules.md) in all three repositories |
 | An open question is decided | Move it to Decided in [11](11-open-questions.md) in all three repositories and update the affected contracts |
 
 `docs/system/` is mirrored byte-for-byte in all three repositories; edit all copies together
 ([README § How to change this folder](README.md#how-to-change-this-folder)).
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^doc-build-build-1]: [[../build/BUILD-1|BUILD-1 contract]] — this repository
+[^engine-renderer]: [[../../../RunicEngine/docs/modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core
+[^platform-contracts]: [[../../../RunicPlatform/docs/modules/Contracts|Contracts]] — Platform module · Protobuf
+[^engine-network]: [[../../../RunicEngine/docs/modules/Network|Network]] — Engine module · Networking
+[^engine-editor]: [[../../../RunicEngine/docs/modules/Editor|Editor]] — Engine module · Tools
+[^engine-physics]: [[../../../RunicEngine/docs/modules/Physics|Physics]] — Engine module · Simulation core
