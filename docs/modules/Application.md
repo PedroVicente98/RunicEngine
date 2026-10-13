@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/foundation
+  - headless/yes
+  - slice/1
+aliases:
+  - "Runic::Application"
+---
+
 # Application
 
 Contract seed for `Runic::Application`: what a Claude Code session needs to implement the Application work packages. When `Engine/Foundation/Application/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,15 +26,15 @@ Contract seed for `Runic::Application`: what a Claude Code session needs to impl
 
 ## Purpose
 
-Every executable is an Application on the Engine's ApplicationHost: a stack of layers that receives events top-down and updates bottom-up, while the simulation's internal order stays inside its scheduler (ARCH § Application and LayerStack). This module owns the entry point, the layer machinery, loop policies, application events and the Window class.
+Every executable is an Application on the Engine's ApplicationHost: a stack of layers that receives events top-down and updates bottom-up, while the simulation's internal order stays inside its scheduler (ARCH[^arch] § Application and LayerStack). This module owns the entry point, the layer machinery, loop policies, application events and the Window class.
 
 ## Owns
 
-- `main()`. The Engine owns it and calls `CreateApplication()`, which each executable defines: RunicGame defines it twice (GameClient and GameServer), the Engine defines it for the Editor and the Cooker.
+- `main()`. The Engine owns it and calls `CreateApplication()`, which each executable defines: RunicGame defines it twice (GameClient and GameServer), the Engine defines it for the Editor[^engine-editor] and the Cooker[^engine-cooker].
 - `Application`, `ApplicationHost`, `Layer` and `LayerStack`. Layers and overlays are separate ranges; overlays always sit above layers.
 - Loop policies per executable (table below).
 - Application events: key press, resize, UI focus, connection state. Delivery is top layer first; a layer can mark an event handled.
-- The `Window` class on GLFW, compiled only in client and tools builds (APP-2; decided in OQ-4). It creates a `GLFW_NO_API` window, extracts the native window and display handles, and turns keyboard, mouse and gamepad input into application events.
+- The `Window` class on GLFW, compiled only in client and tools builds (APP-2; decided in OQ-4[^oq-4]). It creates a `GLFW_NO_API` window, extracts the native window and display handles, and turns keyboard, mouse and gamepad input into application events.
 - Transitions as layer replacements at the loop's safe point: client Boot → Login → Character select → World; server Starting → Ready → Draining → Shutdown.
 
 | Executable | Loop | Per iteration |
@@ -33,28 +46,28 @@ Every executable is an Application on the Engine's ApplicationHost: a stack of l
 
 ## Does not own
 
-- The concrete layers. The Engine supplies Network and Diagnostics (Network module), Simulation (Simulation module), Prediction and Presentation (Client module), and the GameUI and ImGui overlays (UI module). The Platform supplies the services-bridge and lifecycle layers. RunicGame composes all of them and adds its own.
+- The concrete layers. The Engine supplies Network and Diagnostics (Network module[^engine-network]), Simulation (Simulation module[^engine-simulation]), Prediction and Presentation (Client module[^engine-client]), and the GameUI and ImGui overlays (UI module[^engine-ui]). The Platform supplies the services-bridge and lifecycle layers. RunicGame composes all of them and adds its own.
 - Simulation order: it lives in the Simulation scheduler, never in layer order.
 - Input mapping, actions and the command builder (Client, CLI-2).
-- Renderer setup and bgfx. The Window hands out native handles as plain data; `glfw3native.h` and its platform macros never leave the Window class.
+- Renderer[^engine-renderer] setup and bgfx. The Window hands out native handles as plain data; `glfw3native.h` and its platform macros never leave the Window class.
 
 ## Depends on
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Core |
+| Engine modules | Core[^engine-core] |
 | Third-party (PRIVATE) | GLFW, for the Window class in client and tools builds only |
 
 ### Must never depend on
 
 - Any Engine module other than Core.
-- GLFW, bgfx, RmlUi, ImGui, an audio backend or Editor code in the headless build. `OnImGuiRender` is a hook with no ImGui types; ImGui is private to UI and Editor (OQ-6).
-- RunicPlatform or RunicGame code. The Platform's server bindings include the `Layer` header; the Engine never includes theirs.
+- GLFW, bgfx, RmlUi, ImGui, an audio backend or Editor[^engine-editor] code in the headless build. `OnImGuiRender` is a hook with no ImGui types; ImGui is private to UI and Editor (OQ-6[^oq-6]).
+- RunicPlatform or RunicGame code. The Platform's server bindings[^platform-serverbindings] include the `Layer` header; the Engine never includes theirs.
 - Agones, Kubernetes, gRPC, NATS or databases.
 
 ## Public API sketch
 
-ARCH's illustrative `Layer` (ARCH § Application and LayerStack):
+ARCH[^arch]'s illustrative `Layer` (ARCH § Application and LayerStack):
 
 ```cpp
 // Illustrative contract, not a frozen API.
@@ -72,7 +85,7 @@ public:
 
 Headers (sketch, fixed in the contract session): `EntryPoint.hpp`, `Application.hpp`, `ApplicationHost.hpp`, `Layer.hpp`, `LayerStack.hpp`, `ApplicationEvents.hpp`, `LoopPolicy.hpp`, `Window.hpp` (client and tools builds only).
 
-`Layer.hpp` is consumed by RunicPlatform: its C++ links only `Runic::Core`, `Runic::Application`, `Runic::NetworkTransport` and `Runic::SimulationPort`, and its services-bridge and lifecycle layers (PBND-1, PBND-2, PBND-4) implement `Layer`. Application's public headers therefore carry no library types and include nothing above Core.
+`Layer.hpp` is consumed by RunicPlatform: its C++ links only `Runic::Core`[^engine-core], `Runic::Application`, `Runic::NetworkTransport`[^engine-network] and `Runic::SimulationPort`[^engine-simulation], and its services-bridge and lifecycle layers (PBND-1[^platform-serverbindings], PBND-2, PBND-4) implement `Layer`. Application's public headers therefore carry no library types and include nothing above Core.
 
 ## Threading and tick rules
 
@@ -88,7 +101,7 @@ The LayerStack is organization and event propagation only; it must cost close to
 | No layer blocks: network, services and disk work run on their own threads and only enqueue | Stalls that steal simulation time |
 | Time comes from one clock as integer ticks or double seconds, never accumulated floats | Drift over long uptimes |
 | No global Application singleton reachable from simulation threads; layers receive what they need at attach | Hidden coupling and data races |
-| Simulation order lives in the scheduler, never in layer order | Combat results that depend on UI layers |
+| Simulation order lives in the scheduler, never in layer order | Combat[^engine-combat] results that depend on UI layers |
 | Each layer's time per loop is measured and exported | Silent overhead |
 
 On a transition, `OnDetach` of the old layer releases its GPU, audio and network resources before `OnAttach` of the next one runs.
@@ -97,7 +110,7 @@ On a transition, `OnDetach` of the old layer releases its GPU, audio and network
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| APP-1 | Entry point, Application, ApplicationHost, Layer, LayerStack with queued changes at safe points, application events, loop policies | Layer order, events top-down until handled, updates bottom-up, safe-point push and pop, no allocation per event | CORE-1 | 1 |
+| APP-1 | Entry point, Application, ApplicationHost, Layer, LayerStack with queued changes at safe points, application events, loop policies | Layer order, events top-down until handled, updates bottom-up, safe-point push and pop, no allocation per event | CORE-1[^engine-core] | 1 |
 | APP-2 | Window class on GLFW, compiled only in client and tools builds; keyboard, mouse and gamepad as application events | A window opens and closes; the headless build compiles without GLFW | APP-1 | 1 |
 
 ## Acceptance tests
@@ -107,4 +120,31 @@ The Done when column is the acceptance list. Slice 1 also requires: a window ope
 ## Open items
 
 - [OQ-4](../system/11-open-questions.md#oq-4) (decided): Window is a class here; raw input becomes application events; input mapping lives in Client; there are no Platform or Input Engine modules.
-- [OQ-6](../system/11-open-questions.md#oq-6) (decided): ImGui is private to UI and Editor.
+- [OQ-6](../system/11-open-questions.md#oq-6) (decided): ImGui is private to UI and Editor[^engine-editor].
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Core|Core]]
+- **Depended on by:** [[../modules/Simulation|Simulation]] · [[../modules/Network|Network]] · [[../modules/Client|Client]] · [[../modules/UI|UI]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]]
+- **Packages that need it:** [[../modules/Renderer|Renderer]] · [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^oq-4]: [[../system/11-open-questions#OQ-4 — OS window and input layer (decided 2026-10-09)|OQ-4]] — open question or decision
+[^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation
+[^engine-ui]: [[../modules/UI|UI]] — Engine module · Presentation
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
+[^oq-6]: [[../system/11-open-questions#OQ-6 — Dear ImGui ownership (decided 2026-10-09)|OQ-6]] — open question or decision
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI

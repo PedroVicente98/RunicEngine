@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/gameplay-api
+  - headless/yes
+  - slice/30
+aliases:
+  - "Runic::Quest"
+---
+
 # Quest
 
 Contract seed for `Runic::Quest`: what a Claude Code session needs to implement the Quest work packages. When `Engine/GameplayAPI/Quest/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,12 +26,12 @@ Contract seed for `Runic::Quest`: what a Claude Code session needs to implement 
 
 ## Purpose
 
-Quest is the quest runtime and the quest-creation API. The runtime runs inside the simulation on top of GameplayFlow, so a kill or an interaction advances a quest in the same tick that produced the fact. Durable progress lives in a Game service built on the Platform Go SDK. The Engine owns the runtime and the API; the Game owns every quest (ARCH § Engine gameplay APIs, quest runtime and the quest-creation API).
+Quest is the quest runtime and the quest-creation API. The runtime runs inside the simulation on top of GameplayFlow[^engine-gameplayflow], so a kill or an interaction advances a quest in the same tick that produced the fact. Durable progress lives in a Game service built on the Platform Go SDK[^platform-gosdk]. The Engine owns the runtime and the API; the Game owns every quest (ARCH[^arch] § Engine gameplay APIs, quest runtime and the quest-creation API).
 
 ## Owns
 
 - The quest runtime and the quest-creation API: definitions, objectives, triggers from facts, instances (QST-1).
-- Definitions as data. A quest is an ID, its states and objectives, and for each transition a trigger, conditions, actions and the next state. Designers write them without C++, and the Cooker validates them.
+- Definitions as data. A quest is an ID, its states and objectives, and for each transition a trigger, conditions, actions and the next state. Designers write them without C++, and the Cooker[^engine-cooker] validates them.
 - Registries that extend the vocabulary. The Engine ships generic entries under `engine:` IDs; the Game registers its own `game:` triggers, conditions and actions in C++.
 
 | Registry | Engine built-ins |
@@ -33,7 +46,7 @@ Quest is the quest runtime and the quest-creation API. The runtime runs inside t
 
 The durable path:
 
-1. A module emits a fact once, with a stable event ID (for example EntityKilled from Combat).
+1. A module emits a fact once, with a stable event ID (for example EntityKilled from Combat[^engine-combat]).
 2. The quest runtime consumes the fact, advances its local state and may start a sequence.
 3. The fact leaves through the Simulation's service port, and the Platform's services-bridge layer carries it to the Game's Quest service, asynchronously.
 4. The service validates the source, deduplicates by event ID, updates progress and commits rewards in one transaction.
@@ -44,10 +57,10 @@ On login the character's quest state loads from the service into the runtime. On
 
 ## Does not own
 
-- Sequences, timers and their termination path (GameplayFlow). Quest builds on GameplayFlow and never becomes a second scripting runtime.
-- Durable progress, deduplication and rewards: the Game's Quest service, on the Platform Go SDK's transactions and idempotency store (OQ-16).
-- The service port (Simulation, SIM-5) and the bridge that implements it (Platform, PBND-1 and PBND-4).
-- The transfer protocol and the snapshot-contributor registry (DistributedSimulation, DSIM-3).
+- Sequences, timers and their termination path (GameplayFlow[^engine-gameplayflow]). Quest builds on GameplayFlow and never becomes a second scripting runtime.
+- Durable progress, deduplication and rewards: the Game's Quest service, on the Platform Go SDK[^platform-gosdk]'s transactions and idempotency store (OQ-16[^oq-16]).
+- The service port (Simulation, SIM-5[^engine-simulation]) and the bridge that implements it (Platform, PBND-1[^platform-serverbindings] and PBND-4).
+- The transfer protocol and the snapshot-contributor registry (DistributedSimulation[^engine-distributedsimulation], DSIM-3).
 - The facts themselves: each emitting module defines its own fact types.
 - Every concrete quest, dialogue and `game:` registry entry (RunicGame).
 
@@ -55,22 +68,22 @@ On login the character's quest state loads from the service into the runtime. On
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | GameplayFlow, DistributedSimulation (handoff snapshot) |
+| Engine modules | GameplayFlow[^engine-gameplayflow], DistributedSimulation[^engine-distributedsimulation] (handoff snapshot) |
 | Third-party | — |
 
 DistributedSimulation is needed only for the handoff snapshot (QST-3); a package links only what it uses.
 
 ### Must never depend on
 
-- Combat or AI internals: quests act through Simulation commands and Gameplay APIs, the same doors players use (ARCH § Modules, work packages and the implementation contract, dependency rules).
+- Combat[^engine-combat] or AI internals: quests act through Simulation commands and Gameplay APIs, the same doors players use (ARCH[^arch] § Modules, work packages and the implementation contract, dependency rules).
 - gRPC, NATS, databases or any service client. Durable work goes only through the service port.
-- Presentation modules (Client, Renderer, UI, Audio).
+- Presentation modules (Client, Renderer[^engine-renderer], UI, Audio).
 - Game quests, names or values in code or tests. Tests use neutral IDs such as `engine:test_quest`.
 - RunicPlatform or RunicGame code; Agones or Kubernetes.
 
 ## Public API sketch
 
-ARCH's illustrative builder, with neutral test IDs in place of ARCH's example content:
+ARCH[^arch]'s illustrative builder, with neutral test IDs in place of ARCH's example content:
 
 ```cpp
 // Illustrative
@@ -93,7 +106,7 @@ Headers (sketch, fixed in the contract session): `QuestDefinition.hpp`, `QuestBu
 ## Threading and tick rules
 
 - The runtime runs on the simulation thread at phase boundaries and consumes facts after they are flushed, in the same tick that produced them.
-- Quest consumers are typical 10 Hz domain work (ARCH § Simulation core: clock and threads); the QST-1 contract session fixes the phase.
+- Quest consumers are typical 10 Hz domain work (ARCH[^arch] § Simulation core: clock and threads); the QST-1 contract session fixes the phase.
 - Outgoing facts carry their stable event IDs; the runtime never re-numbers them.
 - Accepted results are drained from the service port inbox at safe ticks. No I/O or service callback touches Flecs.
 - A replayed fact never advances progress twice.
@@ -102,9 +115,9 @@ Headers (sketch, fixed in the contract session): `QuestDefinition.hpp`, `QuestBu
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| QST-1 | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances | A quest defined only in data advances from kill and interaction facts | FLOW-1 | 30 |
-| QST-2 | Durable bridge: outgoing quest facts with stable IDs through the service port; accepted results applied at safe ticks | A replayed fact never doubles progress; no service callback touches Flecs | QST-1, SIM-5 | 30 |
-| QST-3 | Quest instances registered as a transfer-snapshot contributor | A quest in progress crosses a simulation border with its objectives and timers intact | QST-1, DSIM-3 | 37 |
+| QST-1 | Quest runtime and quest-creation API: definitions, objectives, triggers from facts, instances | A quest defined only in data advances from kill and interaction facts | FLOW-1[^engine-gameplayflow] | 30 |
+| QST-2 | Durable bridge: outgoing quest facts with stable IDs through the service port; accepted results applied at safe ticks | A replayed fact never doubles progress; no service callback touches Flecs | QST-1, SIM-5[^engine-simulation] | 30 |
+| QST-3 | Quest instances registered as a transfer-snapshot contributor | A quest in progress crosses a simulation border with its objectives and timers intact | QST-1, DSIM-3[^engine-distributedsimulation] | 37 |
 
 ## Acceptance tests
 
@@ -112,5 +125,30 @@ The Done when column is the acceptance list. Slice 30 proves a persistent quest 
 
 ## Open items
 
-- Decided in ARCH revision 369: the "entity killed" trigger reads the kill fact Gameplay publishes (GPL-2; Combat fills in the source), so Quest needs no Combat edge.
-- [OQ-16](../system/11-open-questions.md#oq-16) (decided): the Platform Go SDK owns transactions and the idempotency store; the Game Quest service stores progress.
+- Decided in ARCH[^arch] revision 369: the "entity killed" trigger reads the kill fact Gameplay publishes (GPL-2[^engine-gameplay]; Combat[^engine-combat] fills in the source), so Quest needs no Combat edge.
+- [OQ-16](../system/11-open-questions.md#oq-16) (decided): the Platform Go SDK[^platform-gosdk] owns transactions and the idempotency store; the Game Quest service stores progress.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/GameplayFlow|GameplayFlow]] · [[../modules/DistributedSimulation|DistributedSimulation]]
+- **Its packages need:** [[../modules/Simulation|Simulation]]
+- **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^engine-gameplayflow]: [[../modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^platform-gosdk]: [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] — Platform module · Go
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
+[^oq-16]: [[../system/11-open-questions#OQ-16 — Quest storage placement (decided 2026-10-09)|OQ-16]] — open question or decision
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++
+[^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-gameplay]: [[../modules/Gameplay|Gameplay]] — Engine module · GameplayAPI

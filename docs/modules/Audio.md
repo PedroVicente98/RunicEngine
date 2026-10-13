@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/presentation
+  - headless/no
+  - slice/24
+aliases:
+  - "Runic::Audio"
+---
+
 # Audio
 
 Contract seed for `Runic::Audio`: what a Claude Code session needs to implement the Audio work packages. When `Engine/Presentation/Audio/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::Audio`: what a Claude Code session needs to implement 
 
 ## Purpose
 
-Audio is client presentation only. The simulation decides what happened, the game turns it into semantic audio events and music contexts, and this module plays them. Players may replace the soundtrack, never sound effects, and nothing they choose can change gameplay (ARCH § Audio).
+Audio is client presentation only. The simulation decides what happened, the game turns it into semantic audio events and music contexts, and this module plays them. Players may replace the soundtrack, never sound effects, and nothing they choose can change gameplay (ARCH[^arch] § Audio).
 
 ## Owns
 
@@ -57,19 +70,19 @@ Security and failure rules:
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Core, Assets |
+| Engine modules | Core[^engine-core], Assets[^engine-assets] |
 | Third-party (PRIVATE) | An audio backend and decoders, not chosen yet |
 
 ### Must never depend on
 
-- Combat, AI, quests, simulation authority, Platform networking or persistence services (ARCH § Audio).
+- Combat[^engine-combat], AI, quests, simulation authority, Platform networking or persistence services (ARCH[^arch] § Audio).
 - Any headless build or server target.
 - Backend types in `Public/`.
 - RunicPlatform or RunicGame code.
 
 ## Public API sketch
 
-ARCH's illustrative contract (ARCH § Audio), with a neutral event ID:
+ARCH[^arch]'s illustrative contract (ARCH § Audio), with a neutral event ID:
 
 ```cpp
 // Avoid: PlaySound("Audio/Combat/Hit03.wav");
@@ -111,7 +124,7 @@ Headers (sketch, fixed in the contract session): `AudioBackend.hpp`, `AudioBus.h
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| AUD-1 | Audio backend abstraction, buses, mixing, semantic sound events | A sound event plays through its bus with volume control | ASSET-1 | 24 |
+| AUD-1 | Audio backend abstraction, buses, mixing, semantic sound events | A sound event plays through its bus with volume control | ASSET-1[^engine-assets] | 24 |
 | AUD-2 | MusicDirector: contexts, fallback chains, albums, presets, radio playback, local profile | A context change switches album and remembers the position | AUD-1 | 24 |
 
 ## Acceptance tests
@@ -131,3 +144,21 @@ Tests use Engine test events, contexts and tracks.
 ## Open items
 
 - The audio backend and decoder libraries are not chosen; the AUD-1 contract session asks the owner and adds the pin to `cmake/Dependencies.cmake`.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Core|Core]] · [[../modules/Assets|Assets]]
+- **Depended on by:** [[../modules/Client|Client]]
+- **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
+[^engine-assets]: [[../modules/Assets|Assets]] — Engine module · Foundation
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI

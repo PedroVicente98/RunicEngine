@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/foundation
+  - headless/yes
+  - slice/9
+aliases:
+  - "Runic::Assets"
+---
+
 # Assets
 
 Contract seed for `Runic::Assets`: what a Claude Code session needs to implement the Assets work packages. When `Engine/Foundation/Assets/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::Assets`: what a Claude Code session needs to implement
 
 ## Purpose
 
-Assets is the runtime side of cooked data: asset IDs and handles, a cache, the native cooked formats, random-access packages and manifests, client and server package selection, and asynchronous streaming. The shipping client and server read only Runic-native packages, never Blender or glTF files (ARCH § World authoring and cooking).
+Assets is the runtime side of cooked data: asset IDs and handles, a cache, the native cooked formats, random-access packages and manifests, client and server package selection, and asynchronous streaming. The shipping client and server read only Runic-native packages, never Blender or glTF files (ARCH[^arch] § World authoring and cooking).
 
 ## Owns
 
@@ -34,22 +47,22 @@ Assets is the runtime side of cooked data: asset IDs and handles, a cache, the n
 
 ## Does not own
 
-- Authoring and cooking (Cooker).
+- Authoring and cooking (Cooker[^engine-cooker]).
 - `ContentId`, schemas and definition registries (Content).
-- Deciding which cells to load: World's activation volumes (WORLD-3) emit load and unload requests (see OQ-3).
-- GPU upload (Renderer), collision bodies (Physics), nav tiles at runtime (Navigation), water fragments at runtime (Water).
+- Deciding which cells to load: World's activation volumes (WORLD-3[^engine-world]) emit load and unload requests (see OQ-3[^oq-3]).
+- GPU upload (Renderer[^engine-renderer]), collision bodies (Physics[^engine-physics]), nav tiles at runtime (Navigation[^engine-navigation]), water fragments at runtime (Water[^engine-water]).
 
 ## Depends on
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Core, Content |
+| Engine modules | Core[^engine-core], Content[^engine-content] |
 | Third-party (PRIVATE) | Zstandard for package decompression (ASSET-2) |
 
 ### Must never depend on
 
-- World or any other module outside the list above. The catalog allows only Core and Content; OQ-3's proposal also keeps World from linking Assets.
-- Renderer, bgfx or any presentation library (the module is headless).
+- World or any other module outside the list above. The catalog allows only Core and Content; OQ-3[^oq-3]'s proposal also keeps World from linking Assets.
+- Renderer[^engine-renderer], bgfx or any presentation library (the module is headless).
 - RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
 ## Public API sketch
@@ -58,7 +71,7 @@ Sketch, fixed in the contract session: `AssetId.hpp`, `AssetHandle.hpp`, `AssetC
 
 ## Threading and tick rules
 
-- Disk work runs on its own threads and only enqueues; no layer or tick blocks on it (ARCH § Application and LayerStack).
+- Disk work runs on its own threads and only enqueues; no layer or tick blocks on it (ARCH[^arch] § Application and LayerStack).
 - A load completes into a queue that its consumer drains at a safe point; I/O callbacks never touch Flecs.
 - Packages allow independent random access so cells can stream.
 
@@ -66,13 +79,37 @@ Sketch, fixed in the contract session: `AssetId.hpp`, `AssetHandle.hpp`, `AssetC
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| ASSET-1 | AssetId, handles, cache, loading of native cooked mesh and collision formats | A cooked test mesh loads on client and server | CNT-1 | 9 |
-| ASSET-2 | Random-access packages and manifests with Zstandard decompression, client and server package selection, asynchronous streaming | Cells load from a package without stalling a tick or a frame | ASSET-1, WORLD-3 | 21 |
+| ASSET-1 | AssetId, handles, cache, loading of native cooked mesh and collision formats | A cooked test mesh loads on client and server | CNT-1[^engine-content] | 9 |
+| ASSET-2 | Random-access packages and manifests with Zstandard decompression, client and server package selection, asynchronous streaming | Cells load from a package without stalling a tick or a frame | ASSET-1, WORLD-3[^engine-world] | 21 |
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. Slice 9 cooks a Blender test mesh (COOK-1) that this module loads; slice 21 walks across regions, down into a cave volume and up a cliff with activation-volume streaming.
+The Done when column is the acceptance list. Slice 9 cooks a Blender test mesh (COOK-1[^engine-cooker]) that this module loads; slice 21 walks across regions, down into a cave volume and up a cliff with activation-volume streaming.
 
 ## Open items
 
-- [OQ-3](../system/11-open-questions.md#oq-3) (still open, narrowed): Assets depends only on Core and Content; World's streaming state emits load and unload requests. Who performs the load (Client or the server runtime) and why ASSET-2 needs WORLD-3 must be confirmed in the ASSET-2 contract session. Proposal: the catalog wins, no World → Assets edge. Ask the owner; do not decide it silently.
+- [OQ-3](../system/11-open-questions.md#oq-3) (still open, narrowed): Assets depends only on Core and Content; World's streaming state emits load and unload requests. Who performs the load (Client or the server runtime) and why ASSET-2 needs WORLD-3[^engine-world] must be confirmed in the ASSET-2 contract session. Proposal: the catalog wins, no World → Assets edge. Ask the owner; do not decide it silently.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Core|Core]] · [[../modules/Content|Content]]
+- **Depended on by:** [[../modules/Navigation|Navigation]] · [[../modules/Client|Client]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/UI|UI]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]]
+- **Its packages need:** [[../modules/World|World]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^engine-world]: [[../modules/World|World]] — Engine module · Simulation core
+[^oq-3]: [[../system/11-open-questions#OQ-3 — Asset loading for streamed cells (narrowed)|OQ-3]] — open question or decision
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-navigation]: [[../modules/Navigation|Navigation]] — Engine module · World systems
+[^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
+[^engine-content]: [[../modules/Content|Content]] — Engine module · Foundation

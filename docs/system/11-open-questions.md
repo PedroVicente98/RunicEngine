@@ -1,3 +1,11 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # 11 — Open questions and decisions
 
 This file lists the architecture questions that are still open, and records the outcome of every question already decided.
@@ -5,21 +13,21 @@ This file lists the architecture questions that are still open, and records the 
 Each open item needs an owner decision before the code that depends on it is written. A **proposal** is a suggested
 default, not a decision. **Never resolve an open item silently in code**: ask the owner.
 
-When an item is decided, move it to [Decided](#decided) with the date and outcome, record the decision in ARCH, and
+When an item is decided, move it to [Decided](#decided) with the date and outcome, record the decision in ARCH[^arch], and
 update the affected module contracts in all three repositories.
 
 | ID | Topic | Blocks |
 | --- | --- | --- |
-| [OQ-3](#oq-3) | Who performs asset loading for streamed cells, and why ASSET-2 needs WORLD-3 | ASSET-2 contract session (slice 21) |
-| [OQ-9](#oq-9) | Canonical Go module path for RunicPlatform | PCT-1 Go code generation (slice 12) and every Go package after it |
+| [OQ-3](#oq-3) | Who performs asset loading for streamed cells, and why ASSET-2[^engine-assets] needs WORLD-3[^engine-world] | ASSET-2 contract session (slice 21) |
+| [OQ-9](#oq-9) | Canonical Go module path for RunicPlatform | PCT-1[^platform-contracts] Go code generation (slice 12) and every Go package after it |
 
 ---
 
 <a id="oq-3"></a>
 ## OQ-3 — Asset loading for streamed cells (narrowed)
 
-**Context.** Runic::Assets depends only on Core and Content (catalog row in
-[03](03-dependency-rules.md#engine-modules)). World's activation volumes (WORLD-3) emit load and unload requests per
+**Context.** Runic::Assets[^engine-assets] depends only on Core and Content (catalog row in
+[03](03-dependency-rules.md#engine-modules)). World's activation volumes (WORLD-3[^engine-world]) emit load and unload requests per
 cell. ASSET-2 (random-access packages, asynchronous streaming) lists WORLD-3 in its Needs, but Assets may not link
 World.
 
@@ -32,8 +40,8 @@ emits what to load; a consumer above both performs the load.
 <a id="oq-9"></a>
 ## OQ-9 — Platform naming: canonical Go module path
 
-**Decided part.** The Platform module split is Transport (C++), Contracts, Server bindings (C++), Go SDK, Core services
-(Go), Building blocks (Go) and Infrastructure ([03 § Platform modules](03-dependency-rules.md#platform-modules)).
+**Decided part.** The Platform module split is Transport (C++), Contracts, Server bindings[^platform-serverbindings] (C++), Go SDK[^platform-gosdk], Core services[^platform-coreservices]
+(Go), Building blocks[^platform-buildingblocks] (Go) and Infrastructure ([03 § Platform modules](03-dependency-rules.md#platform-modules)).
 Platform C++ targets are named `RunicPlatform::<Module>`.
 
 **Still open.** The canonical Go module path: the placeholder `runic.local/platform` or the hosted path
@@ -62,7 +70,7 @@ Platform C++ targets are named `RunicPlatform::<Module>`.
 | [OQ-15](#oq-15) | What the client runs for prediction | 2026-10-09 |
 | [OQ-16](#oq-16) | Quest storage placement | 2026-10-09 |
 | [OQ-17](#oq-17) | Client-safe versus server-only content packaging | 2026-10-09 |
-| [OQ-18](#oq-18) | GameplayFlow built-in actions versus its dependency list | 2026-10-09 |
+| [OQ-18](#oq-18) | GameplayFlow[^engine-gameplayflow] built-in actions versus its dependency list | 2026-10-09 |
 | [OQ-19](#oq-19) | GLM in public headers | 2026-10-11 |
 
 <a id="oq-1"></a>
@@ -70,10 +78,10 @@ Platform C++ targets are named `RunicPlatform::<Module>`.
 
 **Question.** Which side defines the realtime transport interface, and which side depends on whom?
 
-**Outcome.** Engine `Runic::Network` owns the transport interface; Platform Transport implements it. Platform C++
+**Outcome.** Engine `Runic::Network`[^engine-network] owns the transport interface; Platform Transport[^platform-transport] implements it. Platform C++
 depends on Engine public headers, never the reverse. There is no NetworkAdapter module.
 
-Refined in ARCH revision 306: the transport interface and the connect-ticket hook ship as the header-only
+Refined in ARCH[^arch] revision 306: the transport interface and the connect-ticket hook ship as the header-only
 `Runic::NetworkTransport` target (Core types only), and Platform Transport links only that target and Contracts.
 
 Applied in: [03 § Engine modules](03-dependency-rules.md#engine-modules), [04 § Network channels and delivery classes](04-events-and-messages.md#network-channels-and-delivery-classes), packages NET-1 and PTR-1.
@@ -84,11 +92,11 @@ Applied in: [03 § Engine modules](03-dependency-rules.md#engine-modules), [04 �
 **Question.** Where do `GlobalEntityId`, `SimulationId`, `TickId` and `AuthorityEpoch` live without creating a cycle,
 and how are event IDs made stable?
 
-**Outcome.** Plain ID and time types (GlobalEntityId, SimulationId, TickId, AuthorityEpoch) are in Core (CORE-1).
-Stable event IDs are SimulationId plus a sequence (EVT-1). DistributedSimulation owns authority semantics. Wire
-encodings are in Platform Contracts and Engine Network.
+**Outcome.** Plain ID and time types (GlobalEntityId, SimulationId, TickId, AuthorityEpoch) are in Core (CORE-1[^engine-core]).
+Stable event IDs are SimulationId plus a sequence (EVT-1[^engine-events]). DistributedSimulation[^engine-distributedsimulation] owns authority semantics. Wire
+encodings are in Platform Contracts[^platform-contracts] and Engine Network.
 
-Refined in ARCH revision 306: `GlobalPlayerId` joins the CORE-1 plain ID types and PCS-1 issues it. Runic::Network
+Refined in ARCH revision 306: `GlobalPlayerId` joins the CORE-1 plain ID types and PCS-1[^platform-coreservices] issues it. Runic::Network
 encodes every realtime message, envelope included; Platform Contracts carry only service APIs, published facts and the
 connect-ticket format.
 
@@ -102,7 +110,7 @@ Applied in: [04 § Stable event IDs](04-events-and-messages.md#stable-event-ids)
 **Outcome.** Window is a class in Application (GLFW, client and tools builds only). Raw input becomes application
 events. Input mapping lives in Client. There are no Platform or Input Engine modules.
 
-Applied in: packages APP-2 and CLI-2.
+Applied in: packages APP-2[^engine-application] and CLI-2[^engine-client].
 
 <a id="oq-5"></a>
 ### OQ-5 — Debug module (decided 2026-10-09)
@@ -112,7 +120,7 @@ Applied in: packages APP-2 and CLI-2.
 **Outcome.** No Debug module. The debug pipeline is in Renderer, DebugGeometry in Core RenderData, Physics extracts
 Jolt debug geometry, inspectors are in Editor, and the Diagnostics layer is in Network.
 
-Applied in: packages CORE-3, PHYS-3, RND-3, EDT-2, NET-7.
+Applied in: packages CORE-3, PHYS-3[^engine-physics], RND-3[^engine-renderer], EDT-2[^engine-editor], NET-7.
 
 <a id="oq-6"></a>
 ### OQ-6 — Dear ImGui ownership (decided 2026-10-09)
@@ -122,7 +130,7 @@ Applied in: packages CORE-3, PHYS-3, RND-3, EDT-2, NET-7.
 **Outcome.** ImGui is private to UI (development overlay, client development builds) and Editor. It is never on
 servers.
 
-Applied in: packages UI-1 and EDT-1.
+Applied in: packages UI-1[^engine-ui] and EDT-1.
 
 <a id="oq-7"></a>
 ### OQ-7 — Test framework and test location (decided 2026-10-09)
@@ -130,7 +138,7 @@ Applied in: packages UI-1 and EDT-1.
 **Question.** Where do tests live, and which framework is used?
 
 **Outcome.** Location decided: module-local `Tests/` registered with CTest. ONE C++ framework for all three
-repositories: **GoogleTest** (with GoogleMock), chosen by the owner on 2026-10-13 for BUILD-1 (slice 0) and pinned
+repositories: **GoogleTest** (with GoogleMock), chosen by the owner on 2026-10-13 for BUILD-1[^doc-build-build-1] (slice 0) and pinned
 by BUILD-1. Go uses `testing`.
 
 Applied in: [02 § Tests live inside the module](02-module-contract.md#tests-live-inside-the-module).
@@ -153,7 +161,7 @@ Applied in: [02 § Folder layout](02-module-contract.md#folder-layout).
 
 **Question.** How does a GameServer talk to Agones without the Engine depending on it?
 
-**Outcome.** The LifecycleLayer (PBND-2) in Platform server bindings links the Agones SDK; GameServer composes it.
+**Outcome.** The LifecycleLayer[^platform-serverbindings] (PBND-2) in Platform server bindings links the Agones SDK; GameServer composes it.
 
 Refined in ARCH revision 306: PBND-2 also has a local stub mode for development without Agones.
 
@@ -213,7 +221,7 @@ Applied in: [03 § Game targets](03-dependency-rules.md#game-targets).
 
 **Question.** Which code does the client run to predict the local player?
 
-**Outcome.** The SIM-4 client prediction subset runs `RunicGame::Shared` on the client.
+**Outcome.** The SIM-4[^engine-simulation] client prediction subset runs `RunicGame::Shared` on the client.
 
 Applied in: [05 § Replication and prediction](05-distributed-simulation.md#replication-and-prediction).
 
@@ -222,7 +230,7 @@ Applied in: [05 § Replication and prediction](05-distributed-simulation.md#repl
 
 **Question.** Who owns quest-shaped persistence and the idempotency store?
 
-**Outcome.** The Platform Go SDK owns transactions and the idempotency store. The Game Quest service stores progress.
+**Outcome.** The Platform Go SDK[^platform-gosdk] owns transactions and the idempotency store. The Game Quest service stores progress.
 
 Applied in: [06 § Durable quest bridge](06-gameplayflow-quests-cutscenes.md#durable-quest-bridge),
 [07 § Idempotency](07-service-backed-systems.md#idempotency).
@@ -258,3 +266,36 @@ were approved.
 of Core. Jolt, bgfx, RmlUi, Detour and GameNetworkingSockets stay hidden.
 
 Applied in: [02 § Public/ is the compile boundary](02-module-contract.md#public-is-the-compile-boundary).
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-assets]: [[../../../RunicEngine/docs/modules/Assets|Assets]] — Engine module · Foundation
+[^engine-world]: [[../../../RunicEngine/docs/modules/World|World]] — Engine module · Simulation core
+[^platform-contracts]: [[../../../RunicPlatform/docs/modules/Contracts|Contracts]] — Platform module · Protobuf
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++
+[^platform-gosdk]: [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] — Platform module · Go
+[^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go
+[^platform-buildingblocks]: [[../../../RunicPlatform/docs/modules/BuildingBlocks|BuildingBlocks]] — Platform module · Go
+[^engine-gameplayflow]: [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^engine-network]: [[../../../RunicEngine/docs/modules/Network|Network]] — Engine module · Networking
+[^platform-transport]: [[../../../RunicPlatform/docs/modules/Transport|Transport]] — Platform module · C++
+[^engine-core]: [[../../../RunicEngine/docs/modules/Core|Core]] — Engine module · Foundation
+[^engine-events]: [[../../../RunicEngine/docs/modules/Events|Events]] — Engine module · Foundation
+[^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-application]: [[../../../RunicEngine/docs/modules/Application|Application]] — Engine module · Foundation
+[^engine-client]: [[../../../RunicEngine/docs/modules/Client|Client]] — Engine module · Presentation
+[^engine-physics]: [[../../../RunicEngine/docs/modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-renderer]: [[../../../RunicEngine/docs/modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-editor]: [[../../../RunicEngine/docs/modules/Editor|Editor]] — Engine module · Tools
+[^engine-ui]: [[../../../RunicEngine/docs/modules/UI|UI]] — Engine module · Presentation
+[^doc-build-build-1]: [[../build/BUILD-1|BUILD-1 contract]] — this repository
+[^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core

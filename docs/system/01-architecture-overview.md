@@ -1,8 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # 01 — Architecture overview
 
 This file says who owns what across the three repositories, which processes exist, how the build is layered, and which principles every change must keep.
 
-Source: ARCH § Architecture overview, § Principles and performance targets, § Repositories, build targets and
+Source: ARCH[^arch] § Architecture overview, § Principles and performance targets, § Repositories, build targets and
 processes, § Application and LayerStack.
 
 ## Ownership in one sentence
@@ -33,24 +41,24 @@ Game cells are written neutrally here; the concrete Game rules live only in Runi
 
 | Area | Engine | Game | Platform |
 | --- | --- | --- | --- |
-| Executables | Entry point, Application, ApplicationHost, reusable layers; Editor and Cooker | GameClient and GameServer compose the layers | Services-bridge and lifecycle layers (C++ server bindings) |
+| Executables | Entry point, Application, ApplicationHost, reusable layers; Editor and Cooker | GameClient and GameServer compose the layers | Services-bridge and lifecycle layers (C++ server bindings[^platform-serverbindings]) |
 | Simulation | Scheduler, threads, Flecs, Jolt, world space | Which systems run and their rules | — |
 | Skills and combat | GameplayAPI group (Gameplay and Combat modules): ability toolkit, hit timing, tags, statuses, rule pipeline, damage interception | Skill definitions, damage types and formula, resolver order, every concrete status and control effect | — |
 | Defense and threat | Invulnerability windows, interception hooks, threat table | Defense rules, armor effects, threat rules | — |
 | Custom code | Behavior registries, hooks, context and output buffers | The behaviors | — |
 | Movement | CharacterVirtual, movement modes (walk, glide, flight in flight-zone volumes, mount), prediction, validation | Speeds, dashes, mount, glider and wing stats; flight zones | — |
 | Light, perception, AI | The APIs, computation, behavior-tree framework and editor | Values, mob profiles, trees, custom nodes | — |
-| Items and inventory | Runtime item and container mirrors | Item definitions and rules; Inventory service rules | Item ledger and currency wallets as mechanisms, with no game rules |
-| Quests, economy, housing, factions | Interaction framework, GameplayFlow sequences, Quest runtime with its quest-creation API | Quest definitions and encounter scripts; Go services that store quest progress and character state and run the game's economy and housing | Go SDK they are built on |
+| Items and inventory | Runtime item and container mirrors | Item definitions and rules; Inventory service rules | Item ledger[^platform-buildingblocks] and currency wallets as mechanisms, with no game rules |
+| Quests, economy, housing, factions | Interaction framework, GameplayFlow[^engine-gameplayflow] sequences, Quest runtime with its quest-creation API | Quest definitions and encounter scripts; Go services that store quest progress and character state and run the game's economy and housing | Go SDK[^platform-gosdk] they are built on |
 | Scripted sequences and restrictions | GameplayFlow runtime, source-owned restrictions, presentation cues | Boss phases, cutscenes, dungeon and world-event scripts | — |
 | Networking | Transport interface, replication, interest, prediction, handoff | Game messages | GameNetworkingSockets transport, Protobuf contracts, gRPC and NATS wiring |
-| Accounts, world control, instances | — | Configuration; guild and mail services | Core services: accounts, entitlements, World Coordinator (including placement by load and traffic), instance allocation, chat and party groups |
+| Accounts, world control, instances | — | Configuration; guild and mail services | Core services[^platform-coreservices]: accounts, entitlements, World Coordinator (including placement by load and traffic), instance allocation, chat and party groups |
 | Infrastructure and monitoring | Metrics recorded in every process; the Platform exports them (see note) | Dashboards for game metrics | Agones, Kubernetes, Prometheus, Grafana |
 | Presentation | Renderer (including the physics debug view), assets, animation, RmlUi and ImGui integrations, audio | GameUI screens, Game render extractors, art | — |
 | Water and environment | WaterSystem, buoyancy, water movement, wind, tides, waves, weather evaluation | Water content, profiles, watercraft rules, weather patterns | Weather-event directives; the Go SDK persistence that Game services use for durable water state |
 
-Note on metrics: the decided seam is that every GameServer records its metrics in the Core metrics registry (CORE-2;
-the Engine's Diagnostics layer, NET-7, adds network and replication metrics) and the Platform exporter (PBND-3)
+Note on metrics: the decided seam is that every GameServer records its metrics in the Core metrics registry (CORE-2[^engine-core];
+the Engine's Diagnostics layer, NET-7[^engine-network], adds network and replication metrics) and the Platform exporter (PBND-3)
 **publishes the Core registry** to Prometheus. The Engine never talks to Prometheus itself
 (see [07 § Monitoring](07-service-backed-systems.md#monitoring-one-panel)).
 
@@ -59,11 +67,11 @@ the Engine's Diagnostics layer, NET-7, adds network and replication metrics) and
 | Repository | License | Owns |
 | --- | --- | --- |
 | RunicEngine | Open source (MIT), C++ | Engine modules, the entry point and ApplicationHost, Editor, Cooker |
-| RunicPlatform | Open source (MIT), C++ and Go | GameNetworkingSockets transport, server bindings (services-bridge and lifecycle layers), Protobuf contracts, Go SDK, core services, building blocks, Agones and Kubernetes manifests, dashboards |
+| RunicPlatform | Open source (MIT), C++ and Go | GameNetworkingSockets transport, server bindings[^platform-serverbindings] (services-bridge and lifecycle layers), Protobuf contracts, Go SDK[^platform-gosdk], core services[^platform-coreservices], building blocks[^platform-buildingblocks], Agones and Kubernetes manifests, dashboards |
 | RunicGame | Closed source | GameClient and GameServer executables (`RunicGameClient`, `RunicGameServer`), game modules, Go game services, content |
 
 RunicGame is the superproject. How the repositories are wired together (submodules plus a sibling-checkout option)
-is in [03 § Repository wiring](03-dependency-rules.md#repository-wiring). ARCH calls the Game executables
+is in [03 § Repository wiring](03-dependency-rules.md#repository-wiring). ARCH[^arch] calls the Game executables
 GameClient and GameServer; their build targets are `RunicGameClient` and `RunicGameServer`.
 
 ## Processes
@@ -75,7 +83,7 @@ GameClient and GameServer; their build targets are `RunicGameClient` and `RunicG
 | Editor | Engine | Editor layers; attaches to development and staging servers | Never |
 | Cooker | Engine | Cooking jobs, launched by the Editor or by build machines | Never |
 | Game services | Game | Go services built on the Platform SDK | Yes, to the server fleet |
-| Platform services | Platform | Core services and building blocks | Yes, to the server fleet |
+| Platform services | Platform | Core services[^platform-coreservices] and building blocks[^platform-buildingblocks] | Yes, to the server fleet |
 
 ### Application, layers and loops
 
@@ -85,7 +93,7 @@ Layers receive events top-down and update bottom-up; the simulation's internal o
 
 | Executable | Loop | Layers, bottom to top | Overlays |
 | --- | --- | --- | --- |
-| GameServer | Fixed 60 Hz loop that sleeps until the next quantum; no rendering | Network (Engine) → Simulation (Engine) → Services bridge (Platform binding: gRPC, NATS) → Lifecycle (Platform binding: Agones) → Diagnostics (Engine: metrics, Editor attach endpoint in development and staging builds) | None |
+| GameServer | Fixed 60 Hz loop that sleeps until the next quantum; no rendering | Network (Engine) → Simulation (Engine) → Services bridge[^platform-serverbindings] (Platform binding: gRPC, NATS) → Lifecycle (Platform binding: Agones) → Diagnostics (Engine: metrics, Editor attach endpoint in development and staging builds) | None |
 | GameClient | Frame loop (vsync or capped) | Network → Prediction → Presentation (interpolation, camera, render extraction, audio) | GameUI (RmlUi); ImGui only in development builds |
 | Editor | Frame loop | Editor host → tool panels | ImGui |
 | Cooker | Job loop | Job runner | None |
@@ -105,9 +113,9 @@ Read it as build dependencies: each band links only the bands below it, and noth
 | --- | --- |
 | Executables | GameClient, GameServer (Game); Editor, Cooker (Engine tools, development only) |
 | RunicGame | `RunicGame::Shared`, `RunicGame::Server`, `RunicGame::Client`, Go game services, content |
-| RunicPlatform | C++ parts (Transport, Server bindings) implement Engine interfaces and link only the Engine interface targets Runic::Core, Runic::Application, Runic::NetworkTransport and Runic::SimulationPort; Contracts; Go SDK, core services and building blocks need no Engine code |
+| RunicPlatform | C++ parts (Transport, Server bindings[^platform-serverbindings]) implement Engine interfaces and link only the Engine interface targets Runic::Core[^engine-core], Runic::Application[^engine-application], Runic::NetworkTransport[^engine-network] and Runic::SimulationPort[^engine-simulation]; Contracts; Go SDK[^platform-gosdk], core services[^platform-coreservices] and building blocks[^platform-buildingblocks] need no Engine code |
 | Engine presentation | Client, Renderer, Animation, UI, Audio |
-| Engine systems | GameplayAPI group (Gameplay, Combat, GameplayFlow, Quest); World systems (Perception, Navigation, AI, Environment, Water); Networking (Network, DistributedSimulation) |
+| Engine systems | GameplayAPI group (Gameplay, Combat, GameplayFlow[^engine-gameplayflow], Quest); World systems (Perception, Navigation, AI, Environment, Water); Networking (Network, DistributedSimulation[^engine-distributedsimulation]) |
 | Simulation core | ECS, World, Physics, Simulation |
 | Engine foundation | Core (including RenderData), Application (including the Window class), Events, Content, Assets |
 | Infrastructure | Agones, Kubernetes, PostgreSQL, NATS, Prometheus, Grafana. **Runtime only, never linked.** Platform services and bindings reach it at runtime |
@@ -127,7 +135,7 @@ Application and never Flecs, Jolt or the gameplay modules
 | Compile-time dependencies | Which code may use which code? | CMake targets |
 | Process composition | Which coarse features run in this executable, and in what order? | ApplicationHost + LayerStack |
 | Simulation scheduling | What simulation work runs now, and before what? | 60 Hz master scheduler, 30/20/10 Hz domains, explicit phases |
-| Distributed topology | Which process owns this region or entity? | World Coordinator, SimulationOwner, authority epochs |
+| Distributed topology | Which process owns this region or entity? | World Coordinator[^platform-coreservices], SimulationOwner, authority epochs |
 
 Never use one axis to answer another axis's question. Example: simulation order lives in the scheduler, never in
 layer order; a Region never encodes which process owns it.
@@ -161,13 +169,13 @@ Rules that follow directly from these and that every session must obey:
 - Never mutate Flecs from an I/O callback; completions are queued and applied at safe ticks.
 - Local Flecs entity IDs never leave the process; use `GlobalEntityId`.
 - The realtime path is direct: client ↔ simulation and simulation ↔ simulation traffic uses the transport, never
-  NATS or gRPC in the hot path. Runic::Network encodes every realtime message, envelope included; Protobuf (Platform
+  NATS or gRPC in the hot path. Runic::Network[^engine-network] encodes every realtime message, envelope included; Protobuf (Platform
   Contracts) carries only service APIs, published facts and the connect-ticket format, never per-tick traffic.
 - Durable changes are operations with IDs, so retries are safe.
 
 ## Performance targets
 
-Engine-level targets from ARCH § Principles and performance targets. They are planning targets unless the decisions
+Engine-level targets from ARCH[^arch] § Principles and performance targets. They are planning targets unless the decisions
 log marks them as decided (scale and clock rates are decided).
 
 | Target | Value |
@@ -194,3 +202,25 @@ ARCH also states the size of the first world. That is a Game decision; it is rec
 
 The per-battle bandwidth plan behind these numbers is in
 [05 § Priority and bandwidth budget](05-distributed-simulation.md#priority-and-bandwidth-budget).
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++
+[^platform-buildingblocks]: [[../../../RunicPlatform/docs/modules/BuildingBlocks|BuildingBlocks]] — Platform module · Go
+[^engine-gameplayflow]: [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^platform-gosdk]: [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] — Platform module · Go
+[^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go
+[^engine-core]: [[../../../RunicEngine/docs/modules/Core|Core]] — Engine module · Foundation
+[^engine-network]: [[../../../RunicEngine/docs/modules/Network|Network]] — Engine module · Networking
+[^engine-application]: [[../../../RunicEngine/docs/modules/Application|Application]] — Engine module · Foundation
+[^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking

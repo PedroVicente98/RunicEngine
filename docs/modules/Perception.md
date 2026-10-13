@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/world-systems
+  - headless/yes
+  - slice/25
+aliases:
+  - "Runic::Perception"
+---
+
 # Perception
 
 Contract seed for `Runic::Perception`: what a Claude Code session needs to implement the Perception work packages. When `Engine/WorldSystems/Perception/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::Perception`: what a Claude Code session needs to imple
 
 ## Purpose
 
-Perception is the light and perception API. Light scales how far mobs notice entities and how far players see each other; it never changes how a hit is resolved (ARCH § Engine gameplay APIs, light and perception). The module owns light emitters, ambient light and skylight, luminosity queries, concealment, warn and detect radii, and the PvP visibility tiers that Network applies as server-side fog of war.
+Perception is the light and perception API. Light scales how far mobs notice entities and how far players see each other; it never changes how a hit is resolved (ARCH[^arch] § Engine gameplay APIs, light and perception). The module owns light emitters, ambient light and skylight, luminosity queries, concealment, warn and detect radii, and the PvP visibility tiers that Network applies as server-side fog of war.
 
 ## Owns
 
@@ -43,39 +56,39 @@ Rules:
 | Hidden | Otherwise | Nothing |
 
 - Contact reveals: hitting or being hit, a heal nearby, AoE contact.
-- Perception computes the tier per candidate pair; Network applies it inside the interest pass (NET-4). The cost is one multiplication per candidate pair inside a pass that already runs.
-- Combat never uses tiers; the server resolves every hit regardless of visibility.
+- Perception computes the tier per candidate pair; Network applies it inside the interest pass (NET-4[^engine-network]). The cost is one multiplication per candidate pair inside a pass that already runs.
+- Combat[^engine-combat] never uses tiers; the server resolves every hit regardless of visibility.
 
 ## Does not own
 
 - AI wake, sleep, leash and the Aggroable toggle (AI); AI asks this module for radii.
 - Interest filtering, priority and what is sent (Network). Projectiles and effects from hidden players are sent without the caster's identity by Network.
-- World time, time of day and weather (Environment); Perception reads them.
-- Drawing lights and darkness (the Client extracts lights and volumes, CLI-7; the Renderer draws them, RND-7).
+- World time, time of day and weather (Environment[^engine-environment]); Perception reads them.
+- Drawing lights and darkness (the Client extracts lights and volumes, CLI-7[^engine-client]; the Renderer[^engine-renderer] draws them, RND-7).
 - Every value: curves, radii, concealment values, emitter definitions (RunicGame).
 
 ## Depends on
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Gameplay, World, Environment (time of day, weather), Water (underwater light) |
+| Engine modules | Gameplay[^engine-gameplay], World[^engine-world], Environment[^engine-environment] (time of day, weather), Water[^engine-water] (underwater light) |
 | Third-party | — |
 
 ### Must never depend on
 
-- AI, Combat or Network. They read Perception; Perception never reads them.
-- Client, Renderer, UI or any presentation library (the module is headless).
+- AI, Combat[^engine-combat] or Network. They read Perception; Perception never reads them.
+- Client, Renderer[^engine-renderer], UI or any presentation library (the module is headless).
 - Game values in code or tests; RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
 ## Public API sketch
 
-ARCH's AI code calls the API as `perception.Profile(profileId)` and `perception.RadiiFor(profile, target)`, the latter returning warn and detect radii already scaled by light and concealment (ARCH § AI architecture, perception, wake, leash and sleep).
+ARCH[^arch]'s AI code calls the API as `perception.Profile(profileId)` and `perception.RadiiFor(profile, target)`, the latter returning warn and detect radii already scaled by light and concealment (ARCH § AI architecture, perception, wake, leash and sleep).
 
 Headers (sketch, fixed in the contract session): `LightEmitter.hpp`, `AmbientLightProfile.hpp`, `Luminosity.hpp`, `Concealment.hpp`, `PerceptionProfile.hpp`, `PerceptionApi.hpp`, `VisibilityTiers.hpp`.
 
 ## Threading and tick rules
 
-- Luminosity updates run in the 10 Hz domain; AI perception reads radii in the 20 Hz domain (ARCH § Simulation core: clock and threads).
+- Luminosity updates run in the 10 Hz domain; AI perception reads radii in the 20 Hz domain (ARCH[^arch] § Simulation core: clock and threads).
 - Queries are read-only and safe from any worker in a parallel phase; emitter registration happens at the points the Simulation defines.
 - Client and server compute the same luminosity from the same emitters and ambient profiles, so what the server treats as lit matches what the player sees.
 
@@ -83,14 +96,38 @@ Headers (sketch, fixed in the contract session): `LightEmitter.hpp`, `AmbientLig
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| PRC-1 | Light: emitters, ambient profiles, skylight curve driven by the Environment clock, luminosity at a point | Luminosity matches emitter falloff; client and server agree | WORLD-2, GPL-2, ENV-1 | 25 |
+| PRC-1 | Light: emitters, ambient profiles, skylight curve driven by the Environment[^engine-environment] clock, luminosity at a point | Luminosity matches emitter falloff; client and server agree | WORLD-2[^engine-world], GPL-2[^engine-gameplay], ENV-1 | 25 |
 | PRC-2 | PvP visibility tiers (Full, Silhouette, Hidden) with reveal on contact | Tiers change at the configured distances and light levels | PRC-1 | 25 |
 | PRC-3 | Perception profiles: warn and detect radii from light and concealment, with a minimum | Radii shrink with darkness and stealth but never below the minimum | PRC-1 | 33 |
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. Slice 25 shows visibility tiers at night; slice 33 shows mobs that warn, detect, fight and leash at night (with AI-3). ARCH's AI integration tests also exercise this module: at night an unlit entity passes outside the reduced detect radius unnoticed while one carrying a light is detected from farther away; raising concealment drops a target according to policy, and lowering it makes the target detectable again. Tests use Engine test profiles.
+The Done when column is the acceptance list. Slice 25 shows visibility tiers at night; slice 33 shows mobs that warn, detect, fight and leash at night (with AI-3[^engine-ai]). ARCH[^arch]'s AI integration tests also exercise this module: at night an unlit entity passes outside the reduced detect radius unnoticed while one carrying a light is detected from farther away; raising concealment drops a target according to policy, and lowering it makes the target detectable again. Tests use Engine test profiles.
 
 ## Open items
 
-- Decided in ARCH revision 369: Perception may link Water to read each water body's underwater light attenuation by depth (Game values); luminosity and visibility use it like any ambient profile.
+- Decided in ARCH[^arch] revision 369: Perception may link Water[^engine-water] to read each water body's underwater light attenuation by depth (Game values); luminosity and visibility use it like any ambient profile.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Gameplay|Gameplay]] · [[../modules/World|World]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]]
+- **Depended on by:** [[../modules/AI|AI]] · [[../modules/Network|Network]] · [[../modules/Client|Client]]
+- **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
+[^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
+[^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-gameplay]: [[../modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
+[^engine-world]: [[../modules/World|World]] — Engine module · Simulation core
+[^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
+[^engine-ai]: [[../modules/AI|AI]] — Engine module · World systems

@@ -69,3 +69,7 @@ Do not change a pin in `cmake/Dependencies.cmake` without its SHA-256 and withou
 - Update the module contract, `docs/modules/README.md` status and `docs/current-state.md`
   in the same change as the code.
 - `docs/system/` is mirrored in all three repositories; edit all copies together.
+- The docs carry generated Obsidian links: frontmatter tags, `[^…]` markers after names, and the
+  `## Connections` footer. Never edit them by hand; after any docs change, run
+  `python3 RunicEngine/tools/docs/obsidian_graph.py RunicEngine RunicPlatform RunicGame --write` from the
+  folder that holds the three repositories (sibling checkouts).

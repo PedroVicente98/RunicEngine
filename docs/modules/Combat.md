@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/gameplay-api
+  - headless/yes
+  - slice/16
+aliases:
+  - "Runic::Combat"
+---
+
 # Combat
 
 Contract seed for `Runic::Combat`: what a Claude Code session needs to implement the Combat work packages. When `Engine/GameplayAPI/Combat/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::Combat`: what a Claude Code session needs to implement
 
 ## Purpose
 
-Combat is the Engine's server-authoritative action-combat toolkit: abilities and their timelines, hit timing, the one-slot input queue, targeting, hit detection, statuses, cooldowns, the rule pipeline, behavior registries, damage interception, threat and crowd control, and foreign combat across simulation borders (ARCH § Engine gameplay APIs). The Engine knows timelines, tags, statuses, rules and threat, but no concrete status, defense or formula.
+Combat is the Engine's server-authoritative action-combat toolkit: abilities and their timelines, hit timing, the one-slot input queue, targeting, hit detection, statuses, cooldowns, the rule pipeline, behavior registries, damage interception, threat and crowd control, and foreign combat across simulation borders (ARCH[^arch] § Engine gameplay APIs). The Engine knows timelines, tags, statuses, rules and threat, but no concrete status, defense or formula.
 
 ## Owns
 
@@ -27,14 +40,14 @@ Combat is the Engine's server-authoritative action-combat toolkit: abilities and
 | Threat table | Per-NPC threat storage read by AI target selection | What generates threat; taunt |
 | Behavior registries | ID-to-C++ registration, parameter schemas, a fixed hook list, read-only context and output buffers | The behaviors |
 
-Also owned: targeting modes (free aim, FriendlyLock, light aim-assist hooks), combat volumes and hit detection over Physics queries (CMB-2); crowd control with a target cap and immunity windows (CMB-6); the foreign-combat path where volumes crossing an authority border become requests to the owner (CMB-8).
+Also owned: targeting modes (free aim, FriendlyLock, light aim-assist hooks), combat volumes and hit detection over Physics[^engine-physics] queries (CMB-2); crowd control with a target cap and immunity windows (CMB-6); the foreign-combat path where volumes crossing an authority border become requests to the owner (CMB-8).
 
 ### Behavior registry contract
 
 | Rule | Why |
 | --- | --- |
 | Behaviors are registered by ID; data refers to the ID | Content stays data; an unknown ID fails at load, not mid-fight |
-| Parameters have a schema checked at load | Typos are caught by the Cooker, not by players |
+| Parameters have a schema checked at load | Typos are caught by the Cooker[^engine-cooker], not by players |
 | Hooks are a fixed list: OnActivate, OnPhaseChange, OnHitCandidate, OnHit, OnEffectTick, OnEffectExpire, OnKill, OnInteract | The engine knows exactly when custom code runs |
 | A behavior subscribes only to the hooks it uses | Abilities without custom code cost nothing |
 | Behaviors read a context and write an output buffer | Safe in parallel phases; outputs merge in a fixed order |
@@ -52,8 +65,8 @@ Also owned: targeting modes (free aim, FriendlyLock, light aim-assist hooks), co
 ## Does not own
 
 - Attributes, modifiers, tags, resources and restrictions (Gameplay); Combat reads and applies them.
-- Geometry (Physics): Combat interprets Physics query results.
-- Authority, epochs and the foreign-interaction contract (DistributedSimulation); Combat produces and consumes its requests.
+- Geometry (Physics[^engine-physics]): Combat interprets Physics query results.
+- Authority, epochs and the foreign-interaction contract (DistributedSimulation[^engine-distributedsimulation]); Combat produces and consumes its requests.
 - AI decisions: AI emits intents that become the same validated commands players use.
 - Every concrete ability, status, defense, damage type, formula, resolver order and threat rule (RunicGame).
 
@@ -61,7 +74,7 @@ Also owned: targeting modes (free aim, FriendlyLock, light aim-assist hooks), co
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | Gameplay, Physics, Environment (projectile wind), DistributedSimulation |
+| Engine modules | Gameplay[^engine-gameplay], Physics[^engine-physics], Environment[^engine-environment] (projectile wind), DistributedSimulation[^engine-distributedsimulation] |
 | Third-party | — |
 
 The list is a ceiling: a package links only what it uses. DistributedSimulation is linked from CMB-8 (foreign combat) on.
@@ -77,13 +90,13 @@ runic_add_module(Combat
 
 ### Must never depend on
 
-- AI, GameplayFlow, Quest, Network, Renderer, Animation, UI or Audio.
+- AI, GameplayFlow[^engine-gameplayflow], Quest, Network, Renderer[^engine-renderer], Animation[^engine-animation], UI or Audio.
 - Any game rule, name or number, in code or tests. Tests use neutral IDs such as `engine:test_ability`.
 - RunicPlatform or RunicGame code; Agones, Kubernetes, gRPC, NATS or databases.
 
 ## Public API sketch
 
-ARCH names three public headers for this module: `CombatModule.hpp`, `Ability.hpp`, `CombatEvents.hpp`, with `Source/` subsystems such as `Abilities/`, `Cooldowns/` and `Damage/`. Further headers (sketch, fixed in the contract session): `Targeting.hpp`, `CombatVolume.hpp`, `HitTiming.hpp`, `InputQueue.hpp`, `Status.hpp`, `Cooldown.hpp`, `RulePipeline.hpp`, `BehaviorRegistry.hpp`, `DamagePipeline.hpp`, `ThreatTable.hpp`, `CrowdControl.hpp`, `ForeignCombat.hpp`.
+ARCH[^arch] names three public headers for this module: `CombatModule.hpp`, `Ability.hpp`, `CombatEvents.hpp`, with `Source/` subsystems such as `Abilities/`, `Cooldowns/` and `Damage/`. Further headers (sketch, fixed in the contract session): `Targeting.hpp`, `CombatVolume.hpp`, `HitTiming.hpp`, `InputQueue.hpp`, `Status.hpp`, `Cooldown.hpp`, `RulePipeline.hpp`, `BehaviorRegistry.hpp`, `DamagePipeline.hpp`, `ThreatTable.hpp`, `CrowdControl.hpp`, `ForeignCombat.hpp`.
 
 Foreign combat (ARCH § Networking: replication, interest and handoff): the target's owner resolves the hit, through a ForeignCombatVolume and a RemoteHitResult.
 
@@ -101,20 +114,47 @@ Foreign combat (ARCH § Networking: replication, interest and handoff): the targ
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| CMB-1 | Ability toolkit: timelines and hit timing per skill (ServerTime, CappedRewind) | Timeline phases fire on exact ticks | GPL-2, CNT-1 | 16 |
-| CMB-2 | Targeting modes (free aim, FriendlyLock, light aim-assist hooks), combat volumes and hit detection over Physics queries | A melee arc and a projectile each hit a dummy exactly once; FriendlyLock never selects a hostile | CMB-1, PHYS-5 | 16 |
+| CMB-1 | Ability toolkit: timelines and hit timing per skill (ServerTime, CappedRewind) | Timeline phases fire on exact ticks | GPL-2[^engine-gameplay], CNT-1[^engine-content] | 16 |
+| CMB-2 | Targeting modes (free aim, FriendlyLock, light aim-assist hooks), combat volumes and hit detection over Physics[^engine-physics] queries | A melee arc and a projectile each hit a dummy exactly once; FriendlyLock never selects a hostile | CMB-1, PHYS-5 | 16 |
 | CMB-3 | Statuses and effects, cooldowns, resource costs | Durations, stacks and cooldowns expire on the right tick | CMB-1 | 17 |
 | CMB-4 | Rule pipeline and behavior registries (fixed hooks for Game code); value variants selected by a per-hit context the Game defines | A test rule and a test behavior run in order; a value with a base and a contextual variant resolves by the hit context; the Engine holds no game rule | CMB-3 | 17 |
 | CMB-5 | Damage pipeline, interception hooks, invulnerability windows | Interception follows hook order; invulnerability blocks hits | CMB-4, GPL-3 | 18 |
 | CMB-6 | Threat table and crowd control (target cap, immunity windows) | A CC chain and its immunity follow the test data | CMB-5 | 19 |
-| CMB-7 | Input queue: one queued action per character inside the game-set window, started on the first legal tick; game-named priority inputs skip it when the cancel window allows | An early input fires on the first legal tick; a stun in between cancels it | CMB-1, SIM-4 | 19 |
-| CMB-8 | Foreign combat: volumes crossing an authority border become requests to the owner | The target is damaged exactly once, by its owner | CMB-5, DSIM-4 | 37 |
+| CMB-7 | Input queue: one queued action per character inside the game-set window, started on the first legal tick; game-named priority inputs skip it when the cancel window allows | An early input fires on the first legal tick; a stun in between cancels it | CMB-1, SIM-4[^engine-simulation] | 19 |
+| CMB-8 | Foreign combat: volumes crossing an authority border become requests to the owner | The target is damaged exactly once, by its owner | CMB-5, DSIM-4[^engine-distributedsimulation] | 37 |
 
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. All test data is Engine test data (`engine:` IDs). The Editor's resolver debugger (EDT-3) reads the rule pipeline's trace, so CMB-4 must expose which rules applied to a hit and why.
+The Done when column is the acceptance list. All test data is Engine test data (`engine:` IDs). The Editor[^engine-editor]'s resolver debugger (EDT-3) reads the rule pipeline's trace, so CMB-4 must expose which rules applied to a hit and why.
 
 ## Open items
 
-- Decided in ARCH revision 369: projectiles that opt into wind drift (a per-ability wind flag) read wind from Environment; Combat → Environment is an allowed edge, linked by the package that adds the flag.
+- Decided in ARCH[^arch] revision 369: projectiles that opt into wind drift (a per-ability wind flag) read wind from Environment[^engine-environment]; Combat → Environment is an allowed edge, linked by the package that adds the flag.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/Gameplay|Gameplay]] · [[../modules/Physics|Physics]] · [[../modules/Environment|Environment]] · [[../modules/DistributedSimulation|DistributedSimulation]]
+- **Depended on by:** [[../modules/AI|AI]]
+- **Its packages need:** [[../modules/Content|Content]] · [[../modules/Simulation|Simulation]]
+- **Packages that need it:** [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-gameplay]: [[../modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
+[^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
+[^engine-gameplayflow]: [[../modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-animation]: [[../modules/Animation|Animation]] — Engine module · Presentation
+[^engine-content]: [[../modules/Content|Content]] — Engine module · Foundation
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools

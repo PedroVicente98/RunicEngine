@@ -1,3 +1,16 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - repo/engine
+  - source/arch
+  - type/module
+  - group/world-systems
+  - headless/yes
+  - slice/40
+aliases:
+  - "Runic::Water"
+---
+
 # Water
 
 Contract seed for `Runic::Water`: what a Claude Code session needs to implement the Water work packages. When `Engine/WorldSystems/Water/` is created, this file becomes its `ARCHITECTURE.md`, and that file is authoritative from then on.
@@ -13,7 +26,7 @@ Contract seed for `Runic::Water`: what a Claude Code session needs to implement 
 
 ## Purpose
 
-Water is a queryable, streamed spatial field, not a global height plane: any position can be sampled for surface, depth, flow and submersion. Buoyancy and movement are separate components that consume those facts, so passive water costs nothing and only ships, swimmers and drifting objects pay (ARCH § Water system). The module covers oceans, lakes, rivers, canals, cave rivers, underground seas, rapids, waterfalls, currents, swimming characters, floating rigid bodies and watercraft, and models only what gameplay needs.
+Water is a queryable, streamed spatial field, not a global height plane: any position can be sampled for surface, depth, flow and submersion. Buoyancy and movement are separate components that consume those facts, so passive water costs nothing and only ships, swimmers and drifting objects pay (ARCH[^arch] § Water system). The module covers oceans, lakes, rivers, canals, cave rivers, underground seas, rapids, waterfalls, currents, swimming characters, floating rigid bodies and watercraft, and models only what gameplay needs.
 
 ## Owns
 
@@ -51,7 +64,7 @@ Water reports facts; it never decides an entity's response. The caller never nee
 | Custom movement | Engine extension point | Defined by its policy |
 
 - Rivers are 3D splines that descend continuously; never a stack of horizontal planes. Complex bodies use a cooked low-resolution vector field, still a cheap interpolation at runtime.
-- Ocean current fields are coarse cooked vector grids (for example one vector per 512 m), interpolated at sample time and modulated over time by Environment.
+- Ocean current fields are coarse cooked vector grids (for example one vector per 512 m), interpolated at sample time and modulated over time by Environment[^engine-environment].
 - Characters swim; they do not float as rigid bodies. CharacterWaterMovement feeds desired motion into the CharacterVirtual.
 - Watercraft combine intent with the local flow and wind and apply forces and torques to the Jolt body. The sail model uses the apparent wind; thrust is zero straight into the wind and peaks at the angles the data curve chooses; lateral resistance limits sideways drift. The Engine never knows what a ship carries or who owns it.
 - Tags (such as a ship tag) classify entities but never select behavior.
@@ -62,37 +75,37 @@ Water reports facts; it never decides an entity's response. The caller never nee
 | Jolt | Jolt owns collision, integration, mass, contacts and dynamic ship motion. Buoyancy and watercraft systems turn samples into forces before the Jolt step; CharacterWaterMovement turns them into desired motion |
 | Flecs | River samples, vector-field cells and water tiles are never entities. Flecs holds WaterInteractionState, profile references, movement components, dynamic modifiers and tags |
 | Movement and handoff | Ships carry passengers because CharacterVirtuals update every tick on moving bodies. A ship hands off as a group with its passengers and cargo in one authority epoch |
-| Renderer | The WaterSystem never calls bgfx. The Client extracts water surface state and field grids (CLI-8); the client adds all visual detail |
+| Renderer[^engine-renderer] | The WaterSystem never calls bgfx. The Client extracts water surface state and field grids (CLI-8[^engine-client]); the client adds all visual detail |
 | Network | Static water ships in cooked world packages and is never replicated per tick. Replication carries only dynamic changes: flow multipliers, water-level offsets, lock or dam state, temporary current modifiers, world-event changes |
-| Persistence | Durable water state is stored by a Game service on the Platform Go SDK and reaches the simulation through the service port when the owning region loads |
+| Persistence | Durable water state is stored by a Game service on the Platform Go SDK[^platform-gosdk] and reaches the simulation through the service port when the owning region loads |
 
 ## Does not own
 
-- Time variation, tides, swell and wind (Environment); water samples include them through Environment calls.
-- Cooking: the Cooker's water pipeline (COOK-7) emits client and server water assets with boundary aprons.
-- The transfer protocol (DistributedSimulation); Water registers ship groups as snapshot contributors.
+- Time variation, tides, swell and wind (Environment[^engine-environment]); water samples include them through Environment calls.
+- Cooking: the Cooker[^engine-cooker]'s water pipeline (COOK-7) emits client and server water assets with boundary aprons.
+- The transfer protocol (DistributedSimulation[^engine-distributedsimulation]); Water registers ship groups as snapshot contributors.
 - Water content, profile values, water gameplay rules (breath, drowning, restrictions in water), ship contents, ownership and naval rules (RunicGame).
-- Durable water state storage (a RunicGame service on the Platform Go SDK).
+- Durable water state storage (a RunicGame service on the Platform Go SDK[^platform-gosdk]).
 
 ## Depends on
 
 | Kind | Allowed |
 | --- | --- |
-| Engine modules | World, Physics, Simulation, Gameplay, Environment, DistributedSimulation (ship-group handoff) |
+| Engine modules | World[^engine-world], Physics[^engine-physics], Simulation[^engine-simulation], Gameplay[^engine-gameplay], Environment[^engine-environment], DistributedSimulation[^engine-distributedsimulation] (ship-group handoff) |
 | Third-party | — (Jolt bodies are reached through Physics) |
 
 DistributedSimulation is needed only for ship-group handoff (WATER-7); a package links only what it uses.
 
 ### Must never depend on
 
-- Renderer, Client or bgfx; Network; Combat, AI or Perception.
+- Renderer[^engine-renderer], Client or bgfx; Network; Combat[^engine-combat], AI or Perception[^engine-perception].
 - Jolt types in `Public/`.
 - Durable services directly; gRPC, NATS or databases.
 - Game water bodies, profiles or values in code or tests (tests use `engine:` IDs; RunicGame names bodies as `game:<water_body>`); RunicPlatform or RunicGame code.
 
 ## Public API sketch
 
-ARCH's illustrative sampling API (ARCH § Water system):
+ARCH[^arch]'s illustrative sampling API (ARCH § Water system):
 
 ```cpp
 // Illustrative contract, not a frozen API.
@@ -155,7 +168,7 @@ Headers (sketch, fixed in the contract session): `WaterSystem.hpp`, `WaterSample
 
 - Sampling is read-only and safe from any worker in a parallel phase; fragment registration happens only at streaming safe points.
 - Lookup path: world position, then sector, 3D cell, the cell's candidate fragments, then the precise sample. The WaterSystem never scans every river in the world; the query context tests the previous fragment first.
-- Buoyancy and water movement run in the 30 Hz realtime phase, step 4, before the Jolt step. Static water never ticks; tide and weather state update at 10 Hz in Environment.
+- Buoyancy and water movement run in the 30 Hz realtime phase, step 4, before the Jolt step. Static water never ticks; tide and weather state update at 10 Hz in Environment[^engine-environment].
 - WaterInteractionState is written once per tick and read by animation, audio, combat, UI and Game rules, so none of them issues its own query.
 - A vessel samples a few buoyancy points (typically 4 to 8), one or two flow samples and one wind sample per tick; cost scales with active consumers, not kilometers of water.
 - Fragments follow cells; a simulation loads only the fragments of its own space. Neighbor simulations load matching fragments, and a ship moves with the make-before-break protocol.
@@ -164,23 +177,51 @@ Headers (sketch, fixed in the contract session): `WaterSystem.hpp`, `WaterSample
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| WATER-1 | WaterSystem registry, planar water, WaterSample, cell fragments | Height and flow can be sampled anywhere; fragments load with cells | WORLD-3, PHYS-1 | 40 |
+| WATER-1 | WaterSystem registry, planar water, WaterSample, cell fragments | Height and flow can be sampled anywhere; fragments load with cells | WORLD-3[^engine-world], PHYS-1[^engine-physics] | 40 |
 | WATER-2 | Spline rivers, flow, connections and routes | A descending river crosses two cells without a seam | WATER-1 | 40 |
 | WATER-3 | BuoyantBody on Jolt bodies | A platform floats without drifting | WATER-1 | 41 |
-| WATER-4 | Character and object water movement | A crate drifts with the current; a character swims with current influence | WATER-3, GPL-1 | 41 |
+| WATER-4 | Character and object water movement | A crate drifts with the current; a character swims with current influence | WATER-3, GPL-1[^engine-gameplay] | 41 |
 | WATER-5 | Ocean current fields from cooked vector grids | Current interpolates smoothly across the grid | WATER-1 | 42 |
-| WATER-6 | WatercraftMovement: sail force, sail angle, lateral resistance | Faster downstream and with a favorable wind; a crosswind pushes sideways | WATER-4, ENV-2 | 42 |
-| WATER-7 | Ship-group handoff: a watercraft, its crew, passengers and cargo registered as one transfer-snapshot group | A ship with passengers and cargo crosses a simulation border with nothing lost or left behind | WATER-6, DSIM-3 | 42b |
+| WATER-6 | WatercraftMovement: sail force, sail angle, lateral resistance | Faster downstream and with a favorable wind; a crosswind pushes sideways | WATER-4, ENV-2[^engine-environment] | 42 |
+| WATER-7 | Ship-group handoff: a watercraft, its crew, passengers and cargo registered as one transfer-snapshot group | A ship with passengers and cargo crosses a simulation border with nothing lost or left behind | WATER-6, DSIM-3[^engine-distributedsimulation] | 42b |
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. ARCH's definition of done for the first water slice: author a descending river in Blender and cook it; stream it across at least two cells with no seam; render it on the client and sample its surface and current on the server; a boat with BuoyantBody and WatercraftMovement travels downstream faster than upstream; a BuoyantBody-only object floats without drifting; a crate with ObjectWaterMovement drifts with zero self-propulsion; a character swims with current influence and no rigid-body buoyancy; the river enters a cave volume continuously and reaches an underground lake or ocean without a teleport or instance; repeated with two networked clients, ship and character transitions stay continuous.
+The Done when column is the acceptance list. ARCH[^arch]'s definition of done for the first water slice: author a descending river in Blender and cook it; stream it across at least two cells with no seam; render it on the client and sample its surface and current on the server; a boat with BuoyantBody and WatercraftMovement travels downstream faster than upstream; a BuoyantBody-only object floats without drifting; a crate with ObjectWaterMovement drifts with zero self-propulsion; a character swims with current influence and no rigid-body buoyancy; the river enters a cave volume continuously and reaches an underground lake or ocean without a teleport or instance; repeated with two networked clients, ship and character transitions stay continuous.
 
 Debug drawing covers body bounds and loaded fragments, river centerlines and sampled surface points, cross sections, flow arrows and FlowVolumes, the connection graph, buoyancy points and applied forces, each character's WaterInteractionState, ownership at fragment boundaries, query counts and cache hit rate.
 
 ## Open items
 
-- Decided in ARCH revision 369: `WaterBodyId` is a plain value type in Core (CORE-1); Water gives it meaning.
-- Decided in ARCH revision 369: Water registers swimming into Gameplay's movement-mode registry (GPL-1), and owns the water-fragment format the Cooker writes.
-- Decided in ARCH revision 369: dynamic water state (flow multipliers, levels, lock or dam state) reaches clients through Simulation's replication registry (SIM-6); Network never depends on Water.
+- Decided in ARCH[^arch] revision 369: `WaterBodyId` is a plain value type in Core (CORE-1[^engine-core]); Water gives it meaning.
+- Decided in ARCH revision 369: Water registers swimming into Gameplay's movement-mode registry (GPL-1[^engine-gameplay]), and owns the water-fragment format the Cooker[^engine-cooker] writes.
+- Decided in ARCH revision 369: dynamic water state (flow multipliers, levels, lock or dam state) reaches clients through Simulation's replication registry (SIM-6[^engine-simulation]); Network never depends on Water.
 - Implementation stages: Stage A is the vertical proof above; Stage B adds connections, blending, rapids and waterfalls, profiles, the client and server package split, dynamic water-level state and navigation metadata; Stage C adds fleet profiling, gameplay swell if needed, tides, locks, advanced rendering and cross-simulation stress tests (ARCH § Water system, implementation stages). Only Stage A belongs to the current packages.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **Depends on:** [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Gameplay|Gameplay]] · [[../modules/Environment|Environment]] · [[../modules/DistributedSimulation|DistributedSimulation]]
+- **Depended on by:** [[../modules/Perception|Perception]] · [[../modules/Client|Client]] · [[../modules/Cooker|Cooker]]
+- **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation
+[^platform-gosdk]: [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] — Platform module · Go
+[^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
+[^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
+[^engine-world]: [[../modules/World|World]] — Engine module · Simulation core
+[^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
+[^engine-simulation]: [[../modules/Simulation|Simulation]] — Engine module · Simulation core
+[^engine-gameplay]: [[../modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
+[^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
+[^engine-perception]: [[../modules/Perception|Perception]] — Engine module · World systems
+[^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation

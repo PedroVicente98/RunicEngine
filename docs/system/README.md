@@ -1,3 +1,11 @@
+---
+# obsidian-graph: generated tags and aliases
+tags:
+  - source/arch
+  - type/system
+  - mirror/system
+---
+
 # System documentation (shared by RunicEngine, RunicPlatform and RunicGame)
 
 This folder holds the architecture rules that all three repositories share; read it before you change any module.
@@ -12,7 +20,7 @@ This folder holds the architecture rules that all three repositories share; read
 
 | Item | Value |
 | --- | --- |
-| Source document | *RunicEngine — Technical Architecture v3* ("ARCH"), doc revision 503, exported 2026-10-13 |
+| Source document | *RunicEngine — Technical Architecture v3[^arch]* ("ARCH"), doc revision 503, exported 2026-10-13 |
 | Status of ARCH | The single source of truth for architecture, modules, work packages and the roadmap |
 | Status of this folder | Generated from ARCH. It restates ARCH's rules for Claude Code sessions and humans; it adds no decisions of its own |
 | On conflict | **ARCH wins.** If this folder, a module's `ARCHITECTURE.md` or any code disagrees with ARCH, ARCH is right and the other text is a bug to fix |
@@ -63,7 +71,7 @@ Citations use ARCH section names, for example "ARCH § Networking: replication, 
 
 ## How to change this folder
 
-1. **Change ARCH first.** A rule, module, package, dependency or slice changes in ARCH, then this folder is
+1. **Change ARCH[^arch] first.** A rule, module, package, dependency or slice changes in ARCH, then this folder is
    regenerated or edited to match. Never change an architecture rule only here.
 2. **Edit all three copies together.** Apply the identical change to `docs/system/` in RunicEngine,
    RunicPlatform and RunicGame in the same change set. A quick check from the parent folder:
@@ -77,3 +85,15 @@ Citations use ARCH section names, for example "ARCH § Networking: replication, 
    the folder. Game work-package IDs may appear as IDs only.
 4. **Decisions move in 11.** When an open question is decided, move it to the Decided section of
    [11-open-questions.md](11-open-questions.md) with its date and outcome, and update the affected module contracts.
+
+<!-- obsidian-graph:start -->
+
+---
+
+## Connections
+
+*Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
+
+- **See also:** [[../system/glossary|Glossary]]
+
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
