@@ -43,7 +43,7 @@ RunicCooker is one Runic executable: the cooking orchestration layer and the Run
 | Client water render data | Server water fragments and flow representation |
 | Client prediction data as needed | Authoritative simulation data |
 
-Cooked world layout (ARCH's illustration): a small top-level world file says what exists and how the world is organized (world ID and instance policy, coordinate and global-origin policy, world bounds, the SpatialLayer, continent and region registries, global ocean and environment references, cloud and transition policies, package and dependency indices). A logical region becomes a header, cells, terrain pages, collision pages, nav tiles and HLOD, as loose entries or packed into one random-access package. A continent is never compressed as one sequential stream.
+Cooked world layout (ARCH's illustration): a small top-level world file says what exists and how the world is organized (world ID and instance policy, coordinate and global-origin policy, world bounds, the volume registry (caves, rule areas, indivisible volumes), continent and region registries, global ocean and environment references, world transition and portal policies, package and dependency indices). A logical region becomes a header, cells, terrain pages, collision pages, nav tiles and HLOD, as loose entries or packed into one random-access package. A continent is never compressed as one sequential stream.
 
 Water pipeline (COOK-7): export the curve and metadata, validate the source, sample the 3D centerline, generate surface and LOD data, generate bounds and depth data, bake the flow representation including ocean current fields, build the connection graph, split into Region, Sector and Cell fragments, generate boundary aprons, emit client water assets, emit server water assets. Validation rejects zero or negative width, invalid depth, unintended self-intersection, large elevation jumps in a Smooth connection, missing or dangling connections, neighbor boundary mismatches, a waterfall modeled without a FlowVolume, invalid route topology and duplicate IDs.
 
@@ -83,7 +83,7 @@ The Cooker is an executable with a job loop. Headers (sketch, fixed in the contr
 | --- | --- | --- | --- | --- |
 | COOK-1 | First cooker proof: glTF through fastgltf into a Runic mesh and Jolt collision | A Blender mesh renders and is walkable | ASSET-1, PHYS-1 | 9 |
 | COOK-2 | Validation of data-driven definitions | Invalid definitions fail the cook with clear errors | CNT-2 | 20 |
-| COOK-3 | World cooking: regions, sectors, cells, manifests, packages, Zstandard | Two regions on two layers cook into random-access packages | COOK-1, WORLD-2 | 21 |
+| COOK-3 | World cooking: regions, sectors, sparse 3D cells, authored volumes, manifests, packages, Zstandard | Two regions and a cave volume cook into random-access packages | COOK-1, WORLD-2 | 21 |
 | COOK-4 | Textures (KTX2 and Basis), mesh LODs (meshoptimizer), tangents (MikkTSpace) | Textured meshes with LODs cook into client-only packages | COOK-1 | 22 |
 | COOK-5 | Skinned meshes and animation clips | A rigged character and its clips cook | COOK-1 | 23 |
 | COOK-6 | Navigation tiles with Recast | Tiles cook per cell | COOK-3 | 31 |

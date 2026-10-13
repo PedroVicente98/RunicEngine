@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.24)
+project(FixturePublicThirdParty LANGUAGES CXX)
+include("${CMAKE_CURRENT_LIST_DIR}/../FixturePrologue.cmake")
+add_library(fixture_thirdparty INTERFACE)
+runic_catalog_module(Alpha GROUP Foundation THIRD_PARTY fixture_thirdparty HEADLESS yes)
+add_subdirectory(Alpha)

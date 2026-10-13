@@ -2,7 +2,7 @@
 
 This file lists every Engine and Platform work package through the current roadmap, with what makes it done, what must be merged first, and the slice that first needs it.
 
-Source: ARCH § Modules, work packages and the implementation contract (Work packages), revision 369. Tables are
+Source: ARCH § Modules, work packages and the implementation contract (Work packages), revision 503. Tables are
 copied from ARCH word for word.
 
 ## How to read the tables
@@ -28,7 +28,7 @@ Server module, GCL Client module, GCNT content, GSVC Go game services, GNAV nava
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
 | BUILD-1 | Build skeleton in all three repositories: `runic_add_module` helper, presets, CI, the chosen test framework, automated headless and forbidden-dependency checks, submodule pins (Game pins Engine and Platform; Platform pins Engine) with a local option for sibling checkouts, an AVX2 (x86-64-v3) CPU baseline | Every repository configures and builds; the server target links no graphics library; a forbidden link fails CI | — | 0 |
-| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
+| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, WorldId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
 | CORE-2 | Worker pool, metrics registry (per-tick timings and counters) and debug-stream registry where modules publish traces | Jobs run on the pool; metrics are recorded per tick domain | CORE-1 | 3 |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame and DebugGeometry (lines, triangles, text, cached debug meshes) | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload | CORE-1 | 5 |
 | CORE-4 | RenderData scene kinds: mesh instances, skinned instances with pose buffers, world anchors | Every kind round-trips through a frame packet in tests | CORE-3 | 22 |
@@ -50,9 +50,9 @@ ASSET-2 has an open item: [11 § OQ-3](11-open-questions.md#oq-3).
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
 | ECS-1 | Flecs world wrapper, component registration, query helpers, conventions | Entities are created, queried and destroyed; Flecs types appear in public headers only through the approved world-registration exception | CORE-1 | 4 |
-| WORLD-1 | 64-bit coordinates, region-local origins, SpatialLayers, Region, Sector and Cell keys | Conversions round-trip exactly far from the origin; layer bounds are respected | ECS-1 | 4 |
-| WORLD-2 | Spatial index and candidate queries (radius, box, layer-filtered), membership updates | Query results match brute force and draw in the debug view | WORLD-1 | 11 |
-| WORLD-3 | Streaming state: preload bands, hysteresis, load and unload requests per cell | Walking back and forth on a border never thrashes loads | WORLD-2 | 21 |
+| WORLD-1 | 64-bit double coordinates (real Y, 1 cm minimum unit), WorldId, region-local origins, Region, Sector and sparse 3D Cell keys | Conversions round-trip exactly far from the origin; a cell key round-trips at any altitude or depth | ECS-1 | 4 |
+| WORLD-2 | Sparse 3D spatial index (XZ columns holding only occupied Y cells), exact XYZ candidate queries (radius, box, ellipsoid), membership updates; authored volumes (caves, rule areas, indivisible volumes) with point-in-volume queries | Query results match brute force in 3D and draw in the debug view; a point inside a cave volume is reported inside it | WORLD-1 | 11 |
+| WORLD-3 | Activation: per-player asymmetric ellipsoid activation volumes, their union, prepare, commit and release hysteresis, load and unload requests per cell | Walking back and forth on an edge never thrashes loads; a cell far above or below the player stays unloaded until approached | WORLD-2 | 21 |
 | PHYS-1 | PhysicsWorld, bodies, shapes and collision layers on Jolt v5.6 in double precision, kept private | Bodies collide without jitter far from the origin | WORLD-1 | 7 |
 | PHYS-2 | CharacterVirtual integration and ground movement | A capsule walks, climbs steps and stops at walls | PHYS-1 | 7 |
 | PHYS-3 | Debug-geometry extraction: Jolt's debug interface implemented inside Physics, written into Core DebugGeometry buffers | Bodies and shapes come out as plain lines and triangles; Physics links no Renderer | PHYS-1, CORE-3 | 8 |
@@ -75,11 +75,12 @@ ASSET-2 has an open item: [11 § OQ-3](11-open-questions.md#oq-3).
 | GPL-4 | Item and equipment runtime that mirrors ledger containers | Equipping changes modifiers; the mirror matches the ledger after a reload | GPL-2 | 28 |
 | GPL-5 | Interaction framework: interactables, reservation, interaction facts | Two players cannot reserve the same target | GPL-2, EVT-1 | 29 |
 | GPL-6 | Factions and spawn primitives | A spawner keeps its population; faction checks drive hostility | GPL-2 | 31 |
-| GPL-7 | Flight and climbing movement modes: sustained flight where a layer allows it, flying vehicles, climbing mounts | Flight stops below a game-set altitude and gliding takes over; a mount climbs a marked wall | GPL-1, WORLD-3 | 44+ |
+| GPL-7 | Flight and climbing movement modes: flight inside flight-zone volumes with an altitude ceiling above which only gliding works, glide and flight as separate mount capabilities, flying vehicles, climbing mounts; restrictions can forbid flight and gliding | Above the ceiling flight stops and gliding takes over; outside a flight zone a flying mount only glides; a restriction blocks both; a mount climbs a marked wall | GPL-1, GPL-3, WORLD-2, ENV-2 | 44+ |
+| GPL-8 | Routine spawning: when a cell activates, routine entities (escorts, caravans, ships, mob routines) spawn where their routine puts them; stored exceptions override the routine and fade back into it | A caravan appears at the right point of its route when a player arrives; a delayed escort rejoins its routine over time | GPL-6, ENV-6, WORLD-3 | 43a |
 | CMB-1 | Ability toolkit: timelines and hit timing per skill (ServerTime, CappedRewind) | Timeline phases fire on exact ticks | GPL-2, CNT-1 | 16 |
 | CMB-2 | Targeting modes (free aim, FriendlyLock, light aim-assist hooks), combat volumes and hit detection over Physics queries | A melee arc and a projectile each hit a dummy exactly once; FriendlyLock never selects a hostile | CMB-1, PHYS-5 | 16 |
 | CMB-3 | Statuses and effects, cooldowns, resource costs | Durations, stacks and cooldowns expire on the right tick | CMB-1 | 17 |
-| CMB-4 | Rule pipeline and behavior registries (fixed hooks for Game code) | A test rule and a test behavior run in order; the Engine holds no game rule | CMB-3 | 17 |
+| CMB-4 | Rule pipeline and behavior registries (fixed hooks for Game code); value variants selected by a per-hit context the Game defines | A test rule and a test behavior run in order; a value with a base and a contextual variant resolves by the hit context; the Engine holds no game rule | CMB-3 | 17 |
 | CMB-5 | Damage pipeline, interception hooks, invulnerability windows | Interception follows hook order; invulnerability blocks hits | CMB-4, GPL-3 | 18 |
 | CMB-6 | Threat table and crowd control (target cap, immunity windows) | A CC chain and its immunity follow the test data | CMB-5 | 19 |
 | CMB-7 | Input queue: one queued action per character inside the game-set window, started on the first legal tick; game-named priority inputs skip it when the cancel window allows | An early input fires on the first legal tick; a stun in between cancels it | CMB-1, SIM-4 | 19 |
@@ -99,6 +100,7 @@ ASSET-2 has an open item: [11 § OQ-3](11-open-questions.md#oq-3).
 | PRC-2 | PvP visibility tiers (Full, Silhouette, Hidden) with reveal on contact | Tiers change at the configured distances and light levels | PRC-1 | 25 |
 | PRC-3 | Perception profiles: warn and detect radii from light and concealment, with a minimum | Radii shrink with darkness and stealth but never below the minimum | PRC-1 | 33 |
 | NAV-1 | Detour runtime, nav tiles streamed by cell, path queries behind MoveGoal | Paths cross cell borders; tiles load and unload with cells | WORLD-3, COOK-6 | 31 |
+| NAV-2 | Flight navigation: 3D paths through free space over the sparse cells for flying actors, respecting volumes and altitude ceilings | A flying NPC reaches a target behind an obstacle without entering a forbidden volume | NAV-1, WORLD-2 | 44+ |
 | AI-1 | AI contracts and runtime shell: components, intents, working memory, AIDefinition, BehaviorTree.CPP adapter, brain pool, wake and sleep | A test tree ticks only while its NPC is awake | GPL-2, SIM-3 | 32 |
 | AI-2 | Command bridge and data assets: intents become movement and combat commands; tree loading, registries, personality profiles | AI commands pass the same validation as player commands | AI-1, NAV-1, CMB-2 | 32 |
 | AI-3 | Perception lifecycle: Aggroable, warn and detect wake, target validation, leash, return home, sleep | A mob walks toward a warning, attacks on detection and returns past its leash | AI-1, PRC-3 | 33 |
@@ -106,10 +108,11 @@ ASSET-2 has an open item: [11 § OQ-3](11-open-questions.md#oq-3).
 | AI-5 | Instrumentation: per-brain trace, memory, utility and intent diagnostics | The trace explains each decision | AI-2 | 34 |
 | AI-6 | Scale tests with thousands of loaded NPCs and controlled awake percentages | The tick budget holds at the target counts | AI-4 | 38 |
 | ENV-1 | Environment clock: world time, day and night phase, sun direction and the skylight input Perception reads; the world epoch comes from configuration until PCS-2 issues it | Two simulations agree on the time of day; night starts at the same world time everywhere | SIM-1, WORLD-1 | 25 |
-| ENV-2 | Deterministic wind field | The same position and time give the same wind on two simulations | ENV-1 | 42 |
-| ENV-3 | Current modulation over time (tide phase, season, weather) | Every simulation samples the same current at the same time | ENV-1, WATER-5 | 42 |
+| ENV-2 | Deterministic wind field with a cyclic baseline routine: per-region direction at any angle and a signed speed (0 has no effect; a negative speed reverses the push without changing the angle) | The same position and time give the same wind on two simulations; a negative speed reverses the push without changing its angle | ENV-1 | 42 |
+| ENV-3 | Current modulation over time: cyclic baseline routine, tide phase, season, weather | Every simulation samples the same current at the same time | ENV-1, WATER-5 | 42 |
 | ENV-4 | Tides and gameplay waves | A tide opens and closes a path on schedule | ENV-1 | 43 |
-| ENV-5 | Weather state and overrides with an effective time | A storm reaches two simulations at the same world time | ENV-1 | 43 |
+| ENV-5 | Weather state and time-boxed overrides (effective time and duration) for weather, wind and currents; the baseline routine returns when they end | A storm and a wind event reach two simulations at the same world time and end on schedule, after which the routine resumes | ENV-1 | 43 |
+| ENV-6 | World routines: cooked routes and schedules evaluated as position = f(route, world time, seed), with slow deterministic drift (a cycle that does not match the clock plus a small seeded variation) | Two simulations compute the same routine position at the same world time, drift included | ENV-1 | 43a |
 | WATER-1 | WaterSystem registry, planar water, WaterSample, cell fragments | Height and flow can be sampled anywhere; fragments load with cells | WORLD-3, PHYS-1 | 40 |
 | WATER-2 | Spline rivers, flow, connections and routes | A descending river crosses two cells without a seam | WATER-1 | 40 |
 | WATER-3 | BuoyantBody on Jolt bodies | A platform floats without drifting | WATER-1 | 41 |
@@ -129,11 +132,12 @@ ASSET-2 has an open item: [11 § OQ-3](11-open-questions.md#oq-3).
 | NET-5 | Simulation links: ghost deltas and transfer messages encoded with the snapshot codec over simulation-to-simulation connections | Ghosts stay in sync across a border under packet loss; a message with a stale epoch is dropped | NET-2, DSIM-2 | 36 |
 | NET-6 | Parallel replication and the degradation order | 500 bots in one region fit the per-client budget | NET-4, SIM-3 | 38 |
 | NET-7 | Diagnostics layer: network and replication metrics recorded in the Core metrics registry; Editor attach channel over a development socket transport inside Network, streaming debug shapes and the traces modules publish in Core's debug-stream registry (compiled only into development and staging builds) | The Editor attaches to a development server and sees its shapes; a production build has no attach endpoint | NET-1, CORE-2 | 39 |
+| NET-8 | World transitions: the session leaves one world's simulation after a checkpoint and joins another world's simulation with a new connect ticket; no handoff or ghosts across worlds | A character moves between two worlds with its checkpointed state, and the old simulation keeps no copy | NET-1, SIM-5, PCS-1 | 44+ |
 | DSIM-1 | Authority state, epochs, GlobalEntityId mapping | Messages with a stale epoch are rejected | SIM-2 | 36 |
 | DSIM-2 | Ghosts: ghost state near borders as plain data; Network encodes the deltas (NET-5) | Ghosts follow their owners near the border | DSIM-1 | 36 |
 | DSIM-3 | Transfer: prepare, final snapshot, authority commit; a snapshot-contributor registry where modules add their state (sequences, quests, ship groups) | A player walks from A to B with no loading screen; the input sequence continues | DSIM-2 | 36 |
 | DSIM-4 | Foreign-interaction contract | A request carries enough context for the owner to resolve it | DSIM-1 | 37 |
-| DSIM-5 | Authority partitions inside one region (busy cities) | Two simulations share a city and each entity has one owner | DSIM-3 | 44+ |
+| DSIM-5 | Authority partitions inside one region (busy areas such as a city) that never cut an indivisible volume (an island, a castle, a docked ship) | Two simulations share a city, each entity has one owner, and no indivisible volume is split | DSIM-3 | 44+ |
 
 ## Engine: presentation
 
@@ -179,7 +183,7 @@ ASSET-2 has an open item: [11 § OQ-3](11-open-questions.md#oq-3).
 | EDT-7 | Live attach to development and staging servers | Entity inspector and debug shapes come from a remote server | EDT-1, NET-7 | 39 |
 | COOK-1 | First cooker proof: glTF through fastgltf into a Runic mesh and Jolt collision | A Blender mesh renders and is walkable | ASSET-1, PHYS-1 | 9 |
 | COOK-2 | Validation of data-driven definitions | Invalid definitions fail the cook with clear errors | CNT-2 | 20 |
-| COOK-3 | World cooking: regions, sectors, cells, manifests, packages, Zstandard | Two regions on two layers cook into random-access packages | COOK-1, WORLD-2 | 21 |
+| COOK-3 | World cooking: regions, sectors, sparse 3D cells, authored volumes, manifests, packages, Zstandard | Two regions and a cave volume cook into random-access packages | COOK-1, WORLD-2 | 21 |
 | COOK-4 | Textures (KTX2 and Basis), mesh LODs (meshoptimizer), tangents (MikkTSpace) | Textured meshes with LODs cook into client-only packages | COOK-1 | 22 |
 | COOK-5 | Skinned meshes and animation clips | A rigged character and its clips cook | COOK-1 | 23 |
 | COOK-6 | Navigation tiles with Recast | Tiles cook per cell | COOK-3 | 31 |
@@ -200,6 +204,7 @@ against the Engine commit pinned as a submodule, so the Platform builds and test
 | PTR-1 | GameNetworkingSockets transport implementing the Engine transport interface | A client and a local server exchange reliable and unreliable messages | NET-1, PCT-1 | 12 |
 | PTR-2 | Connect-ticket verification inside the simulation (signature, expiry, key ID) against a configured set of public keys; tickets are test-signed with a local key until PCS-1 issues real ones | Bad or expired tickets are rejected with no service call | PTR-1 | 12 |
 | PTR-3 | Candidate connections (up to three), promotion, simulation-to-simulation links | Promotion happens with no loading screen | PTR-2, DSIM-3 | 36 |
+| PTR-4 | Simulation links chosen by locality: an in-memory queue in one process, a local socket or shared-memory channel on one machine, GameNetworkingSockets between machines | The same transfer test passes on every channel with identical results; the link picks its channel from the peers' placement | PTR-3 | 44+ |
 | PSDK-1 | Go service skeleton: configuration, gRPC wiring, metrics | A sample service answers a gRPC call and reports metrics | PCT-1 | 26 |
 | PSDK-2 | Persistence: PostgreSQL, transactions, migrations, idempotency store | A retried operation commits once | PSDK-1 | 26 |
 | PSDK-3 | NATS wiring: publish, subscribe, JetStream where replay is needed | A fact published once is consumed once per subscriber | PSDK-1 | 30 |
@@ -208,11 +213,12 @@ against the Engine commit pinned as a submodule, so the Platform builds and test
 | PBND-3 | Prometheus exporter that publishes the Core metrics registry (tick-domain timings, and the network metrics the Diagnostics layer records) | A scrape returns time per tick domain in Prometheus format | CORE-2, SIM-1 | 39 |
 | PBND-4 | NATS in the services bridge: durable facts published from the outbox; world directives and other subscriptions delivered to the inbox at safe ticks | A fact published from a tick reaches a test subscriber once; a slow broker never delays a tick | PBND-1, PSDK-3 | 30 |
 | PCS-1 | Accounts and entitlements, GlobalPlayerId issue, login, connect tickets signed with rotating keys whose public halves the simulations load | Login returns a signed ticket the simulation accepts | PSDK-2, PTR-2 | 27 |
-| PCS-2 | World Coordinator: region map, neighbor topology, handoff candidates, the world epoch | The Coordinator names the candidates for a border | PSDK-1 | 36 |
-| PCS-3 | World directives with an effective time (weather events) | A directive applies at the same world time everywhere | PSDK-3, PBND-4 | 43 |
+| PCS-2 | World Coordinator: worlds and region map, neighbor topology, handoff candidates, the world epoch | The Coordinator names the candidates for a border | PSDK-1 | 36 |
+| PCS-3 | World directives with an effective time and a duration (weather, wind and current events) | A directive applies and expires at the same world time everywhere | PSDK-3, PBND-4 | 43 |
 | PCS-4 | Instance allocation from Agones fleets | Defined when the expansion slices are planned | PCS-2, PINF-2 | 44+ |
 | PCS-5 | Chat and party groups | Defined when the expansion slices are planned | PSDK-3 | 44+ |
 | PCS-6 | Admission: per-world capacity limits, login queue and cohort waves for the launch phases | Defined when the expansion slices are planned | PCS-1 | 44+ |
+| PCS-7 | Placement by load and traffic over Agones: scores by load, memory and inter-simulation traffic, with distance from the regions' global coordinates; moves high-traffic pairs onto one node by move-by-handoff, up to a per-node cap | Two simulations with heavy link traffic end on one node with no loading screen; no node passes its cap | PCS-2, PINF-2, PTR-4 | 44+ |
 | PBB-1 | Item ledger: containers, slots, atomic transfers, operation IDs; mechanisms only | Concurrent transfers never duplicate or lose an item | PSDK-2 | 28 |
 | PBB-2 | Currency wallets: balances and atomic transfers with operation IDs; mechanisms only | A balance changes once per operation ID under concurrent requests | PSDK-2 | 33a |
 | PBB-3 | One-transaction transfers that move ledger items and wallet currency together; mechanisms only | Defined when the expansion slices are planned | PBB-1, PBB-2 | 44+ |
@@ -222,7 +228,7 @@ against the Engine commit pinned as a submodule, so the Platform builds and test
 ## Game
 
 Game work packages are defined in RunicGame `docs/game-packages.md`, not here, because their descriptions are Game
-content. Their IDs are GAME-0, GSH-1 to GSH-6, GCNT-1, GCL-1 to GCL-4, GSVC-1 to GSVC-8, GSRV-1 to GSRV-7, GNAV-1 and
+content. Their IDs are GAME-0, GSH-1 to GSH-7, GCNT-1, GCL-1 to GCL-4, GSVC-1 to GSVC-10, GSRV-1 to GSRV-8, GNAV-1 and
 GWTH-1. They follow the same rules (one session, one pull request, one target; contract before code; Stage A first),
 and the slices that need them are listed in [08-implementation-roadmap.md](08-implementation-roadmap.md). No Engine or
 Platform package needs a Game package.

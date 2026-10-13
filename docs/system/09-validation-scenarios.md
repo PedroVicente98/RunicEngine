@@ -213,8 +213,8 @@ Scale (slice 38):
 - [ ] A BuoyantBody-only object floats without drifting.
 - [ ] A crate with ObjectWaterMovement drifts with zero self-propulsion.
 - [ ] A character swims with current influence and no rigid-body buoyancy.
-- [ ] The river passes from one layer into another continuously (for example into a cave) and reaches a lake or ocean
-      without a teleport or instance.
+- [ ] The river enters a cave volume continuously and reaches an underground lake or ocean without a teleport or
+      instance.
 - [ ] Repeated with two networked clients, watercraft and character transitions stay continuous.
 
 ## Water and watercraft acceptance (slices 41, 42, 42b, 43)
@@ -241,7 +241,7 @@ Engine-neutral form of ARCH's sea acceptance list; the Game's version is in Runi
 | Tidal path | At low tide a tidal path is walkable; at high tide characters swim there |
 | Storm override | A storm from a Game service applies on the same world time in two simulations; wind, waves and light change; clients follow without per-tick data |
 | Updraft | A glider gains altitude crossing an authored updraft volume |
-| Layer without weather | Wind and weather sample as calm in a layer configured without them (such as an underground layer); light comes only from ambient profiles and emitters |
+| Cave volume | Wind and weather sample as calm inside a cave volume; light comes only from ambient profiles and emitters |
 | Projectile flag | Projectiles ignore wind unless their skill sets the wind flag |
 
 ## Operations (slice 39)

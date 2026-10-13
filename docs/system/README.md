@@ -12,7 +12,7 @@ This folder holds the architecture rules that all three repositories share; read
 
 | Item | Value |
 | --- | --- |
-| Source document | *RunicEngine — Technical Architecture v3* ("ARCH"), doc revision 369, exported 2026-10-11 |
+| Source document | *RunicEngine — Technical Architecture v3* ("ARCH"), doc revision 503, exported 2026-10-13 |
 | Status of ARCH | The single source of truth for architecture, modules, work packages and the roadmap |
 | Status of this folder | Generated from ARCH. It restates ARCH's rules for Claude Code sessions and humans; it adds no decisions of its own |
 | On conflict | **ARCH wins.** If this folder, a module's `ARCHITECTURE.md` or any code disagrees with ARCH, ARCH is right and the other text is a bug to fix |
@@ -51,7 +51,7 @@ Citations use ARCH section names, for example "ARCH § Networking: replication, 
 | [02-module-contract.md](02-module-contract.md) | What a module is, folder layout, naming, Public/ boundary, ARCHITECTURE.md template, maturity stages |
 | [03-dependency-rules.md](03-dependency-rules.md) | Direction rules, module tables for Engine, Platform and Game, the Engine interface targets the Platform links, forbidden links, repository wiring, CPU baseline, CI checks |
 | [04-events-and-messages.md](04-events-and-messages.md) | Event families, commands and facts, stable IDs, buffers and barriers, the service port, delivery classes |
-| [05-distributed-simulation.md](05-distributed-simulation.md) | World space, partition versus ownership, authority, ghosts, transfer, interest, bandwidth, partitions |
+| [05-distributed-simulation.md](05-distributed-simulation.md) | World space (64-bit coordinates, sparse 3D cells, volumes, activation, worlds and transitions), partition versus ownership, authority, ghosts, transfer, links by locality, interest, bandwidth, partitions |
 | [06-gameplayflow-quests-cutscenes.md](06-gameplayflow-quests-cutscenes.md) | Scripted sequences, restrictions, termination, handoff policies, cutscenes, quest runtime and durable bridge |
 | [07-service-backed-systems.md](07-service-backed-systems.md) | Platform and Game services, the durable-fact path, idempotency, placement, monitoring, local development |
 | [08-implementation-roadmap.md](08-implementation-roadmap.md) | Every roadmap slice with its runnable result and work packages |

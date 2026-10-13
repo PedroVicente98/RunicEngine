@@ -6,14 +6,16 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 | --- | --- | --- |
 | **Ability toolkit** | Timeline runner (startup, active, recovery, cancel windows in DomainTickCount), hit volumes and projectile queries, cooldowns, resource pools and the one-slot input queue. Games supply the abilities | Engine Combat |
 | **Accepted result** | A service's answer to a durable operation, queued back to the simulation and applied at a later safe tick through the service port's inbox | Engine Simulation (port), Platform bridge |
+| **Activation volume** | An asymmetric ellipsoid around each player, wider than it is tall; the union of all players' volumes decides which cells load and simulate, with prepare, commit and release hysteresis (WORLD-3) | Engine World |
 | **Admission** | Per-world capacity limits, a login queue and cohort waves (PCS-6, slice 44+). When and how a game uses them is a Game decision | Platform Core services |
 | **Anchored element** | A world-UI mode: an RmlUi element that follows an entity on screen, scaled with distance | Engine UI |
 | **Application event** | Key press, resize, UI focus, connection state. Delivered through the LayerStack top-down; a layer can mark it handled | Engine Application |
 | **ApplicationHost** | Runs an Application's loop (frame, fixed 60 Hz or job loop) over its LayerStack | Engine Application |
 | **ARCH** | *RunicEngine — Technical Architecture v3*, the single source of truth this folder is generated from | — |
+| **Authored volume** | A 3D volume drawn in Blender and cooked with the cells it touches (a cave, a rule area, an indivisible volume); it carries a kind the game gives meaning to and is queried with exact XYZ (WORLD-2) | Engine World (mechanism), Game (meaning) |
 | **Authority** | The right to mutate an entity's authoritative state. Exactly one simulation holds it at any moment | Engine DistributedSimulation |
 | **Authority epoch** (`AuthorityEpoch`) | Counter that changes when authority moves; messages with a stale epoch are rejected or dropped. The plain type lives in Core | Engine Core (type), DistributedSimulation (semantics) |
-| **Authority partition** (`AuthorityPartition`) | An operational area with an owner and an epoch inside one region, used to split a busy city between simulations. Not a world-partition concept (DSIM-5) | Engine DistributedSimulation |
+| **Authority partition** (`AuthorityPartition`) | An operational area with an owner and an epoch inside one region, used to give a busy area such as a city its own simulation; it never cuts an indivisible volume. Not a world-partition concept (DSIM-5) | Engine DistributedSimulation |
 | **Barrier** | The point between phases where every worker has finished; per-worker buffers merge in a fixed order and events flush | Engine Simulation |
 | **Batched (world UI)** | A world-UI mode: labels and bars drawn by one instanced Renderer call from an atlas RmlUi renders | Engine Renderer, UI |
 | **Behavior registry** | ID-to-C++ registration with parameter schemas, a fixed hook list and read-only context plus output buffers; serves abilities, item effects, AI nodes and interactions | Engine Combat |
@@ -21,7 +23,7 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 | **BuoyantBody** | Component that makes a Jolt dynamic body float; separate from any movement component | Engine Water |
 | **Candidate connection** | A client connection to a neighbor simulation, prepared before a border crossing; up to three. Roles: Primary, WarmCandidate, Dormant, Retiring | Platform Transport, Engine Network |
 | **CappedRewind** | Hit timing that tests hits against a past position within a cap, using a per-character position history; chosen per ability. Full rewind is not offered | Engine Combat |
-| **Cell** | Automatic fine spatial bucket (for example 64 m), sparse; used for candidate lookup by combat, AI, interest, light and map knowledge | Engine World |
+| **Cell** | Automatic fine 3D spatial bucket (for example 64 m), keyed (x, y, z) per world and sparse by column: each XZ column stores only the Y cells that hold content or activity; used for candidate lookup by combat, AI, interest, light and map knowledge | Engine World |
 | **CharacterVirtual** | Jolt's character controller, used for players and combat NPCs (not a rigid body); updated every 30 Hz tick | Engine Physics |
 | **Command** | A request to attempt an action, from a player, AI intent or GameplayFlow action. Validated by the authoritative simulation when applied | Engine Simulation |
 | **Connect ticket** | Signed, short-lived token a client presents first to its simulation; checked locally (signature, expiry and key ID against a configured set of public keys, PTR-2). Test-signed with a local key until PCS-1, which signs with rotating keys whose public halves the simulations load. Its format is a Contracts message | Platform Core services, Transport |
@@ -51,15 +53,15 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 | **Group** | A folder plus an `INTERFACE` umbrella target that links related modules; no code of its own | Build |
 | **HandoffPolicy** | How a sequence behaves when its owner's authority moves: Transferable, PinAuthority or AbortOnTransfer | Engine GameplayFlow |
 | **Headless** | Built and run without GLFW, bgfx, RmlUi, ImGui, an audio backend or editor code. Mandatory for the server | All |
-| **Hysteresis** | Separate prepare, commit and release thresholds so small movement around a border or layer boundary never flips loading or ownership back and forth | Engine World |
+| **Hysteresis** | Separate prepare, commit and release thresholds so small movement around a border or an activation edge never flips loading or ownership back and forth | Engine World |
 | **Idempotency** | Re-running the same operation (same operation ID or event ID) has no additional effect | Platform Go SDK (store), services (domain meaning) |
-| **Instance** | A separate copy of reality (a dungeon, a raid), allocated from Agones fleets; different from a process boundary | Platform Core services |
+| **Indivisible volume** | An authored volume (an island, a castle, a docked ship) flagged so that no ownership boundary ever cuts it; the whole volume always belongs to one simulation | Engine World (flag), DistributedSimulation (enforces) |
+| **Instance** | An extra copy of a map (a dungeon, a raid), an extra InstanceId of a `WorldId`, allocated from Agones fleets; different from a process boundary | Platform Core services |
 | **Intent** | What an AI brain wants to attempt (MoveTo, UseAbility…); becomes an ordinary command validated like player input | Engine AI |
-| **Interest** | Per-client selection of relevant entities from cells around the client, with priority, budgets and visibility tiers | Engine Network |
+| **Interest** | Per-client selection of relevant entities from the 3D cells inside the client's interest volume, with priority, budgets and visibility tiers | Engine Network |
 | **Interface target** | A header-only Engine target, with Core types only, for an interface the Platform implements: `Runic::NetworkTransport` (transport interface and connect-ticket hook, NET-1) and `Runic::SimulationPort` (service port, SIM-5) | Engine Network, Simulation |
 | **Item ledger** | Item instances, containers, slots, atomic transfers and operation IDs (PBB-1); mechanisms only | Platform Building blocks |
-| **Layer (application)** | A coarse feature of an executable on the LayerStack (Network, Simulation, Presentation…). Not a spatial layer | Engine Application |
-| **Layer (spatial)** | See SpatialLayer | Engine World |
+| **Layer (application)** | A coarse feature of an executable on the LayerStack (Network, Simulation, Presentation…). There are no spatial layers: altitude and depth are ordinary coordinates | Engine Application |
 | **LayerStack** | Ordered stack of layers and overlays; events top-down, updates bottom-up; push, pop and replace applied at one safe point per loop | Engine Application |
 | **LifecycleLayer** | Platform server binding that links the Agones SDK (ready, health, shutdown), with a local stub mode for development without Agones (PBND-2) | Platform Server bindings |
 | **Make-before-break** | Handoff style: the destination and the client's candidate connection are prepared before authority commits | Engine DistributedSimulation, Platform Transport |
@@ -68,7 +70,6 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 | **Module** | A CMake target (or Go package) with Public/, Source/, Tests/ and `ARCHITECTURE.md`; the unit of ownership and dependency | Build |
 | **Operation ID** | Stable ID on a durable operation so retries commit once | Engine service port, Platform |
 | **Phase** | An ordered stage of a simulation tick; phases run in a fixed order separated by barriers | Engine Simulation |
-| **Preload band** | The range in which a layer or cell starts streaming before it becomes relevant; wider than its logical bounds | Engine World |
 | **Presentation cue** | Server-emitted signal telling clients to play camera, animation, dialogue, audio or UI; carries no authority | Engine GameplayFlow (emit), Game client (plays) |
 | **Production pipeline** | The later render pipeline (materials, shaders, lighting, VFX) reading the same RenderFrame (RND-6) | Engine Renderer |
 | **Region** | Authored content area with gameplay state; a Flecs entity. Never encodes which simulation owns it | Engine World (mechanism), Game (content) |
@@ -83,12 +84,11 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 | **Service port** | The Simulation's only door to durable services: an outbox of operations with stable IDs and an inbox of accepted results drained at safe ticks (SIM-5); shipped as the header-only `Runic::SimulationPort` target | Engine Simulation |
 | **ServicesBridgeLayer** | Platform server binding that implements the service port: asynchronous gRPC calls (PBND-1) and NATS publish and subscribe (PBND-4) | Platform Server bindings |
 | **SimulationId** | Identity of one simulation process. Part of every stable event ID; never the identity of a Region, Sector or Cell | Engine Core (type) |
-| **Simulation link** | A simulation-to-simulation connection carrying ghost deltas and transfer messages, encoded by Network over the Platform transport | Engine Network, Platform Transport |
+| **Simulation link** | A simulation-to-simulation connection carrying ghost deltas and transfer messages, encoded by Network over the Platform transport; its channel is chosen by locality (in-memory queue, local socket or shared memory, network; PTR-4) | Engine Network, Platform Transport |
 | **SimulationOwner** | The runtime assignment of which process is authoritative for an area now | Platform World Coordinator |
 | **Slice** | A roadmap step that ends in something runnable and testable; lettered slices (20a…) were inserted later | Roadmap |
 | **Snapshot** | Per-client delta of entity state against the last acknowledged state, quantized | Engine Network |
 | **Snapshot contributor** | A module that registers its state (sequences, quests, ship groups) into DistributedSimulation's registry so it travels in the final transfer snapshot | Engine DistributedSimulation (registry) |
-| **SpatialLayer** | A per-world streaming and population regime with the same horizontal footprint and its own logical and preload height envelopes | Engine World |
 | **Stage A / B / C** | Maturity: vertical proof / generalize / harden. Every package starts at A | Process |
 | **Subsystem** | A folder inside a module's `Source/`; not linkable on its own | Build |
 | **TickContext** | What a system receives each tick: domain, master tick, domain tick, dt, simulation time | Engine Simulation |
@@ -100,7 +100,10 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 | **Window** | A class in Application (GLFW), compiled only in client and tools builds; not a module | Engine Application |
 | **Work package** | One Claude Code session and one pull request inside one module: write scope, interface change, Done when, Needs, Slice | Process |
 | **World anchor** | RenderData entry saying where a nameplate, prompt or panel belongs, with distance, visibility tier and priority | Engine Core, Client |
-| **World Coordinator** | Platform service owning the region-to-simulation map, neighbor topology, handoff candidates, drains, placement and the world epoch (PCS-2) | Platform Core services |
-| **World directive** | A world-wide directive (for example a weather event) with an effective world time, so every owning simulation applies it on the same tick | Platform Core services |
+| **World Coordinator** | Platform service owning worlds and the region-to-simulation map per world, neighbor topology, handoff candidates, drains and the world epoch (PCS-2), and placement by load, memory and inter-simulation traffic over Agones (PCS-7) | Platform Core services |
+| **World directive** | A world-wide directive (for example a weather, wind or current event) with an effective world time and a duration, so every owning simulation applies it on the same tick and the baseline returns when it ends | Platform Core services |
 | **World epoch** | The start point world time counts from; issued by the World Coordinator (PCS-2), read from configuration until then (ENV-1) | Platform Core services (issue), Engine Environment (use) |
+| **World routine** | A cooked route and schedule evaluated as position = f(route, world time, seed), with slow deterministic drift; routine entities spawn where their routine puts them when a cell activates, and only player-caused exceptions are stored (ENV-6, GPL-8) | Engine Environment, Gameplay |
+| **World transition** | Moving a character between two `WorldId`s: a checkpoint through the service port plus a new connect ticket for the destination simulation; never a handoff (NET-8) | Engine Network, Platform Core services |
+| **WorldId** | Plain ID type in Core (CORE-1) for a persistent world identity; each separate map is its own `WorldId` | Engine Core (type), World (meaning) |
 | **WorldSession** | The player's session, which survives handoffs: one authoritative connection plus candidate connections | Engine Network, Platform Transport |

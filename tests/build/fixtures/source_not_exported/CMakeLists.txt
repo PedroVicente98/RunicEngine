@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.24)
+project(FixtureSourceNotExported LANGUAGES CXX)
+include("${CMAKE_CURRENT_LIST_DIR}/../FixturePrologue.cmake")
+runic_catalog_module(Alpha GROUP Foundation HEADLESS yes)
+runic_catalog_module(Beta GROUP Foundation ALLOWS Fixture::Alpha HEADLESS yes)
+add_subdirectory(Alpha)
+add_subdirectory(Beta)

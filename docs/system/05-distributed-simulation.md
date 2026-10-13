@@ -2,35 +2,40 @@
 
 This file explains how one seamless world is split into spatial pieces and simulation processes: world space, authority, ghosts, transfer, foreign interactions, interest and bandwidth.
 
-Source: ARCH § World space: coordinates, layers and partitions, § Networking: stack, sessions and responsiveness,
+Source: ARCH § World space: coordinates, cells and activation, § Networking: stack, sessions and responsiveness,
 § Networking: replication, interest and handoff, § Water system, § Environment, § Platform and operations.
 
 ## Package map
 
 | Concern | Packages | Slice |
 | --- | --- | --- |
-| Coordinates, layers, keys | WORLD-1 | 4 |
-| Spatial index and queries | WORLD-2 | 11 |
-| Streaming state | WORLD-3, ASSET-2, COOK-3 | 21 |
+| Coordinates, worlds, 3D cell keys | WORLD-1 | 4 |
+| Sparse 3D spatial index, exact queries, authored volumes | WORLD-2 | 11 |
+| Activation volumes and streaming | WORLD-3, ASSET-2, COOK-3 | 21 |
 | Replication, prediction | SIM-6, NET-2, NET-3, SIM-4 | 13, 14 |
 | Interest, visibility tiers | NET-4, PRC-2 | 25 |
 | Authority, ghosts, transfer, links | DSIM-1, DSIM-2, DSIM-3, NET-5, PCS-2, PTR-3 | 36 |
 | Foreign interactions, sequence and quest handoff | DSIM-4, CMB-8, FLOW-3, QST-3 | 37 |
 | Parallel replication, degradation | NET-6 | 38 |
 | Ship-group handoff | WATER-7 | 42b |
-| Authority partitions (busy cities) | DSIM-5 | 44+ |
+| Authority partitions (busy areas), world transitions, links by locality, placement by traffic | DSIM-5, NET-8, PTR-4, PCS-7 | 44+ |
 
 ## World space
 
+Positions are 64-bit doubles with a real Y axis, the world is indexed by sparse 3D cells, and activation volumes
+around players decide what loads and simulates. There are no spatial layers.
+
 ### 64-bit coordinates (decided)
 
-A 32-bit position loses about 1 cm of precision for every 130 km from the origin, which an engine for continent-scale
-worlds cannot accept. 64-bit costs a little CPU and memory on the server and nothing on the network.
+World positions are 64-bit doubles in meters with a real Y axis: altitude and depth are ordinary coordinates. The
+smallest unit gameplay relies on is 1 cm. The server works in doubles everywhere; only the wire is cell-relative. A
+32-bit position loses about 1 cm of precision for every 130 km from the origin, which an engine for continent-scale
+worlds cannot accept; a double stays far below 1 cm across any planet-sized space.
 
 | Place | Precision |
 | --- | --- |
-| Server simulation and Jolt | 64-bit positions; shapes and local math stay 32-bit |
-| Network | Quantized relative to the entity's cell origin (16 bits per horizontal axis on 64 m cells ≈ 1 mm) |
+| Server simulation and Jolt | 64-bit double positions (Jolt in double precision); shapes and local math stay 32-bit |
+| Network | Quantized relative to the entity's cell origin on all three axes (16 bits per axis on 64 m cells ≈ 1 mm) |
 | Client rendering | 32-bit relative to the camera |
 | Authoring | Region-local coordinates plus a 64-bit region origin |
 
@@ -38,107 +43,124 @@ worlds cannot accept. 64-bit costs a little CPU and memory on the server and not
 
 | Level | Nature | Purpose |
 | --- | --- | --- |
-| World | Persistent world identity | Global coordinates and registry |
-| SpatialLayer | A streaming and population regime defined per world (for example a surface, a sky and an underground layer) | Separate streaming and population regimes; same horizontal footprint, different height envelopes |
+| World | Persistent world identity (`WorldId`) | Global coordinates and registry; each separate map is its own `WorldId` |
 | Region | Authored content area (a Flecs entity) | Gameplay state: PvP rules, ambient light profile, music, spawns, special mechanics |
-| Sector | Automatic coarse bucket (for example 512 m) | Streaming and coarse lookup |
-| Cell | Automatic fine bucket (for example 64 m), sparse | Candidate lookup for combat, AI, interest, light, map knowledge |
+| Sector | Automatic coarse XZ bucket (for example 512 m) | Streaming and coarse lookup |
+| Cell | Automatic fine 3D bucket (for example 64 m), sparse | Candidate lookup for combat, AI, interest, light, map knowledge |
+| Volume | Authored 3D volume, drawn in Blender | Caves and underground spaces, rule areas (for example flight or build zones), indivisible volumes |
 | SimulationOwner | Runtime assignment | Which process is authoritative now |
 
 - Cell, sector and region transitions inside one simulation are index updates, never entity recreation or handoff.
 - Gameplay locations (a harbor, a market) are game data volumes and may cross any partition.
-- Large objects (watercraft, world bosses) register in every cell their bounds touch, deduplicated on query.
+- Large objects (watercraft, world bosses, floating islands) register in every cell their bounds touch, deduplicated
+  on query.
+
+### Sparse 3D cells and exact queries
+
+- **Cells are 3D and sparse by column.** A cell key is (x, y, z) at a fixed size per world. Each XZ column stores only
+  the Y cells that hold content or activity, so empty air and solid rock cost nothing; `Cell[x][y][z]` is never
+  allocated everywhere.
+- **Every test is exact XYZ.** Combat is action-based and characters jump, glide and fly, so a query gathers the 3D
+  cells its volume touches and then tests exactly (Jolt shapes, CharacterVirtual). A 2D distance is never a gameplay
+  answer.
+- **One vocabulary, separate structures.** Region, Sector, Cell and Volume are the shared spatial language; each
+  subsystem keeps its own structure.
+
+| Concern | Internal structure |
+| --- | --- |
+| World partition | Region, Sector, sparse 3D Cell, authored Volumes |
+| Physics | Jolt broadphase |
+| Rendering | Frustum and occlusion culling, HLOD, GPU visibility structures |
+| Navigation | Navmesh tiles; 3D flight paths for flying actors |
+| Networking | Interest candidate sets |
+| AI | Spatial candidates and activation |
+
+- **Visual relevance is not simulation relevance.** A client may render distant geography or a floating island while
+  receiving no NPC, player or projectile data from that area.
+
+### Activation volumes
+
+- Each player carries an **activation volume**: an asymmetric ellipsoid around the player, wider than it is tall (the
+  game sets the radii). The union of all players' volumes decides which cells load and which simulate. A cell outside
+  every volume is not simulated.
+- The smaller vertical radius keeps spaces far above or below the player, such as a deep cave or a high island, out
+  of the active set until the player approaches them.
+- **Hysteresis.** Activation never uses a single threshold. A cell starts loading (prepare) when it nears the union,
+  becomes active inside it (commit), and unloads only after it has stayed outside a larger release volume (release).
+  Walking back and forth on an edge never thrashes loads. Radii and margins are per-world data.
+- The client streams presentation with the same idea and its own, usually larger, radii, plus LOD, HLOD and world
+  proxies at distance.
+
+### Volumes for caves and rules
+
+- Caves, underground spaces and other rule areas are volumes drawn in Blender and cooked with the cells they touch. A
+  volume carries a kind the game gives meaning to (for example a cave, a flight zone with an altitude ceiling, a build
+  zone, a light or music profile) and is queried with exact XYZ.
+- Underground spaces live in the same world and coordinates as the surface; nothing in the Engine knows a surface, a
+  sky or an underground. Weather, wind and skylight read volume flags (a cave volume is sheltered and dark).
+- **Indivisible volumes** (an island, a castle, a docked ship) are flagged so that no ownership boundary ever cuts them:
+  the whole volume always belongs to one simulation.
+
+```cpp
+// Illustrative contract, not a frozen API.
+struct WorldPosition { double x, y, z; };     // meters; y is real altitude or depth
+
+struct CellKey {                              // a sparse 3D cell (for example 64 m)
+    WorldId world;
+    int32_t x, y, z;
+};
+
+struct ActivationVolume {                     // asymmetric ellipsoid around a player
+    WorldPosition center;
+    float horizontal_radius_m;                // game value
+    float vertical_radius_m;                  // smaller than the horizontal radius
+};
+
+struct AuthoredVolume {                       // drawn in Blender, cooked with its cells
+    VolumeId     id;
+    VolumeKindId kind;                        // meaning given by the game
+    bool         indivisible;                 // never cut by an ownership boundary
+};
+```
 
 ### Sparse and expandable world
 
-- The coordinate space reaches far beyond current content: sector coordinates are 32-bit integers.
+- The coordinate space reaches far beyond current content: sector and cell coordinates are 32-bit integers.
 - Only cells with content or activity exist in memory. Empty sea and unbuilt land cost nothing; open ocean is
   generated by the water system, not stored as cells.
 - A new continent is new regions in that space. A content patch adds cooked cells, streaming makes them appear without
   restarts or loading screens, and the World Coordinator assigns their simulation.
-- Separate maps (dungeons, raids) are **instances**; the client starts loading while the player approaches the
-  entrance, so the transition hides the load.
 
-### One logical world, many pieces
+### Worlds, instances and transitions
 
 "One world" is a property of the logical identity and the coordinate space, not of one source file, one scene, one
 package or one process.
 
-- **Process boundary versus instance boundary.** A process boundary answers "who computes this?"; an instance boundary
-  answers "which copy of reality is this?". An area in another layer, or a neighboring region, may run in another
-  simulation process and still be the same unique overworld. Dungeons and raids are instances because several
-  independent copies can exist.
-- **The main overworld** is one WorldId with InstanceId 0, shared by all its layers. Teleporting within it changes
-  position, not instance; falling from one layer into another is continuous travel even when simulation ownership
-  changes.
+- **Process boundary versus world and instance boundary.** A process boundary answers "who computes this?"; a world
+  boundary answers "which map is this?"; an instance boundary answers "which copy of that map is this?". A neighboring
+  region may run in another simulation process and still be the same world.
+- **The main world** is one `WorldId` with InstanceId 0: its surface, floating islands and underground spaces in one
+  continuous coordinate space.
+- **Separate persistent maps** are their own `WorldId` with InstanceId 0, shared by every player. **Instances**
+  (dungeons, raids) are extra InstanceIds of a map.
+- **Worlds never share a border.** There is no handoff or ghost between worlds. A **world transition** is a checkpoint
+  plus a new connect ticket (NET-8): the source simulation checkpoints the character through the service port, the
+  Platform issues a ticket for the destination simulation, and the client connects there while it loads the
+  destination. Presentation covers the load; portals to other maps and entries to instances use the same path.
 - **Partition:** Region (authored gameplay and content concept), then automatic Sector, then automatic Cell. Simulation
   ownership is separate again and is never encoded as "one chunk equals one server".
 
-### Layers, bounds and transitions
-
-Layers are streaming and simulation regimes, not floor numbers. A world adds more layers only when a band has
-genuinely different streaming, population or environment rules.
-
-```cpp
-// Illustrative contract, not a frozen API.
-struct SpatialLayerDefinition {
-    SpatialLayerId id;
-    double logical_min_y;   // where this layer's content and ownership are relevant
-    double logical_max_y;
-    double preload_min_y;   // where the layer starts streaming in advance
-    double preload_max_y;
-};
-
-struct SpatialSectorKey {
-    SpatialLayerId layer;
-    int32_t x;
-    int32_t z;
-};
-```
-
-- **Layer bounds are validity and relevance envelopes, not allocated voxels.** Standard Y bounds live on the layer,
-  not on every sector. Each cooked sector and cell also gets an automatically generated **content AABB**: the layer
-  bounds say what is allowed, the content bounds say what actually exists.
-- **Logical bounds and preload bounds differ, and neighboring layers overlap on purpose.** Inside the overlap the old
-  layer stays active while the destination layer streams assets and collision and prepares simulation and network
-  ownership. The player always has exactly one authoritative owner.
-- **Hysteresis.** A layer switch never uses a single `if (y > threshold)`. Transitions use separate **prepare**,
-  **commit** and **release** thresholds, with different enter and exit heights, so small vertical movement cannot flip
-  ownership back and forth. The values are per-world data.
-- Gameplay policies such as flight permission use their own thresholds again.
-- **Continuous versus teleport transitions.** A layer change is not a teleport: falling or walking into another layer
-  keeps continuous coordinates. A teleport, elevator or portal may change coordinates while staying in the same world
-  and instance; it is still not an instance unless a separate copy of reality is created.
-- Where two layers overlap around an entrance, the first layer stays loaded while the second prepares; deeper inside,
-  the first unloads. A river, road, elevator or path can cross the boundary continuously.
-
-### 2.5D plus sparse 3D
-
-- **No world-wide voxel grid.** The default partition is the layer plus XZ sectors and cells plus vertical bounds;
-  dense vertical spaces get local 3D subdivision (BVH, octree, AABB volumes or a spatial hash) only where needed.
-- **Y-aware filtering is a speedup.** With layers and vertical bounds, irrelevant populations never become candidates.
-- **One vocabulary, separate structures.** Region, Sector and Cell are the shared spatial language; each subsystem
-  keeps its own structure.
-
-| Concern | Internal structure |
-| --- | --- |
-| World partition | Region, Sector, Cell |
-| Physics | Jolt broadphase |
-| Rendering | Frustum and occlusion culling, HLOD, GPU visibility structures |
-| Navigation | Navmesh tiles |
-| Networking | Interest candidate sets |
-| AI | Spatial candidates and activation |
-
-- **Visual relevance is not simulation relevance.** A client may render distant geography while receiving no NPC,
-  player or projectile data from that area.
-
 ### Runtime loading
 
-- **Client streaming:** cells around the player's layer and position, with LOD, HLOD and world proxies at distance.
-- **Server streaming:** static collision, gameplay and world metadata, nav tiles where active, spawn and state
-  definitions and spatial indices — never textures, vegetation shaders or other presentation data.
-- **Streaming state** (WORLD-3) uses preload bands and hysteresis and emits load and unload requests per cell.
-  Who performs the load is open ([11 § OQ-3](11-open-questions.md#oq-3)).
+- **Client streaming:** cells inside the client's activation volume, with LOD, HLOD and world proxies at distance.
+- **Server streaming:** cells inside the union of activation volumes: static collision, gameplay and world metadata,
+  nav tiles where active, spawn, routine and state definitions and spatial indices — never textures, vegetation
+  shaders or other presentation data.
+- **Activation** (WORLD-3) emits load and unload requests per cell. Who performs the load is open
+  ([11 § OQ-3](11-open-questions.md#oq-3)).
+- **Floating islands** are fixed bodies inside a world that at most rise and sink slightly. Each is an indivisible
+  volume, so it never crosses a simulation boundary. A moving island (archived, but supported) would be a kinematic
+  indivisible volume that hands off as one group, like a watercraft (WATER-7).
 
 ## Partition versus ownership
 
@@ -156,7 +178,9 @@ struct SpatialSectorKey {
 - Authority state carries an **authority epoch**. Messages with a stale epoch are rejected (DSIM-1) and dropped on
   simulation links (NET-5).
 - DistributedSimulation maps `GlobalEntityId` to local entities. Local Flecs IDs never cross a process boundary.
-- Exactly one owner holds a player at all times, including inside layer overlaps and during transfer.
+- Exactly one owner holds a player at all times, including during transfer.
+- **Handoff is required, not optional.** Inside one world, any boundary between owners is crossed by transfer;
+  watercraft cross with their passengers and cargo.
 
 ## Ghosts
 
@@ -193,7 +217,11 @@ Snapshot contributors:
 
 ## Simulation links
 
-- Simulation-to-simulation connections are provided by the Platform transport (PTR-3) over GameNetworkingSockets.
+- Simulation-to-simulation connections are provided by the Platform transport (PTR-3). **Links by locality
+  (decided, PTR-4):** a link uses the cheapest channel for where the peers run — an in-memory queue in one process, a
+  local socket or shared memory on one machine, GameNetworkingSockets between machines. DistributedSimulation
+  semantics do not change with the channel.
+- There is no shared central memory between simulations; each owns its entities and talks through links.
 - Network encodes ghost deltas and transfer messages with the snapshot codec (NET-5), envelope included. Protobuf,
   NATS and gRPC are never used in this hot path.
 
@@ -245,7 +273,8 @@ addresses. Dropping a candidate or retiring connection never duplicates or rolls
 
 ## Interest and visibility tiers
 
-Decided. Candidates come from the cells around the client in its layer (plus the preload band), filtered by category.
+Decided. Candidates come from the 3D cells around the client inside its interest volume (plus a preload margin),
+filtered by category.
 Each candidate pair then gets a tier — server-side fog of war (PRC-2, applied in NET-4).
 
 | Tier | Condition | Data sent |
@@ -283,7 +312,8 @@ Beyond the budget, degradation follows a fixed order (NET-6):
 ## Authority partitions
 
 - World partition is not simulation ownership. An **AuthorityPartition** is an operational area with an owner and an
-  epoch; it can split a busy city between simulations (DSIM-5, slice 44+).
+  epoch; it can give a busy area such as a city its own simulation (DSIM-5, slice 44+). A partition never cuts an
+  indivisible volume.
 - Every participating simulation loads the same static geometry. Each dynamic entity keeps exactly one owner and
   appears as a ghost elsewhere.
 - Splitting one region across several simulations is the last resort for capacity; placement rules are in
@@ -292,6 +322,8 @@ Beyond the budget, degradation follows a fixed order (NET-6):
 ## Rules for any session touching this area
 
 - Never encode a simulation identity in a Region, Sector or Cell.
+- Never let an ownership boundary cut an indivisible volume.
+- Never hand off or ghost across worlds; moving between `WorldId`s is a world transition.
 - Never let two simulations mutate the same entity; route cross-border effects as foreign interactions.
 - Never send a local Flecs ID across a process boundary.
 - To carry a module's state across a transfer, register a snapshot contributor, as GameplayFlow, Quest and Water do.

@@ -19,7 +19,7 @@ update the affected module contracts in all three repositories.
 ## OQ-3 — Asset loading for streamed cells (narrowed)
 
 **Context.** Runic::Assets depends only on Core and Content (catalog row in
-[03](03-dependency-rules.md#engine-modules)). World's streaming state (WORLD-3) emits load and unload requests per
+[03](03-dependency-rules.md#engine-modules)). World's activation volumes (WORLD-3) emit load and unload requests per
 cell. ASSET-2 (random-access packages, asynchronous streaming) lists WORLD-3 in its Needs, but Assets may not link
 World.
 
@@ -130,7 +130,8 @@ Applied in: packages UI-1 and EDT-1.
 **Question.** Where do tests live, and which framework is used?
 
 **Outcome.** Location decided: module-local `Tests/` registered with CTest. ONE C++ framework for all three
-repositories is picked in BUILD-1 (slice 0); the BUILD-1 session asks the owner. Go uses `testing`.
+repositories: **GoogleTest** (with GoogleMock), chosen by the owner on 2026-10-13 for BUILD-1 (slice 0) and pinned
+by BUILD-1. Go uses `testing`.
 
 Applied in: [02 § Tests live inside the module](02-module-contract.md#tests-live-inside-the-module).
 

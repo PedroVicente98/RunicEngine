@@ -38,13 +38,13 @@ Game cells are written neutrally here; the concrete Game rules live only in Runi
 | Skills and combat | GameplayAPI group (Gameplay and Combat modules): ability toolkit, hit timing, tags, statuses, rule pipeline, damage interception | Skill definitions, damage types and formula, resolver order, every concrete status and control effect | — |
 | Defense and threat | Invulnerability windows, interception hooks, threat table | Defense rules, armor effects, threat rules | — |
 | Custom code | Behavior registries, hooks, context and output buffers | The behaviors | — |
-| Movement | CharacterVirtual, movement modes, prediction, validation | Speeds, dashes, mount and glider stats | — |
+| Movement | CharacterVirtual, movement modes (walk, glide, flight in flight-zone volumes, mount), prediction, validation | Speeds, dashes, mount, glider and wing stats; flight zones | — |
 | Light, perception, AI | The APIs, computation, behavior-tree framework and editor | Values, mob profiles, trees, custom nodes | — |
 | Items and inventory | Runtime item and container mirrors | Item definitions and rules; Inventory service rules | Item ledger and currency wallets as mechanisms, with no game rules |
 | Quests, economy, housing, factions | Interaction framework, GameplayFlow sequences, Quest runtime with its quest-creation API | Quest definitions and encounter scripts; Go services that store quest progress and character state and run the game's economy and housing | Go SDK they are built on |
 | Scripted sequences and restrictions | GameplayFlow runtime, source-owned restrictions, presentation cues | Boss phases, cutscenes, dungeon and world-event scripts | — |
 | Networking | Transport interface, replication, interest, prediction, handoff | Game messages | GameNetworkingSockets transport, Protobuf contracts, gRPC and NATS wiring |
-| Accounts, world control, instances | — | Configuration; guild and mail services | Core services: accounts, entitlements, World Coordinator, instance allocation, chat and party groups |
+| Accounts, world control, instances | — | Configuration; guild and mail services | Core services: accounts, entitlements, World Coordinator (including placement by load and traffic), instance allocation, chat and party groups |
 | Infrastructure and monitoring | Metrics recorded in every process; the Platform exports them (see note) | Dashboards for game metrics | Agones, Kubernetes, Prometheus, Grafana |
 | Presentation | Renderer (including the physics debug view), assets, animation, RmlUi and ImGui integrations, audio | GameUI screens, Game render extractors, art | — |
 | Water and environment | WaterSystem, buoyancy, water movement, wind, tides, waves, weather evaluation | Water content, profiles, watercraft rules, weather patterns | Weather-event directives; the Go SDK persistence that Game services use for durable water state |
@@ -177,7 +177,7 @@ log marks them as decided (scale and clock rates are decided).
 | Largest battle that must still work | 500 players in one region, with graceful degradation |
 | Combat and physics rate | 30 Hz |
 | Scheduler master clock | 60 Hz |
-| World coordinates | 64-bit |
+| World coordinates | 64-bit doubles with a real Y axis; 1 cm minimum unit |
 | Expansion | New continents and regions added to a live world by patch and streamed in seamlessly |
 | Engine ceiling | Continent-scale worlds for other teams without architectural change |
 

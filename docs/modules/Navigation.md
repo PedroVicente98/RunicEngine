@@ -13,20 +13,21 @@ Contract seed for `Runic::Navigation`: what a Claude Code session needs to imple
 
 ## Purpose
 
-Navigation is the runtime pathfinding of the authoritative server: the Detour and DetourTileCache runtime, nav tiles streamed by cell, and path queries behind the MoveTo and MoveGoal contract that AI and scripted movement use (ARCH § Repositories, build targets and processes; ARCH § AI architecture).
+Navigation is the runtime pathfinding of the authoritative server: the Detour and DetourTileCache runtime, nav tiles streamed by cell, path queries behind the MoveTo and MoveGoal contract that AI and scripted movement use, and 3D flight paths for flying actors (ARCH § Repositories, build targets and processes; ARCH § AI architecture).
 
 ## Owns
 
 - The Detour and DetourTileCache runtime, kept private (NAV-1).
 - Nav tiles streamed by cell: tiles load and unload with their cells (NAV-1).
 - Path queries behind the MoveTo and MoveGoal contract (NAV-1). An AI intent becomes a `MoveGoalCommand` with an actor and a destination; Navigation answers the path that movement follows.
-- Navmesh tiles as the module's own spatial structure; Region, Sector and Cell stay the shared vocabulary (ARCH § World space: coordinates, layers and partitions).
+- Flight navigation (NAV-2): 3D paths through free space over the sparse 3D cells for flying actors, respecting authored volumes and altitude ceilings.
+- Navmesh tiles as the module's own spatial structure; Region, Sector and the sparse 3D Cell stay the shared vocabulary (ARCH § World space: coordinates, cells and activation).
 
 ## Does not own
 
 - Navmesh cooking with Recast (Cooker, COOK-6). Recast is a tool library and never ships in the runtime.
 - Decisions about where to go (AI, GameplayFlow) and movement execution (Gameplay movement modes on Physics CharacterVirtual).
-- The decision which cells are loaded (World streaming state, WORLD-3) and package I/O (see OQ-3).
+- The decision which cells are loaded (World activation, WORLD-3) and package I/O (see OQ-3).
 - Water navigation graphs and AI vessel routes (Water, a later stage).
 
 ## Depends on
@@ -67,6 +68,7 @@ Headers (sketch, fixed in the contract session): `NavigationWorld.hpp`, `NavTile
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
 | NAV-1 | Detour runtime, nav tiles streamed by cell, path queries behind MoveGoal | Paths cross cell borders; tiles load and unload with cells | WORLD-3, COOK-6 | 31 |
+| NAV-2 | Flight navigation: 3D paths through free space over the sparse cells for flying actors, respecting volumes and altitude ceilings | A flying NPC reaches a target behind an obstacle without entering a forbidden volume | NAV-1, WORLD-2 | 44+ |
 
 ## Acceptance tests
 
