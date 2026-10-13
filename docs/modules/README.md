@@ -46,7 +46,7 @@ Source: ARCH § Repositories, build targets and processes (Engine modules) and A
 | Tools | [Editor](Editor.md) | Editor host and panels, inspectors, resolver debugger, AI editor, live attach, Cooker launcher | Most modules (ImGui, imnodes) | never shipped | EDT-1 to EDT-7 | 6 | Not started |
 | Tools | [Cooker](Cooker.md) | Cooking orchestration and Runic format writers over fastgltf, meshoptimizer, MikkTSpace, xatlas, KTX and Basis Universal, Jolt cooking, Recast and Zstandard | Core, Content, Assets, World, Physics, Navigation, Water (each runtime module owns its cooked format; the Cooker links its writer) | tool | COOK-1 to COOK-8 | 9 | Not started |
 
-The build skeleton package BUILD-1 (slice 0) belongs to no module: it creates the `runic_add_module` helper, presets, CI, the chosen test framework, the headless and forbidden-dependency checks and the x86-64-v3 CPU baseline ([../current-state.md](../current-state.md)).
+The build skeleton package BUILD-1 (slice 0) belongs to no module ([contract](../build/BUILD-1.md)): it creates the `runic_add_module` helper, presets, CI, the chosen test framework, the headless and forbidden-dependency checks and the x86-64-v3 CPU baseline ([../current-state.md](../current-state.md)).
 
 ## Group and interface targets
 

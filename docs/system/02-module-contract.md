@@ -132,8 +132,9 @@ add_library(Runic::GameplayAPI ALIAS RunicGameplayAPI)
 ## Tests live inside the module
 
 - Tests are in the module's `Tests/` folder and register with CTest.
-- One C++ test framework is used in all three repositories. It is chosen in slice 0 by the BUILD-1 session, which
-  asks the owner. Go uses its standard `testing` package.
+- One C++ test framework is used in all three repositories: GoogleTest, with GoogleMock for interface doubles
+  (decided by the owner for BUILD-1, slice 0). BUILD-1 pins it and wires test discovery into CTest. Go uses its
+  standard `testing` package.
 - A package's **Done when** is written as automated tests in its contract session, before the implementation.
 
 ## No game content in public repositories

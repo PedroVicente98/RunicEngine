@@ -151,4 +151,4 @@ The Done when column is the acceptance list; each contract session turns its row
 - Decided in ARCH revision 369: `AssetId`, `WaterBodyId`, `FieldId` and `WidgetId` are plain value types in Core (CORE-1); the modules that own them (Assets, Water, UI) give them meaning. `RenderFrame` and Environment's API use them without depending on those modules.
 - Decided in ARCH revision 369: GLM math types in Core's public headers are the third approved public-header exception, and GLM is a PUBLIC dependency of Core ([OQ-19](../system/11-open-questions.md#oq-19)). Record the exception in this module's ARCHITECTURE.md.
 - Memory and configuration utilities appear in the catalog row but in no package; add them only when a package's tests need them.
-- [OQ-2](../system/11-open-questions.md#oq-2) (decided): plain ID and time types live here. [OQ-7](../system/11-open-questions.md#oq-7) (decided): the test framework is chosen in BUILD-1.
+- [OQ-2](../system/11-open-questions.md#oq-2) (decided): plain ID and time types live here. [OQ-7](../system/11-open-questions.md#oq-7) (decided): the test framework is GoogleTest, wired by BUILD-1.

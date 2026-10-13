@@ -12,7 +12,7 @@ This folder holds the architecture rules that all three repositories share; read
 
 | Item | Value |
 | --- | --- |
-| Source document | *RunicEngine — Technical Architecture v3* ("ARCH"), doc revision 502, exported 2026-10-13 |
+| Source document | *RunicEngine — Technical Architecture v3* ("ARCH"), doc revision 503, exported 2026-10-13 |
 | Status of ARCH | The single source of truth for architecture, modules, work packages and the roadmap |
 | Status of this folder | Generated from ARCH. It restates ARCH's rules for Claude Code sessions and humans; it adds no decisions of its own |
 | On conflict | **ARCH wins.** If this folder, a module's `ARCHITECTURE.md` or any code disagrees with ARCH, ARCH is right and the other text is a bug to fix |

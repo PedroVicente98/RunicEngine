@@ -23,6 +23,7 @@ The repository holds a bootstrap build skeleton with pinned third-party dependen
 | Scaffold folders | Empty (`.gitkeep` only): `include/RunicEngine/{Core,Debug,Input,Physics,Platform,Renderer,Simulation,UI}/`, `src/` with the same names, `tests/`. |
 | Editor setup | `.vscode/launch.json` and `tasks.json` (configure and build Debug or Release), `.clangd`, `.clang-format`, `Runic.code-workspace` (RunicEngine, RunicPlatform and RunicGame as sibling folders). |
 | Docs | `CLAUDE.md`, `README.md`, `docs/` (this folder; `docs/system/` is mirrored from the coordinator), `ThirdParty/README.md`. |
+| BUILD-1 contract (in review) | [build/BUILD-1.md](build/BUILD-1.md), the Engine catalog `cmake/RunicModuleCatalog.cmake`, and 20 acceptance tests in `tests/build/` (registered with CTest when `RUNIC_ENGINE_BUILD_TESTS` is ON, or run alone with `cmake -S tests/build`). Every test fails until BUILD-1 is implemented. |
 | License | MIT. |
 
 ## Gaps against v3
@@ -33,7 +34,7 @@ The repository holds a bootstrap build skeleton with pinned third-party dependen
 | Scaffold folders with no module | `Platform/`, `Input/`, `Debug/` | No such Engine modules: Window class in Application, input mapping in Client, debug pipeline in Renderer, DebugGeometry in Core | BUILD-1 removes them ([OQ-4](system/11-open-questions.md#oq-4), [OQ-5](system/11-open-questions.md#oq-5)) |
 | Modules | 0 of 27 | See [modules/README.md](modules/README.md) | One work package at a time |
 | Module helper and checks | None | `runic_add_module`, automated headless and forbidden-dependency checks, public-header scan, CI | BUILD-1 |
-| Test framework | `tests/` empty; no framework | Module-local `Tests/` registered with CTest; one C++ framework for all three repositories | BUILD-1 asks the owner ([OQ-7](system/11-open-questions.md#oq-7)) |
+| Test framework | `tests/` empty; no framework | Module-local `Tests/` registered with CTest; GoogleTest (with GoogleMock) in all three repositories | BUILD-1 ([OQ-7](system/11-open-questions.md#oq-7), decided 2026-10-13) |
 | Targets | Bundles `Runic::Runtime` and `Runic::Presentation`; bootstrap `Runic::Core` | One target per module; libraries private to their owner; the bundles stay until RunicGame links per-module targets | BUILD-1, then each module; CORE-1 makes `Runic::Core` a real module |
 | Interface targets | None | `Runic::NetworkTransport` (header-only, Core types only) and `Runic::SimulationPort` (header-only, Core types only) | NET-1 (slice 12), SIM-5 (slice 27) |
 | Jolt | 5.2.0, single precision, SIMD extensions off | Jolt 5.6.0 (tag v5.6.0) in double precision with its AVX2 path, on the x86-64-v3 baseline | BUILD-1 (CPU baseline) and PHYS-1 (pin). This session could not download the v5.6.0 archive to compute its SHA-256, so `cmake/Dependencies.cmake` is unchanged. Because the reuse logic keys on `ThirdParty/JoltPhysics` existing, the upgrade must also make sure an old source tree cannot be reused silently |

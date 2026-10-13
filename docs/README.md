@@ -21,6 +21,7 @@ Everything here is generated from ARCH (RunicEngine — Technical Architecture v
 | `architecture.md` | Groups, folder layout, build bands, layers, render data, public-header rule, third-party placement | This repository |
 | `current-state.md` | What exists, gaps against v3, consumers, next steps | This repository |
 | `modules/` | One contract seed per Engine module (27) plus the catalog | This repository |
+| `build/` | Contracts of the build packages: [BUILD-1](build/BUILD-1.md) (build skeleton, in review) | This repository; canonical for all three |
 
 ## System documents
 
