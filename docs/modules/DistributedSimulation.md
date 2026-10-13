@@ -13,7 +13,7 @@ Contract seed for `Runic::DistributedSimulation`: what a Claude Code session nee
 
 ## Purpose
 
-DistributedSimulation lets one logical world run on many simulation processes with no loading screen. It owns authority state and epochs, ghost state as plain data, the transfer protocol (prepare, final snapshot, commit) with a snapshot-contributor registry, the foreign-interaction contract and authority partitions (ARCH § Networking: replication, interest and handoff). Network encodes everything this module produces; the Platform transport carries the bytes.
+DistributedSimulation lets one logical world run on many simulation processes with no loading screen. It owns authority state and epochs, ghost state as plain data, the transfer protocol (prepare, final snapshot, commit) with a snapshot-contributor registry, the foreign-interaction contract and authority partitions that never cut an indivisible volume (ARCH § Networking: replication, interest and handoff). Network encodes everything this module produces; the Platform transport carries the bytes.
 
 ## Owns
 
@@ -22,22 +22,27 @@ DistributedSimulation lets one logical world run on many simulation processes wi
 - Transfer: prepare, final snapshot, authority commit (DSIM-3).
 - The snapshot-contributor registry (DSIM-3). Modules add their state to the final snapshot: GameplayFlow sequences (FLOW-3), Quest instances (QST-3), Water ship groups (WATER-7). Players and their state transfer with the input sequence continuing.
 - The foreign-interaction contract (DSIM-4): a request carries enough context for the owner to act on it. Combat uses it for foreign combat (CMB-8).
-- Authority partitions inside one region (DSIM-5, expansion).
+- Authority partitions inside one region (DSIM-5, expansion): a busy area such as a city can get its own simulation, and a partition boundary never cuts an indivisible volume (a World authored volume flagged indivisible, such as an island, a castle or a docked ship).
 
 Rules:
 
 - Exactly one simulation is authoritative for an entity at any moment; authority epochs reject stale messages.
+- Handoff between simulations is required, not optional: inside one world, any boundary between owners is crossed by transfer, and ships cross with their passengers and cargo.
 - Near a border, neighbor simulations receive ghost state, and the client preconnects to up to three candidates; crossing promotes one and drops the others, with no loading screen.
-- The world partition is not simulation ownership. Regions, Sectors and Cells stay fixed, while an AuthorityPartition (an operational area with an owner and an epoch) can split a busy area between simulations. Every participating simulation loads the same static geometry; each dynamic entity keeps exactly one owner and appears as a ghost elsewhere. Players are never spread round-robin across simulations.
+- The world partition is not simulation ownership. Regions, Sectors and Cells stay fixed, while an AuthorityPartition (an operational area with an owner and an epoch) can give a busy area such as a city its own simulation; a partition never cuts an indivisible volume. Every participating simulation loads the same static geometry; each dynamic entity keeps exactly one owner and appears as a ghost elsewhere. Players are never spread round-robin across simulations.
 - Cross-boundary combat: the target's owner resolves the hit (ForeignCombatVolume, then RemoteHitResult). A world boss keeps its health, phase, AI and cooldowns on one simulation; attacks from elsewhere arrive as foreign combat, and its area effects reach other simulations as foreign effect volumes that each applies only to its own entities.
 - Groups transfer together: a ship with its passengers and cargo hands off in one authority epoch, prepared before authority commits (make before break).
+- Worlds never share a border: there is no handoff or ghost between two `WorldId`s. Moving between worlds is a world transition (Network, NET-8), a checkpoint plus a new connect ticket.
+- The semantics never depend on where the peers run: simulation links may be an in-memory queue in one process, a local socket or shared memory on one machine, or the network between machines (Platform Transport, PTR-4), and transfer behaves the same on each.
 
 ## Does not own
 
-- Encoding of ghost deltas and transfer messages, and the realtime connections (Network, NET-5; Platform Transport, PTR-3).
+- Encoding of ghost deltas and transfer messages, and the realtime connections (Network, NET-5; Platform Transport, PTR-3, with the channel chosen by locality in PTR-4).
+- World transitions between `WorldId`s (Network, NET-8).
+- Which volumes are indivisible (World authored volumes; the game flags them).
 - Which simulation owns which region, neighbor topology and handoff candidates (Platform World Coordinator, PCS-2).
 - Combat resolution (Combat), sequences (GameplayFlow), quests (Quest), ship groups (Water): they register their state as contributors.
-- Placement, pod sizing and drains (Platform and Agones).
+- Placement, pod sizing and drains, including placement by load and inter-simulation traffic (Platform World Coordinator, PCS-7, over Agones).
 
 ## Depends on
 
@@ -74,7 +79,7 @@ The contributor registry is the extension point: a contributor writes its state 
 | DSIM-2 | Ghosts: ghost state near borders as plain data; Network encodes the deltas (NET-5) | Ghosts follow their owners near the border | DSIM-1 | 36 |
 | DSIM-3 | Transfer: prepare, final snapshot, authority commit; a snapshot-contributor registry where modules add their state (sequences, quests, ship groups) | A player walks from A to B with no loading screen; the input sequence continues | DSIM-2 | 36 |
 | DSIM-4 | Foreign-interaction contract | A request carries enough context for the owner to resolve it | DSIM-1 | 37 |
-| DSIM-5 | Authority partitions inside one region (busy cities) | Two simulations share a city and each entity has one owner | DSIM-3 | 44+ |
+| DSIM-5 | Authority partitions inside one region (busy areas such as a city) that never cut an indivisible volume (an island, a castle, a docked ship) | Two simulations share a city, each entity has one owner, and no indivisible volume is split | DSIM-3 | 44+ |
 
 ## Acceptance tests
 

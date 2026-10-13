@@ -22,7 +22,7 @@ Source: ARCH § Vertical-slice roadmap, § World authoring and cooking (Authorin
 
 ### Lettered slices
 
-Slices with a letter (20a, 23a, 25a, 33a, 42a, 42b) were **inserted later between their neighbors, so existing
+Slices with a letter (20a, 23a, 25a, 33a, 42a, 42b, 43a) were **inserted later between their neighbors, so existing
 numbers never change**. A lettered slice runs after the slice with the same number and before the next number
 (20a after 20 and before 21). Slice 44+ is the expansion range: its packages get their full definition when those
 slices are planned.
@@ -35,14 +35,14 @@ slices are planned.
 | 1. Application and layers | A window opens; layers push, pop and replace at safe points; events stop when handled | Entry point, ApplicationHost, LayerStack, Window class | CORE-1, APP-1, APP-2, GAME-0 | Engine, Game |
 | 2. Debug renderer | Grid, camera, colored shapes with opacity, text | bgfx, debug draw, ImGui development overlay | RND-1, RND-2, UI-1 | Engine |
 | 3. Fixed-step clock | The scheduler runs 60/30/20/10 Hz on the server loop with metrics | Scheduler, TickContext, DomainTickCount, metrics registry | SIM-1, CORE-2 | Engine |
-| 4. ECS and world coordinates | Entities with 64-bit positions are created and queried; one fact reaches two consumers | Flecs integration, coordinates and layers, event buffers | ECS-1, WORLD-1, EVT-1 | Engine |
+| 4. ECS and world coordinates | Entities with 64-bit positions are created and queried; one fact reaches two consumers | Flecs integration, 64-bit coordinates and 3D cell keys, event buffers | ECS-1, WORLD-1, EVT-1 | Engine |
 | 5. Moving entities | Entities move on a plane through commands and are drawn | Phases, commands, RenderFrame, render extraction | SIM-2, CORE-3, CLI-1 | Engine |
 | 6. Editor shell | The Editor opens a running local world and inspects entities | Editor host, panels, ECS inspector | EDT-1 | Engine |
 | 7. Physics | A capsule walks on static terrain far from the origin under keyboard control | Jolt in double precision, CharacterVirtual, input mapping | PHYS-1, PHYS-2, CLI-2 | Engine |
 | 8. Physics view | Collision shapes are drawn and can be inspected | Debug-geometry extraction, debug pipeline layers, physics inspector | PHYS-3, RND-3, EDT-2 | Engine |
 | 9. First cooker proof | A mesh made in Blender is cooked, rendered and walked on | Content IDs, asset loading, glTF to mesh and collision | CNT-1, ASSET-1, COOK-1 | Engine |
 | 10. Worker pool | The same scene with several workers gives identical results | Phases on workers, per-worker buffers, deterministic merge, Jolt on the worker pool | PHYS-4, SIM-3 | Engine |
-| 11. Spatial index | Cells and layer membership drawn; queries visualized | Spatial index and queries | WORLD-2 | Engine |
+| 11. Spatial index | 3D cells, volumes and membership drawn; queries visualized | Spatial index and queries | WORLD-2 | Engine |
 | 12. Transport | A client connects to a local server with a test-signed ticket; ping and echo | Transport interface, GameNetworkingSockets transport, contracts | NET-1, PCT-1, PTR-1, PTR-2 | Engine, Platform |
 | 13. Replication | Two clients see each other move | Snapshots, quantization, interpolation | SIM-6, NET-2 | Engine |
 | 14. Prediction | Responsive movement with correction under simulated lag | Shared-code prediction, reconciliation, movement modes | SIM-4, GPL-1, NET-3, CLI-3, GSH-1 | Engine, Game |
@@ -52,8 +52,8 @@ slices are planned.
 | 18. Defense | A dodge that spends a resource, a directional block, a crowd-control chain | Restrictions, damage interception, Game defense rules | GPL-3, CMB-5, GSH-4 | Engine, Game |
 | 19. Combat prototype | The full combat prototype acceptance list ([09](09-validation-scenarios.md#combat-prototype-slice-19)) | Game systems end to end, threat and CC, input queue, first GameUI | CMB-6, CMB-7, UI-2, GCL-1, GSH-5 | Engine, Game |
 | 20. Data-driven content | Skills, items and effects as data with live reload; one custom behavior | Registries, schemas, Cooker validation, Cooker launcher | CNT-2, COOK-2, EDT-4, GCNT-1 | Engine, Game |
-| 20a. Arena prototype | A first Game build set fights 3v3 in an arena | Build variety on the combat systems, builds as data | GSH-6 | Game |
-| 21. World partitions | Walk across regions and two layers with streaming | World cooking, packages, streaming bands | WORLD-3, ASSET-2, COOK-3 | Engine |
+| 20a. Arena prototype | A first Game class set, one class per role, fights 3v3 in an arena with its skill trees | Class variety on the combat systems, classes and skill trees as data | GSH-6 | Game |
+| 21. World partitions | Walk across regions, down into a cave volume and up a cliff with activation-volume streaming | World cooking, packages, activation volumes | WORLD-3, ASSET-2, COOK-3 | Engine |
 | 22. World rendering | Cooked meshes and terrain draw flat-shaded far from the origin | Mesh render data and extractor, debug mesh layer, textures and LODs | CORE-4, CLI-4, RND-4, COOK-4 | Engine |
 | 23. Animated characters | A skinned character animates with blended clips | Animation runtime, skinned extractor and debug layer, skinned-mesh cooking | ANIM-1, CLI-5, RND-5, COOK-5 | Engine |
 | 23a. World UI | Nameplates and health bars follow entities; a notice board in the world accepts clicks | World anchors, anchored RmlUi, render targets, diegetic panels | CLI-6, RND-9, UI-3, UI-4, GCL-3 | Engine, Game |
@@ -81,7 +81,8 @@ slices are planned.
 | 42a. Water and currents on screen | River and ocean surfaces draw; currents and wind show as arrows and heatmaps | Water and field render data, extractors and debug layers | CORE-6, CLI-8, RND-8 | Engine |
 | 42b. Ships across borders | A ship with passengers and cargo sails from simulation A into B with nothing lost | Ship-group handoff through the snapshot-contributor registry | WATER-7 | Engine |
 | 43. Tides, waves and weather | A tide opens a path; a storm reaches two simulations at the same world time | Tides, weather overrides, Platform directives | ENV-4, ENV-5, PCS-3, GWTH-1 | Engine, Game, Platform |
-| 44+. Expansion | Game services (economy, housing and others), instances, busy-city partitions, the production render pipeline, Game production systems, collections, rankings, flight and climbing, staged access | The same boundaries, reused | DSIM-5, RND-6, CORE-7, COOK-8, GPL-7, PBB-3, PCS-4, PCS-5, PCS-6, GSVC-4, GSVC-6, GSVC-7, GSVC-8, GSRV-7 | All |
+| 43a. Living world | A caravan follows its route by world time and is where it should be when a player arrives; a player delays it and the delay fades back into the routine | World routines, routine spawning, the exceptions service | ENV-6, GPL-8, GSVC-9 | Engine, Game |
+| 44+. Expansion | Game services (economy, housing and others), instances, separate maps and world transitions, busy-area partitions, placement by traffic and local links, the production render pipeline, Game production systems, collections, rankings, flight, aerial combat and climbing, staged access | The same boundaries, reused | DSIM-5, NAV-2, NET-8, RND-6, CORE-7, COOK-8, GPL-7, PTR-4, PBB-3, PCS-4, PCS-5, PCS-6, PCS-7, GSH-7, GSVC-4, GSVC-6, GSVC-7, GSVC-8, GSVC-10, GSRV-7, GSRV-8 | All |
 
 ## Supporting views of the same roadmap
 
@@ -122,7 +123,7 @@ phase.
 | 13. Replication | Client and headless server consume compatible cooked map data |
 | 15–19. Combat | Only the collision and metadata real combat obstacles and queries need |
 | 20. Data-driven content | Stable asset IDs, versioned metadata, Blender custom-property conventions, content registry integration |
-| 21. World partitions | Major milestone: region, sector and cell cooking, async cell streaming, terrain tiling, Jolt cell collision, manifests, debug visualization |
+| 21. World partitions | Major milestone: region, sector, 3D cell and volume cooking, activation-volume streaming, terrain tiling, Jolt cell collision, manifests, debug visualization |
 | 22. World rendering | KTX2 textures, mesh LODs and tangents in client-only render packages |
 | 23. Animated characters | Skinned meshes and animation clips cooked from Blender |
 | 25. Interest | Network relevance uses the same spatial vocabulary without coupling replication to renderer internals |

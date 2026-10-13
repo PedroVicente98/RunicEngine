@@ -14,7 +14,7 @@ Contract seed for `Runic::Network`: what a Claude Code session needs to implemen
 
 ## Purpose
 
-Network is the only door between a process and the network. Clients talk directly to their simulation through the Engine's transport interface, which RunicPlatform implements on GameNetworkingSockets. Network owns that interface, the tick-safe ingress and egress queues, all realtime wire encoding, interest and priority budgets, prediction and reconciliation, parallel replication, and the Network and Diagnostics layers (ARCH § Networking: stack, sessions and responsiveness; ARCH § Networking: replication, interest and handoff). Network replaces the v0 NetworkAdapter module.
+Network is the only door between a process and the network. Clients talk directly to their simulation through the Engine's transport interface, which RunicPlatform implements on GameNetworkingSockets. Network owns that interface, the tick-safe ingress and egress queues, all realtime wire encoding, interest and priority budgets, prediction and reconciliation, parallel replication, world transitions, and the Network and Diagnostics layers (ARCH § Networking: stack, sessions and responsiveness; ARCH § Networking: replication, interest and handoff). Network replaces the v0 NetworkAdapter module.
 
 Two rules are fixed:
 
@@ -31,6 +31,7 @@ Two rules are fixed:
 - Parallel replication and the degradation order (NET-6).
 - Snapshots encode only what modules registered in Simulation's replication registry (SIM-6): components and world-state values with a schema, quantization profile and relevance. Network never depends on the modules that own them.
 - The Diagnostics layer: network and replication metrics recorded in the Core metrics registry; the Editor attach channel over a development socket transport inside Network, streaming debug shapes and the traces modules publish in Core's debug-stream registry; compiled only into development and staging builds (NET-7).
+- World transitions (NET-8): the session leaves one world's simulation after a checkpoint and joins another world's simulation with a new connect ticket. Worlds never share a border, so there is no handoff or ghost between them; portals to other maps and entries to instances use the same path, and presentation covers the load.
 - The connection roles of a WorldSession: Primary (authoritative), WarmCandidate (connected and prepared for promotion), Dormant (kept with minimal traffic) and Retiring (the old authority during a grace window).
 
 ### Sessions
@@ -51,9 +52,9 @@ Two rules are fixed:
 ### Replication, budgets and interest
 
 - Per client, the simulation builds a delta against the last state that client acknowledged; unchanged fields cost nothing.
-- Values are quantized: positions relative to the entity's cell origin (16 bits per horizontal axis on 64 m cells ≈ 1 mm), angles in 16 bits, health in steps where acceptable. High-frequency payloads are bit-packed.
+- Values are quantized: positions relative to the entity's 3D cell origin on all three axes (16 bits per axis on 64 m cells ≈ 1 mm), angles in 16 bits, health in steps where acceptable. High-frequency payloads are bit-packed.
 - Each client has a byte budget per update. Entities are ranked by distance, combat involvement, targeting, party membership and importance; the highest go first and the rest accumulate priority until they are sent.
-- Candidates come from the cells around the client in its layer (plus the preload band), filtered by category; each candidate pair then gets its visibility tier from Perception. Projectiles and effects from hidden players are sent without the caster's identity.
+- Candidates come from the 3D cells around the client inside its interest volume (plus a preload margin), filtered by category; each candidate pair then gets its visibility tier from Perception. Projectiles and effects from hidden players are sent without the caster's identity.
 - Beyond the budget, degradation follows a fixed order: lower update rates for distant entities, then less cosmetic detail, then a cap on visible effects. Combat correctness never degrades.
 
 | Battle size | Plan per client | Download per client | Upload per simulation |
@@ -70,6 +71,7 @@ Planning assumes about 12 bytes per entity update; the targets are about 50 KB/s
 - Protobuf service APIs, fact messages and the ticket format (Platform Contracts, PCT-1).
 - Authority state, epochs, ghost state and the transfer protocol (DistributedSimulation). Network only encodes them.
 - The input queue (Combat, CMB-7). Network only carries inputs.
+- Checkpointing a character before a world transition (the Simulation's service port, SIM-5) and issuing the destination ticket (Platform PCS-1, World Coordinator).
 - The prediction subset (Simulation, SIM-4) and the code it runs (RunicGame::Shared).
 - Publishing metrics to Prometheus (Platform exporter, PBND-3); the Editor that attaches (Editor, EDT-7).
 - Game messages: RunicGame adds its own.
@@ -105,6 +107,7 @@ ARCH has no code sample for this module. Headers (sketch, fixed in the contract 
 | `Runic::Network` | `Interest.hpp`, `ReplicationBudget.hpp` | Candidates, priority, budgets | NET-4 |
 | `Runic::Network` | `SimulationLink.hpp` | Ghost and transfer message encoding | NET-5 |
 | `Runic::Network` | `DiagnosticsLayer.hpp` | Metrics recording, attach channel, debug-shape stream | NET-7 |
+| `Runic::Network` | `WorldTransition.hpp` | Leaving a world after a checkpoint and joining another with a new ticket | NET-8 |
 
 ## Threading and tick rules
 
@@ -126,6 +129,7 @@ ARCH has no code sample for this module. Headers (sketch, fixed in the contract 
 | NET-5 | Simulation links: ghost deltas and transfer messages encoded with the snapshot codec over simulation-to-simulation connections | Ghosts stay in sync across a border under packet loss; a message with a stale epoch is dropped | NET-2, DSIM-2 | 36 |
 | NET-6 | Parallel replication and the degradation order | 500 bots in one region fit the per-client budget | NET-4, SIM-3 | 38 |
 | NET-7 | Diagnostics layer: network and replication metrics recorded in the Core metrics registry; Editor attach channel over a development socket transport inside Network, streaming debug shapes and the traces modules publish in Core's debug-stream registry (compiled only into development and staging builds) | The Editor attaches to a development server and sees its shapes; a production build has no attach endpoint | NET-1, CORE-2 | 39 |
+| NET-8 | World transitions: the session leaves one world's simulation after a checkpoint and joins another world's simulation with a new connect ticket; no handoff or ghosts across worlds | A character moves between two worlds with its checkpointed state, and the old simulation keeps no copy | NET-1, SIM-5, PCS-1 | 44+ |
 
 ## Acceptance tests
 

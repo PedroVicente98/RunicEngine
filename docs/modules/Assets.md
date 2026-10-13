@@ -36,7 +36,7 @@ Assets is the runtime side of cooked data: asset IDs and handles, a cache, the n
 
 - Authoring and cooking (Cooker).
 - `ContentId`, schemas and definition registries (Content).
-- Deciding which cells to load: World's streaming state (WORLD-3) emits load and unload requests (see OQ-3).
+- Deciding which cells to load: World's activation volumes (WORLD-3) emit load and unload requests (see OQ-3).
 - GPU upload (Renderer), collision bodies (Physics), nav tiles at runtime (Navigation), water fragments at runtime (Water).
 
 ## Depends on
@@ -71,7 +71,7 @@ Sketch, fixed in the contract session: `AssetId.hpp`, `AssetHandle.hpp`, `AssetC
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. Slice 9 cooks a Blender test mesh (COOK-1) that this module loads; slice 21 walks across regions and two layers with streaming.
+The Done when column is the acceptance list. Slice 9 cooks a Blender test mesh (COOK-1) that this module loads; slice 21 walks across regions, down into a cave volume and up a cliff with activation-volume streaming.
 
 ## Open items
 

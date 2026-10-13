@@ -33,7 +33,7 @@ boundary and tests. The Engine knows timelines, tags, statuses, rules, threat an
 | Tags | Gameplay | Hierarchical, interned tags on abilities, statuses and entities | The tag vocabulary |
 | Status container | Combat | Timed statuses with stacking policy, duration, periodic tick and immunity windows | Every concrete status |
 | Attributes and modifiers | Gameplay | Base values and modifier stacks (add, multiply, override) with caps | Stats and formulas |
-| Rule pipeline | Combat | Registration of typed conditions and modifiers; evaluation in named stages; outputs to per-worker buffers; compilation into a resolved loadout per character | Stage order and every condition and modifier |
+| Rule pipeline | Combat | Registration of typed conditions and modifiers; evaluation in named stages; outputs to per-worker buffers; compilation into a resolved loadout per character; value variants chosen by a per-hit context (e.g., PvE and PvP) | Stage order and every condition and modifier |
 | Damage interception | Combat | Hooks before and after damage is applied; invulnerability windows | Defense rules, armor, the damage formula |
 | Threat table | Combat | Per-NPC threat storage read by AI target selection | What generates threat and how it is overridden |
 | Behavior registries | Combat | ID-to-C++ registration, parameter schemas, a fixed hook list, read-only context and output buffers | The behaviors |

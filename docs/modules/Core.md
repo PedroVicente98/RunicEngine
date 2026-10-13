@@ -19,7 +19,7 @@ Core is the foundation every Engine module links. It holds plain ID and time typ
 
 ## Owns
 
-- Plain ID types: `GlobalEntityId`, `GlobalPlayerId`, `SimulationId`, `TickId`, `AuthorityEpoch` (CORE-1; decided in OQ-2). Core declares the types; their meaning belongs to whoever issues them: authority semantics belong to DistributedSimulation, and the Platform accounts service (PCS-1) issues `GlobalPlayerId`.
+- Plain ID types: `GlobalEntityId`, `GlobalPlayerId`, `SimulationId`, `WorldId`, `TickId`, `AuthorityEpoch` (CORE-1; decided in OQ-2). Core declares the types; their meaning belongs to whoever issues them: authority semantics belong to DistributedSimulation, the Platform accounts service (PCS-1) issues `GlobalPlayerId`, and World gives `WorldId` its meaning (each separate map is its own world).
 - Plain value types that other modules give meaning to: `AssetId` (Assets), `WaterBodyId` (Water), `FieldId` and `WidgetId` (CORE-1, ARCH revision 369).
 - `Result`, asserts and logging hooks (CORE-1).
 - Time types. Time comes from one clock as integer ticks or double seconds, never accumulated floats (ARCH § Application and LayerStack).
@@ -79,7 +79,7 @@ Sketch, fixed in the contract session.
 
 | Header | Holds | Package |
 | --- | --- | --- |
-| `GlobalEntityId.hpp`, `GlobalPlayerId.hpp`, `SimulationId.hpp`, `TickId.hpp`, `AuthorityEpoch.hpp` | Plain ID types | CORE-1 |
+| `GlobalEntityId.hpp`, `GlobalPlayerId.hpp`, `SimulationId.hpp`, `WorldId.hpp`, `TickId.hpp`, `AuthorityEpoch.hpp` | Plain ID types | CORE-1 |
 | `Result.hpp`, `Assert.hpp`, `Log.hpp` | Result, asserts, logging hooks | CORE-1 |
 | `Time.hpp`, `Math.hpp` | Time types, GLM-based math | CORE-1 |
 | `WorkerPool.hpp`, `MetricsRegistry.hpp` | Worker pool, metrics registry | CORE-2 |
@@ -134,7 +134,7 @@ struct RenderFrame {
 
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
-| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
+| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, WorldId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
 | CORE-2 | Worker pool, metrics registry (per-tick timings and counters) and debug-stream registry where modules publish traces | Jobs run on the pool; metrics are recorded per tick domain | CORE-1 | 3 |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame and DebugGeometry (lines, triangles, text, cached debug meshes) | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload | CORE-1 | 5 |
 | CORE-4 | RenderData scene kinds: mesh instances, skinned instances with pose buffers, world anchors | Every kind round-trips through a frame packet in tests | CORE-3 | 22 |

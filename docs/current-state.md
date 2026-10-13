@@ -2,7 +2,7 @@
 
 This file records what exists in this repository today, the gaps against the v3 architecture, who depends on today's targets, and the next work packages. Update it in the same pull request as any module or build change.
 
-Snapshot date: **2026-10-11** (branch `docs/v3-regeneration`, docs regenerated from ARCH revision 369).
+Snapshot date: **2026-10-13** (branch `docs/v3-regeneration`, docs regenerated from ARCH revision 502: no spatial layers; sparse 3D cells, authored volumes, activation volumes and `WorldId`).
 
 ## Summary
 
@@ -53,7 +53,7 @@ Slice 0 and slice 1, in order. Each row is one work package, one Claude Code ses
 | ID | Package | Done when | Needs | Slice |
 | --- | --- | --- | --- | --- |
 | BUILD-1 | Build skeleton in all three repositories: `runic_add_module` helper, presets, CI, the chosen test framework, automated headless and forbidden-dependency checks, submodule pins (Game pins Engine and Platform; Platform pins Engine) with a local option for sibling checkouts, an AVX2 (x86-64-v3) CPU baseline | Every repository configures and builds; the server target links no graphics library; a forbidden link fails CI | — | 0 |
-| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
+| CORE-1 | Plain ID types (GlobalEntityId, GlobalPlayerId, SimulationId, WorldId, TickId, AuthorityEpoch, and value types other modules give meaning to, such as AssetId, WaterBodyId, FieldId and WidgetId), Result, asserts, logging hooks, time types, GLM math | Unit tests cover IDs, Result and time conversions | BUILD-1 | 1 |
 | APP-1 | Entry point, Application, ApplicationHost, Layer, LayerStack with queued changes at safe points, application events, loop policies | Layer order, events top-down until handled, updates bottom-up, safe-point push and pop, no allocation per event | CORE-1 | 1 |
 | APP-2 | Window class on GLFW, compiled only in client and tools builds; keyboard, mouse and gamepad as application events | A window opens and closes; the headless build compiles without GLFW | APP-1 | 1 |
 

@@ -22,7 +22,7 @@ Combat is the Engine's server-authoritative action-combat toolkit: abilities and
 | Ability toolkit | Timeline runner in DomainTickCount (startup, active, recovery, cancel windows); hit volumes and projectile queries; cooldowns; resource pools; one-slot input queue | Ability definitions, timings, costs, queue window |
 | Hit timing | ServerTime and CappedRewind (with a per-character position history), chosen per ability | The choice per ability and the cap |
 | Status container | Timed statuses with stacking policy, duration, periodic tick and immunity windows | Every concrete status |
-| Rule pipeline | Registration of typed conditions and modifiers; evaluation in named stages; outputs to per-worker buffers; compilation into a resolved loadout per character | Stage order and every condition and modifier |
+| Rule pipeline | Registration of typed conditions and modifiers; evaluation in named stages; outputs to per-worker buffers; compilation into a resolved loadout per character; value variants chosen by a per-hit context (for example PvE and PvP): a value has a base and optional contextual variants, and the context of each hit picks one | Stage order, every condition and modifier, the contexts and how a hit's context is decided |
 | Damage interception | Hooks before and after damage is applied; invulnerability windows | Defenses and the damage formula |
 | Threat table | Per-NPC threat storage read by AI target selection | What generates threat; taunt |
 | Behavior registries | ID-to-C++ registration, parameter schemas, a fixed hook list, read-only context and output buffers | The behaviors |
@@ -104,7 +104,7 @@ Foreign combat (ARCH § Networking: replication, interest and handoff): the targ
 | CMB-1 | Ability toolkit: timelines and hit timing per skill (ServerTime, CappedRewind) | Timeline phases fire on exact ticks | GPL-2, CNT-1 | 16 |
 | CMB-2 | Targeting modes (free aim, FriendlyLock, light aim-assist hooks), combat volumes and hit detection over Physics queries | A melee arc and a projectile each hit a dummy exactly once; FriendlyLock never selects a hostile | CMB-1, PHYS-5 | 16 |
 | CMB-3 | Statuses and effects, cooldowns, resource costs | Durations, stacks and cooldowns expire on the right tick | CMB-1 | 17 |
-| CMB-4 | Rule pipeline and behavior registries (fixed hooks for Game code) | A test rule and a test behavior run in order; the Engine holds no game rule | CMB-3 | 17 |
+| CMB-4 | Rule pipeline and behavior registries (fixed hooks for Game code); value variants selected by a per-hit context the Game defines | A test rule and a test behavior run in order; a value with a base and a contextual variant resolves by the hit context; the Engine holds no game rule | CMB-3 | 17 |
 | CMB-5 | Damage pipeline, interception hooks, invulnerability windows | Interception follows hook order; invulnerability blocks hits | CMB-4, GPL-3 | 18 |
 | CMB-6 | Threat table and crowd control (target cap, immunity windows) | A CC chain and its immunity follow the test data | CMB-5 | 19 |
 | CMB-7 | Input queue: one queued action per character inside the game-set window, started on the first legal tick; game-named priority inputs skip it when the cancel window allows | An early input fires on the first legal tick; a stun in between cancels it | CMB-1, SIM-4 | 19 |

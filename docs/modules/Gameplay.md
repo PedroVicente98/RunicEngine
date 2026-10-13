@@ -23,10 +23,10 @@ Gameplay provides the generic, thread-safe character-state building blocks a gam
 | Attributes and modifiers | Base values and modifier stacks (add, multiply, override) with caps | Stats and formulas |
 | Restrictions | Source-owned restriction sets (input, movement, abilities, interactions, targeting, damage, external motion), release by source, command validation | Which skills, effects and sequences acquire which restrictions |
 | Interactions | Interaction volumes, reach and permission checks, reservation, an interaction registry | The concrete interactions |
-| Movement | CharacterVirtual integration; a movement-mode registry with walk, glide (reads Environment wind), mount and vehicle modes; Water registers swimming (CharacterWaterMovement); prediction hooks; server validation | Speeds, dashes, mount and glider stats |
+| Movement | CharacterVirtual integration; a movement-mode registry with walk, glide (reads Environment wind), flight in flight-zone volumes, mount and vehicle modes; Water registers swimming (CharacterWaterMovement); prediction hooks; server validation | Speeds, dashes, mount, glider and wing stats; flight zones |
 | Item runtime | Runtime item instances and containers mirrored from services | Item definitions and rules |
 
-Also owned: resources and the death and kill facts published when a vital resource reaches zero, with the source filled in by Combat (GPL-2); factions and spawn primitives (GPL-6); flight and climbing modes (GPL-7, expansion).
+Also owned: resources and the death and kill facts published when a vital resource reaches zero, with the source filled in by Combat (GPL-2); factions and spawn primitives (GPL-6); flight and climbing modes (GPL-7, expansion): flight works only inside flight-zone volumes (World authored volumes) and below their altitude ceiling, above which only gliding works; glide and flight are separate capabilities of a mount; restrictions can forbid flight and gliding; routine spawning (GPL-8): when a cell activates, routine entities spawn where their Environment world routine puts them, and stored exceptions override the routine and fade back into it.
 
 Source-owned restrictions: no scattered flags such as `invulnerable = true`. A sequence, a skill or an effect acquires a restriction set under its own source ID, and every exit path releases everything held by that source in one call. Dodge invulnerability windows use the same mechanism. Temporary restrictions carry an expiry and a watchdog diagnostic, so no fault can leave a player permanently invulnerable.
 
@@ -36,7 +36,8 @@ Source-owned restrictions: no scattered flags such as `invulnerable = true`. A s
 - Sequences and their termination path (GameplayFlow); quests (Quest).
 - Swimming physics (Water's CharacterWaterMovement), wind (Environment), collision (Physics).
 - Durable item state: the Platform item ledger owns it; the Game's Inventory service applies the rules.
-- Every concrete value: speeds, stats, formulas, factions, item definitions.
+- Every concrete value: speeds, stats, formulas, factions, item definitions, where flight zones are and how high their ceilings sit.
+- Routine evaluation (Environment, ENV-6) and storing player-caused exceptions to routines (a RunicGame service).
 
 ## Depends on
 
@@ -67,7 +68,7 @@ restrictions.ReleaseAllFromSource(sequenceInstanceId);   // on every terminal pa
 
 Intangible during a cutscene is several separate policies (input, movement, abilities, interactions, targeting, damage, external motion, optional collision), so other systems can hold their own restrictions at the same time.
 
-Headers (sketch, fixed in the contract session): `MovementModes.hpp`, `Attributes.hpp`, `Modifiers.hpp`, `Resources.hpp`, `GameplayTags.hpp`, `Restrictions.hpp`, `ItemRuntime.hpp`, `Interactions.hpp`, `Factions.hpp`, `Spawning.hpp`.
+Headers (sketch, fixed in the contract session): `MovementModes.hpp`, `Attributes.hpp`, `Modifiers.hpp`, `Resources.hpp`, `GameplayTags.hpp`, `Restrictions.hpp`, `ItemRuntime.hpp`, `Interactions.hpp`, `Factions.hpp`, `Spawning.hpp`, `RoutineSpawning.hpp`.
 
 ## Threading and tick rules
 
@@ -87,7 +88,8 @@ Headers (sketch, fixed in the contract session): `MovementModes.hpp`, `Attribute
 | GPL-4 | Item and equipment runtime that mirrors ledger containers | Equipping changes modifiers; the mirror matches the ledger after a reload | GPL-2 | 28 |
 | GPL-5 | Interaction framework: interactables, reservation, interaction facts | Two players cannot reserve the same target | GPL-2, EVT-1 | 29 |
 | GPL-6 | Factions and spawn primitives | A spawner keeps its population; faction checks drive hostility | GPL-2 | 31 |
-| GPL-7 | Flight and climbing movement modes: sustained flight where a layer allows it, flying vehicles, climbing mounts | Flight stops below a game-set altitude and gliding takes over; a mount climbs a marked wall | GPL-1, WORLD-3 | 44+ |
+| GPL-7 | Flight and climbing movement modes: flight inside flight-zone volumes with an altitude ceiling above which only gliding works, glide and flight as separate mount capabilities, flying vehicles, climbing mounts; restrictions can forbid flight and gliding | Above the ceiling flight stops and gliding takes over; outside a flight zone a flying mount only glides; a restriction blocks both; a mount climbs a marked wall | GPL-1, GPL-3, WORLD-2, ENV-2 | 44+ |
+| GPL-8 | Routine spawning: when a cell activates, routine entities (escorts, caravans, ships, mob routines) spawn where their routine puts them; stored exceptions override the routine and fade back into it | A caravan appears at the right point of its route when a player arrives; a delayed escort rejoins its routine over time | GPL-6, ENV-6, WORLD-3 | 43a |
 
 "Parameters come from Game data" means parameters come from data; tests in this repository use Engine test data.
 

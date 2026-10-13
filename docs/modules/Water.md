@@ -154,7 +154,7 @@ Headers (sketch, fixed in the contract session): `WaterSystem.hpp`, `WaterSample
 ## Threading and tick rules
 
 - Sampling is read-only and safe from any worker in a parallel phase; fragment registration happens only at streaming safe points.
-- Lookup path: world position, then layer, sector, cell, the cell's candidate fragments, then the precise sample. The WaterSystem never scans every river in the world; the query context tests the previous fragment first.
+- Lookup path: world position, then sector, 3D cell, the cell's candidate fragments, then the precise sample. The WaterSystem never scans every river in the world; the query context tests the previous fragment first.
 - Buoyancy and water movement run in the 30 Hz realtime phase, step 4, before the Jolt step. Static water never ticks; tide and weather state update at 10 Hz in Environment.
 - WaterInteractionState is written once per tick and read by animation, audio, combat, UI and Game rules, so none of them issues its own query.
 - A vessel samples a few buoyancy points (typically 4 to 8), one or two flow samples and one wind sample per tick; cost scales with active consumers, not kilometers of water.
@@ -174,7 +174,7 @@ Headers (sketch, fixed in the contract session): `WaterSystem.hpp`, `WaterSample
 
 ## Acceptance tests
 
-The Done when column is the acceptance list. ARCH's definition of done for the first water slice: author a descending river in Blender and cook it; stream it across at least two cells with no seam; render it on the client and sample its surface and current on the server; a boat with BuoyantBody and WatercraftMovement travels downstream faster than upstream; a BuoyantBody-only object floats without drifting; a crate with ObjectWaterMovement drifts with zero self-propulsion; a character swims with current influence and no rigid-body buoyancy; the river passes from one layer into another continuously and reaches an underground lake or ocean without a teleport or instance; repeated with two networked clients, ship and character transitions stay continuous.
+The Done when column is the acceptance list. ARCH's definition of done for the first water slice: author a descending river in Blender and cook it; stream it across at least two cells with no seam; render it on the client and sample its surface and current on the server; a boat with BuoyantBody and WatercraftMovement travels downstream faster than upstream; a BuoyantBody-only object floats without drifting; a crate with ObjectWaterMovement drifts with zero self-propulsion; a character swims with current influence and no rigid-body buoyancy; the river enters a cave volume continuously and reaches an underground lake or ocean without a teleport or instance; repeated with two networked clients, ship and character transitions stay continuous.
 
 Debug drawing covers body bounds and loaded fragments, river centerlines and sampled surface points, cross sections, flow arrows and FlowVolumes, the connection graph, buoyancy points and applied forces, each character's WaterInteractionState, ownership at fragment boundaries, query counts and cache hit rate.
 

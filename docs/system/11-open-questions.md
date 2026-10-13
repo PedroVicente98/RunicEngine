@@ -19,7 +19,7 @@ update the affected module contracts in all three repositories.
 ## OQ-3 — Asset loading for streamed cells (narrowed)
 
 **Context.** Runic::Assets depends only on Core and Content (catalog row in
-[03](03-dependency-rules.md#engine-modules)). World's streaming state (WORLD-3) emits load and unload requests per
+[03](03-dependency-rules.md#engine-modules)). World's activation volumes (WORLD-3) emit load and unload requests per
 cell. ASSET-2 (random-access packages, asynchronous streaming) lists WORLD-3 in its Needs, but Assets may not link
 World.
 

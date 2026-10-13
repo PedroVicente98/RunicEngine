@@ -19,7 +19,7 @@ Perception is the light and perception API. Light scales how far mobs notice ent
 
 | Element | What it is | What a game supplies |
 | --- | --- | --- |
-| AmbientLightProfile | Light level per region and layer over time of day and weather, with a floor ("skylight") | Curves per region, layer and weather |
+| AmbientLightProfile | Light level per region and volume over time of day and weather, with a floor ("skylight") | Curves per region, volume and weather |
 | LightEmitter | Radius, intensity and duration on an entity or area | Which entities, abilities, items and areas emit light |
 | Luminosity | Effective light on an entity: the brighter of ambient light and emitters reaching it | Nothing; computed |
 | Concealment | Multiplier on how far others detect or see the entity | Concealment values |
