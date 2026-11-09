@@ -133,7 +133,7 @@ This file defines, in alphabetical order, the terms used across `docs/system/` a
 [^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go
 [^engine-ui]: [[../../../RunicEngine/docs/modules/UI|UI]] — Engine module · Presentation
 [^engine-application]: [[../../../RunicEngine/docs/modules/Application|Application]] — Engine module · Foundation
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
 [^engine-core]: [[../../../RunicEngine/docs/modules/Core|Core]] — Engine module · Foundation
 [^engine-renderer]: [[../../../RunicEngine/docs/modules/Renderer|Renderer]] — Engine module · Presentation

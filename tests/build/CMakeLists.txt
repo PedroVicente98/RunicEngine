@@ -5,7 +5,7 @@
 #   cmake -S tests/build -B build/build-tests -G Ninja && ctest --test-dir build/build-tests
 #
 # Every test configures a fixture under fixtures/ (or runs a check script) against this repository's
-# cmake/ helpers. Until BUILD-1 is implemented, every test fails.
+# cmake/ helpers.
 
 cmake_minimum_required(VERSION 3.24)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -96,11 +96,12 @@ if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$" AND NOT CMAKE_HO
 endif()
 
 # ---- the Engine itself: headless configure, no presentation library configured ----
+# No godot-cpp build tree, no libgodot stage and no Godot stamp: the headless Engine never configures Godot.
 runic_fixture_test(engine_headless_configure FIXTURE "${RUNIC_BUILD_TESTS_ENGINE}" EXPECT pass
     ARGS "-DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF" "-DRUNIC_BUILD_SANDBOX=OFF"
          "-DRUNIC_ENGINE_BUILD_TOOLS=OFF" "-DRUNIC_ENGINE_BUILD_TESTS=OFF"
     REGEX "RUNIC: link checks passed"
-    ABSENT "_deps/glfw-build" "_deps/runic_bgfx-build" "_deps/bgfx_cmake-build" "_deps/imgui-build")
+    ABSENT "godot-cpp" "godot" "bin/libgodot.linuxbsd.editor.x86_64.so")
 
 # ---- scans ----
 set(S "${F}/scan_tree")
@@ -122,6 +123,39 @@ runic_script_test(docs_check_missing
 runic_script_test(docs_check_complete
     SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/DocsCheck.cmake" EXPECT pass
     ARGS "-DROOT=${S}/docs_check" "-DCHANGED=${S}/docs_check/changes_with_docs.txt")
+
+# ---- v4: Godot appears only in GodotBridge and GodotTools ----
+runic_script_test(public_header_godot_outside
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/PublicHeaderScan.cmake" EXPECT fail
+    REGEX "RUNIC:[^\n]*PhysicsView\\.cpp[^\n]*Godot"
+    ARGS "-DROOT=${S}/godot_outside" "-DCATALOG=${S}/godot_outside/catalog.cmake")
+runic_script_test(public_header_godot_bridge
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/PublicHeaderScan.cmake" EXPECT fail
+    REGEX "RUNIC:[^\n]*BridgeView\\.hpp[^\n]*godot-cpp"
+    ARGS "-DROOT=${S}/godot_bridge_public" "-DCATALOG=${S}/godot_bridge_public/catalog.cmake")
+runic_script_test(public_header_godot_tools
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/PublicHeaderScan.cmake" EXPECT pass
+    ARGS "-DROOT=${S}/godot_tools_public" "-DCATALOG=${S}/godot_tools_public/catalog.cmake")
+
+# ---- CI hardening: every Action pinned to a full commit SHA (security requirement of BUILD-1) ----
+runic_script_test(workflow_pin_tag
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/WorkflowPinCheck.cmake" EXPECT fail
+    REGEX "RUNIC:[^\n]*ci\\.yml:[0-9]+[^\n]*actions/checkout@v4"
+    ARGS "-DROOT=${S}/workflow_tag")
+runic_script_test(workflow_pin_sha
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/WorkflowPinCheck.cmake" EXPECT pass
+    ARGS "-DROOT=${S}/workflow_sha")
+
+# ---- this repository passes every scan ----
+runic_script_test(repository_public_headers
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/PublicHeaderScan.cmake" EXPECT pass
+    ARGS "-DROOT=${RUNIC_BUILD_TESTS_ENGINE}" "-DCATALOG=${RUNIC_BUILD_TESTS_ENGINE}/cmake/RunicModuleCatalog.cmake")
+runic_script_test(repository_source_includes
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/SourceIncludeScan.cmake" EXPECT pass
+    ARGS "-DROOT=${RUNIC_BUILD_TESTS_ENGINE}")
+runic_script_test(repository_workflow_pins
+    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/WorkflowPinCheck.cmake" EXPECT pass
+    ARGS "-DROOT=${RUNIC_BUILD_TESTS_ENGINE}")
 
 # ---- the catalog equals docs/system/03 ----
 runic_script_test(catalog_sync

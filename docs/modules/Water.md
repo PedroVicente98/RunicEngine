@@ -211,7 +211,7 @@ Debug drawing covers body bounds and loaded fragments, river centerlines and sam
 - **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
 [^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
 [^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation

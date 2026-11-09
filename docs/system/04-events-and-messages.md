@@ -201,7 +201,7 @@ Other delivery rules:
 
 - **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-application]: [[../../../RunicEngine/docs/modules/Application|Application]] — Engine module · Foundation
 [^engine-events]: [[../../../RunicEngine/docs/modules/Events|Events]] — Engine module · Foundation
 [^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core

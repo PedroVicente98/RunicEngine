@@ -214,7 +214,7 @@ Tests use Engine test trees, personalities and `engine:` ability IDs, never Runi
 - **Packages that need it:** [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-perception]: [[../modules/Perception|Perception]] — Engine module · World systems
 [^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
 [^engine-navigation]: [[../modules/Navigation|Navigation]] — Engine module · World systems

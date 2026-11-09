@@ -22,7 +22,17 @@ Source: ARCH[^arch] § Repositories, build targets and processes (Engine modules
 
 ## Modules
 
-27 modules in seven groups, in ARCH[^arch]'s group order. Group folders are `Foundation`, `SimulationCore`, `GameplayAPI`, `WorldSystems`, `Networking`, `Presentation` and `Tools`. Third-party libraries in parentheses are private unless the row says otherwise (GLM is a PUBLIC dependency of Core).
+> **ARCH[^arch] v4 (Godot) changes this catalog.** The authoritative module list is the Engine modules table of
+> [../system/03-dependency-rules.md](../system/03-dependency-rules.md) (26 modules) and `cmake/RunicModuleCatalog.cmake`.
+> Renderer[^engine-renderer], UI and Editor[^engine-editor] no longer exist: **GodotBridge[^engine-godotbridge]** (Presentation; contract
+> [Engine/Presentation/GodotBridge/ARCHITECTURE.md](../../Engine/Presentation/GodotBridge/ARCHITECTURE.md), slice 0
+> code: the LibGodot host) and **GodotTools[^engine-godottools]** (Tools; contract
+> [Engine/Tools/GodotTools/ARCHITECTURE.md](../../Engine/Tools/GodotTools/ARCHITECTURE.md), GDT-1 done locally) replace
+> them, and Application has no Window class. The rows and notes below are still the v3 text until the docs are
+> regenerated from v4. Build skeleton: [../build/BUILD-1.md](../build/BUILD-1.md) (implemented, awaiting review).
+
+
+27 modules in seven groups, in ARCH's group order. Group folders are `Foundation`, `SimulationCore`, `GameplayAPI`, `WorldSystems`, `Networking`, `Presentation` and `Tools`. Third-party libraries in parentheses are private unless the row says otherwise (GLM is a PUBLIC dependency of Core).
 
 | Group | Module | Purpose | Depends on | Headless | Packages | First slice | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -46,12 +56,12 @@ Source: ARCH[^arch] § Repositories, build targets and processes (Engine modules
 | World systems | [Water](Water.md) | WaterSystem, bodies, rivers and routes, ocean current fields, cooked fragments, buoyancy, character, object and watercraft movement | World, Physics, Simulation, Gameplay, Environment, DistributedSimulation (ship-group handoff) | yes | WATER-1 to WATER-7 | 40 | Not started |
 | Networking | [Network](Network.md) | Transport interface (header-only `Runic::NetworkTransport`[^engine-network]), ingress and egress queues, all realtime wire encoding, interest and budgets, prediction and reconciliation, parallel replication, world transitions; the Network and Diagnostics layers | Application, Simulation, DistributedSimulation, Gameplay, Perception | yes | NET-1 to NET-8 | 12 | Not started |
 | Networking | [DistributedSimulation](DistributedSimulation.md) | Authority state and epochs, ghost state as plain data, transfer with a snapshot-contributor registry, foreign-interaction contract, authority partitions that never cut indivisible volumes | Simulation, Events, World | yes | DSIM-1 to DSIM-5 | 36 | Not started |
-| Presentation | [Client](Client.md) | Prediction and Presentation layers, extractor registry and Engine extractors, camera, interpolation, input mapping and command builder | Application, Simulation, Network, Perception, Environment, Water, Renderer[^engine-renderer], Animation[^engine-animation], Audio[^engine-audio], UI[^engine-ui], Assets | no | CLI-1[^engine-client] to CLI-8 | 5 | Not started |
+| Presentation | [Client](Client.md) | Prediction and Presentation layers, extractor registry and Engine extractors, camera, interpolation, input mapping and command builder | Application, Simulation, Network, Perception, Environment, Water, Renderer, Animation[^engine-animation], Audio[^engine-audio], UI[^engine-ui], Assets | no | CLI-1[^engine-client] to CLI-8 | 5 | Not started |
 | Presentation | [Renderer](Renderer.md) | bgfx device and views; the layered debug pipeline; render targets for diegetic UI; the batched world-UI feature; the production pipeline later | Core, Assets (bgfx) | no | RND-1 to RND-10 | 2 | Not started |
 | Presentation | [Animation](Animation.md) | Skeletons, clips, animator, blending, poses | Core, Assets | no | ANIM-1 | 23 | Not started |
 | Presentation | [UI](UI.md) | RmlUi (GameUI) and ImGui (development overlay) as layers; world UI: diegetic panels, anchored elements, batched fallback, budgets, input routing | Application, Renderer, Assets (RmlUi, ImGui) | no | UI-1 to UI-5 | 2 | Not started |
 | Presentation | [Audio](Audio.md) | Backend abstraction, buses and mixing, semantic sound events, MusicDirector, albums, soundtrack presets, local profiles | Core, Assets | no | AUD-1, AUD-2 | 24 | Not started |
-| Tools | [Editor](Editor.md) | Editor[^engine-editor] host and panels, inspectors, resolver debugger, AI editor, live attach, Cooker[^engine-cooker] launcher | Most modules (ImGui, imnodes) | never shipped | EDT-1 to EDT-7 | 6 | Not started |
+| Tools | [Editor](Editor.md) | Editor host and panels, inspectors, resolver debugger, AI editor, live attach, Cooker[^engine-cooker] launcher | Most modules (ImGui, imnodes) | never shipped | EDT-1 to EDT-7 | 6 | Not started |
 | Tools | [Cooker](Cooker.md) | Cooking orchestration and Runic format writers over fastgltf, meshoptimizer, MikkTSpace, xatlas, KTX and Basis Universal, Jolt cooking, Recast and Zstandard | Core, Content, Assets, World, Physics, Navigation, Water (each runtime module owns its cooked format; the Cooker links its writer) | tool | COOK-1 to COOK-8 | 9 | Not started |
 
 The build skeleton package BUILD-1[^doc-build-build-1] (slice 0) belongs to no module ([contract](../build/BUILD-1.md)): it creates the `runic_add_module` helper, presets, CI, the chosen test framework, the headless and forbidden-dependency checks and the x86-64-v3 CPU baseline ([../current-state.md](../current-state.md)).
@@ -76,10 +86,14 @@ Transitional targets: today's bundles `Runic::Runtime` and `Runic::Presentation`
 
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
-- **Catalog:** [[../modules/Core|Core]] · [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Gameplay|Gameplay]] · [[../modules/Combat|Combat]] · [[../modules/GameplayFlow|GameplayFlow]] · [[../modules/Quest|Quest]] · [[../modules/Perception|Perception]] · [[../modules/Navigation|Navigation]] · [[../modules/AI|AI]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Network|Network]] · [[../modules/DistributedSimulation|DistributedSimulation]] · [[../modules/Client|Client]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/UI|UI]] · [[../modules/Audio|Audio]] · [[../modules/Editor|Editor]] · [[../modules/Cooker|Cooker]]
+- **Catalog:** [[../modules/Core|Core]] · [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Gameplay|Gameplay]] · [[../modules/Combat|Combat]] · [[../modules/GameplayFlow|GameplayFlow]] · [[../modules/Quest|Quest]] · [[../modules/Perception|Perception]] · [[../modules/Navigation|Navigation]] · [[../modules/AI|AI]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Network|Network]] · [[../modules/DistributedSimulation|DistributedSimulation]] · [[../modules/Client|Client]] · [[../../Engine/Presentation/GodotBridge/ARCHITECTURE|GodotBridge]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../../Engine/Tools/GodotTools/ARCHITECTURE|GodotTools]] · [[../modules/Cooker|Cooker]] · [[../modules/Renderer|Renderer]] · [[../modules/UI|UI]] · [[../modules/Editor|Editor]]
 - **See also:** [[../README|Engine docs README]] · [[../system/README|System README]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
+[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
+[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
+[^engine-godotbridge]: [[../../Engine/Presentation/GodotBridge/ARCHITECTURE|GodotBridge]] — Engine module · Presentation
+[^engine-godottools]: [[../../Engine/Tools/GodotTools/ARCHITECTURE|GodotTools]] — Engine module · Tools
 [^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
 [^engine-application]: [[../modules/Application|Application]] — Engine module · Foundation
 [^engine-events]: [[../modules/Events|Events]] — Engine module · Foundation
@@ -100,12 +114,10 @@ Transitional targets: today's bundles `Runic::Runtime` and `Runic::Presentation`
 [^engine-navigation]: [[../modules/Navigation|Navigation]] — Engine module · World systems
 [^engine-ai]: [[../modules/AI|AI]] — Engine module · World systems
 [^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
-[^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
 [^engine-animation]: [[../modules/Animation|Animation]] — Engine module · Presentation
 [^engine-audio]: [[../modules/Audio|Audio]] — Engine module · Presentation
 [^engine-ui]: [[../modules/UI|UI]] — Engine module · Presentation
 [^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation
-[^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
 [^doc-build-build-1]: [[../build/BUILD-1|Engine BUILD-1 contract]] — RunicEngine doc
 [^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++

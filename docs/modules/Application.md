@@ -131,11 +131,11 @@ The Done when column is the acceptance list. Slice 1 also requires: a window ope
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
 - **Depends on:** [[../modules/Core|Core]]
-- **Depended on by:** [[../modules/Simulation|Simulation]] · [[../modules/Network|Network]] · [[../modules/Client|Client]] · [[../modules/UI|UI]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]]
-- **Packages that need it:** [[../modules/Renderer|Renderer]] · [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
+- **Depended on by:** [[../modules/Simulation|Simulation]] · [[../modules/Network|Network]] · [[../modules/Client|Client]] · [[../../Engine/Presentation/GodotBridge/ARCHITECTURE|GodotBridge]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]]
+- **Packages that need it:** [[../modules/Renderer|Renderer]] · [[../modules/UI|UI]] · [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
 [^oq-4]: [[../system/11-open-questions#OQ-4 — OS window and input layer (decided 2026-10-09)|OQ-4]] — open question or decision

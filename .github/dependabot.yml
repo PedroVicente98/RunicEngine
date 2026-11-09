@@ -1,0 +1,10 @@
+# Update bot without auto-merge (BUILD-1 security requirement): it opens pull requests that move the pinned
+# Action SHAs; the owner reviews and merges each one. Godot and godot-cpp move only to release tags, by hand,
+# with the module lists reviewed (scripts/godot/), so submodules are not watched here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

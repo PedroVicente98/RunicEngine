@@ -2,9 +2,12 @@
 /build*/
 /cmake-build-*/
 /out/
-# CMake downloads pinned dependency sources here.
-/ThirdParty/*
-!/ThirdParty/README.md
+# external/: Godot and godot-cpp are pinned submodules; everything else in it is downloaded by the build
+# (pinned archives with SHA-256, the SCons environment) and never committed.
+/external/*
+!/external/README.md
+!/external/godot
+!/external/godot-cpp
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
@@ -31,3 +34,6 @@ CMakeUserPresets.json
 *.swp
 *~
 .DS_Store
+
+# SCons cache of the Godot build (CI keeps it between runs).
+/.scons-cache/

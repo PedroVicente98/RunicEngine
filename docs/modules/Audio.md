@@ -154,11 +154,11 @@ Tests use Engine test events, contexts and tracks.
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
 - **Depends on:** [[../modules/Core|Core]] · [[../modules/Assets|Assets]]
-- **Depended on by:** [[../modules/Client|Client]]
+- **Depended on by:** [[../modules/Client|Client]] · [[../../Engine/Presentation/GodotBridge/ARCHITECTURE|GodotBridge]]
 - **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
 [^engine-assets]: [[../modules/Assets|Assets]] — Engine module · Foundation
 [^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI

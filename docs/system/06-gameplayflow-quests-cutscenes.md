@@ -301,7 +301,7 @@ Quest facts reach durable storage only through the Simulation's service port (QS
 - **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
 
 [^engine-gameplayflow]: [[../../../RunicEngine/docs/modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-gameplay]: [[../../../RunicEngine/docs/modules/Gameplay|Gameplay]] — Engine module · GameplayAPI
 [^engine-events]: [[../../../RunicEngine/docs/modules/Events|Events]] — Engine module · Foundation
 [^engine-distributedsimulation]: [[../../../RunicEngine/docs/modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking

@@ -277,7 +277,7 @@ Applied in: [02 § Public/ is the compile boundary](02-module-contract.md#public
 
 - **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-assets]: [[../../../RunicEngine/docs/modules/Assets|Assets]] — Engine module · Foundation
 [^engine-world]: [[../../../RunicEngine/docs/modules/World|World]] — Engine module · Simulation core
 [^platform-contracts]: [[../../../RunicPlatform/docs/modules/Contracts|Contracts]] — Platform module · Protobuf

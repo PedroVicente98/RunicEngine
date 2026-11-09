@@ -125,7 +125,7 @@ The Done when column is the acceptance list. The first cooker proof: a test regi
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
 [^engine-editor]: [[../modules/Editor|Editor]] — Engine module · Tools
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^oq-17]: [[../system/11-open-questions#OQ-17 — Client-safe versus server-only content packaging (decided 2026-10-09)|OQ-17]] — open question or decision
 [^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
 [^engine-water]: [[../modules/Water|Water]] — Engine module · World systems

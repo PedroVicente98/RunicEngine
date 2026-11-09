@@ -143,7 +143,7 @@ The Done when column is the acceptance list. Slice 30 proves a persistent quest 
 
 [^engine-gameplayflow]: [[../modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
 [^platform-gosdk]: [[../../../RunicPlatform/docs/modules/GoSDK|GoSDK]] — Platform module · Go
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
 [^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
 [^oq-16]: [[../system/11-open-questions#OQ-16 — Quest storage placement (decided 2026-10-09)|OQ-16]] — open question or decision

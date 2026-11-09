@@ -2,80 +2,70 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Configure Debug",
+      "label": "Engine: configure (debug)",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--preset",
-        "debug"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "args": ["--preset", "debug"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "Build Debug",
+      "label": "Engine: build (debug)",
+      "detail": "Helpers, godot-cpp, GodotBridge, GodotTools, the RunicEditor, the tests; libgodot (editor and template) is built from external/godot on the first build",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "debug",
-        "--target",
-        "RunicSandbox",
-        "--parallel",
-        "2"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "dependsOn": "Configure Debug",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "problemMatcher": [
-        "$gcc"
-      ]
+      "args": ["--build", "--preset", "debug"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "Engine: configure (debug)",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
     },
     {
-      "label": "Configure Release",
+      "label": "Engine: build libgodot (editor and template)",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--preset",
-        "release"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "args": ["--build", "--preset", "libgodot"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "Engine: configure (debug)",
       "problemMatcher": []
     },
     {
-      "label": "Build Release",
+      "label": "Engine: test (all)",
+      "detail": "Module tests, the BUILD-1 acceptance tests, the scans and the Godot spike tests",
       "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "release",
-        "--target",
-        "RunicSandbox",
-        "--parallel",
-        "2"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "dependsOn": "Configure Release",
-      "group": {
-        "kind": "build",
-        "isDefault": false
-      },
-      "problemMatcher": [
-        "$gcc"
-      ]
+      "command": "ctest",
+      "args": ["--preset", "debug"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "Engine: build (debug)",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Engine: test (Godot spike: editor and runtime)",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "godot"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "Engine: build (debug)",
+      "problemMatcher": []
+    },
+    {
+      "label": "Engine: test (checks)",
+      "detail": "Public-header scan, source-include scan, catalog sync, docs check, workflow pins",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "checks"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "Engine: configure (debug)",
+      "problemMatcher": []
+    },
+    {
+      "label": "Engine: configure and build (headless)",
+      "detail": "Proves the Engine configures and builds with no Godot and no graphics library",
+      "type": "shell",
+      "command": "cmake --preset headless && cmake --build --preset headless && ctest --preset headless",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$gcc"]
     }
   ]
 }

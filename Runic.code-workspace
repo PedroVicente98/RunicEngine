@@ -1,19 +1,25 @@
 {
   "folders": [
-    {
-      "name": "RunicEngine",
-      "path": "."
-    },
-    {
-      "name": "RunicPlatform",
-      "path": "../RunicPlatform"
-    },
-    {
-      "name": "RunicGame",
-      "path": "../RunicGame"
-    }
+    { "name": "RunicEngine", "path": "." },
+    { "name": "RunicPlatform", "path": "../RunicPlatform" },
+    { "name": "RunicGame", "path": "../RunicGame" },
+    { "name": "RunicDocs", "path": "../RunicDocs" }
   ],
   "settings": {
-    "cmake.useCMakePresets": "always"
+    "cmake.useCMakePresets": "always",
+    "cmake.configureOnOpen": false,
+    "files.exclude": {
+      "**/.godot": true
+    },
+    "search.exclude": {
+      "**/build": true,
+      "**/Build": true,
+      "**/external": true
+    },
+    "files.watcherExclude": {
+      "**/build/**": true,
+      "**/Build/**": true,
+      "**/external/**": true
+    }
   }
 }

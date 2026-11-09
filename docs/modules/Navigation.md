@@ -104,7 +104,7 @@ The Done when column is the acceptance list. Slice 31 shows spawned NPCs walking
 - **Depended on by:** [[../modules/AI|AI]] · [[../modules/Cooker|Cooker]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
 [^engine-gameplayflow]: [[../modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI
 [^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core

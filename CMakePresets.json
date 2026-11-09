@@ -1,44 +1,134 @@
 {
   "version": 5,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 24,
-    "patch": 0
-  },
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
   "configurePresets": [
     {
-      "name": "debug",
-      "displayName": "Debug",
+      "name": "base",
+      "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-        "RUNIC_BUILD_SANDBOX": true,
-        "RUNIC_ENGINE_ENABLE_PRESENTATION": true
+        "RUNIC_ENGINE_BUILD_TESTS": true
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug (Godot, RunicEditor, tests)",
+      "description": "Everything slice 0 has: helpers and checks, libgodot (editor and template) built from external/godot, godot-cpp, GodotBridge, GodotTools, the RunicEditor and the tests. The first build compiles Godot (several minutes).",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RUNIC_ENGINE_ENABLE_PRESENTATION": true,
+        "RUNIC_ENGINE_BUILD_TOOLS": true,
+        "RUNIC_BUILD_SANDBOX": true
       }
     },
     {
       "name": "release",
-      "displayName": "Release",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "displayName": "Release (Godot, RunicEditor, tests)",
+      "inherits": "debug",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "headless",
+      "displayName": "Headless (no Godot, no graphics)",
+      "description": "Presentation, tools and sandbox off: proves the Engine configures and builds with no Godot and no graphics library.",
+      "inherits": "base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-        "RUNIC_BUILD_SANDBOX": true,
-        "RUNIC_ENGINE_ENABLE_PRESENTATION": true
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RUNIC_ENGINE_ENABLE_PRESENTATION": false,
+        "RUNIC_ENGINE_BUILD_TOOLS": false,
+        "RUNIC_BUILD_SANDBOX": false
+      }
+    },
+    {
+      "name": "ci-gcc",
+      "displayName": "CI: GCC, warnings as errors (libgodot not built)",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "RUNIC_WARNINGS_AS_ERRORS": true,
+        "RUNIC_GODOT_BUILD_LIBRARIES": false
+      }
+    },
+    {
+      "name": "ci-clang",
+      "displayName": "CI: Clang, warnings as errors (libgodot not built)",
+      "inherits": "ci-gcc",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "ci-godot",
+      "displayName": "CI: libgodot from source with the SCons cache, Godot spike tests",
+      "inherits": "debug",
+      "cacheVariables": {
+        "RUNIC_WARNINGS_AS_ERRORS": true,
+        "RUNIC_GODOT_SCONS_CACHE": "${sourceDir}/.scons-cache"
       }
     }
   ],
   "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "headless", "configurePreset": "headless" },
+    { "name": "ci-gcc", "configurePreset": "ci-gcc" },
+    { "name": "ci-clang", "configurePreset": "ci-clang" },
+    { "name": "ci-godot", "configurePreset": "ci-godot" },
+    {
+      "name": "libgodot",
+      "displayName": "libgodot only (editor and template targets)",
+      "configurePreset": "debug",
+      "targets": ["runic_libgodot_editor_build", "runic_libgodot_template_build"]
+    }
+  ],
+  "testPresets": [
     {
       "name": "debug",
-      "configurePreset": "debug"
+      "displayName": "All tests (module, build, checks, godot)",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 4 }
     },
     {
-      "name": "release",
-      "configurePreset": "release"
+      "name": "godot",
+      "displayName": "Godot spike tests (needs libgodot built)",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "godot" } }
+    },
+    {
+      "name": "checks",
+      "displayName": "Scans: public headers, source includes, catalog sync, workflow pins",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "checks" } }
+    },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "headless", "configurePreset": "headless", "output": { "outputOnFailure": true } },
+    {
+      "name": "ci-gcc",
+      "configurePreset": "ci-gcc",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "godot" } },
+      "execution": { "jobs": 4 }
+    },
+    {
+      "name": "ci-clang",
+      "configurePreset": "ci-clang",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "godot" } },
+      "execution": { "jobs": 4 }
+    },
+    {
+      "name": "ci-godot",
+      "configurePreset": "ci-godot",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "godot|module" } }
     }
   ]
 }

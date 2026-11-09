@@ -47,24 +47,33 @@ A module inside a group nests under the group folder. The group folders are `Fou
 
 ```text
 RunicEngine/
-├── Engine/
-│   └── <Group>/
-│       └── <Module>/
-│           ├── Public/            # the only headers other modules may include
-│           ├── Source/            # implementation; one folder per subsystem
-│           ├── Tests/             # module tests, registered with CTest
-│           ├── ARCHITECTURE.md    # the module contract (seeded from docs/modules/<Module>.md)
-│           └── CMakeLists.txt     # one runic_add_module(...) call
-├── apps/                          # executables (today: the RunicSandbox dependency check)
-├── cmake/                         # dependency pins, warnings, target helpers
-├── ThirdParty/                    # downloaded sources (git-ignored)
-└── docs/
+├── Engine/                        # product code: what the architecture defines
+│   ├── <Group>/                   # Foundation, SimulationCore, GameplayAPI, WorldSystems, Networking, Presentation, Tools
+│   │   └── <Module>/
+│   │       ├── Public/            # the only headers other modules may include
+│   │       ├── Source/            # implementation; one folder per subsystem
+│   │       ├── Tests/             # module tests, registered with CTest
+│   │       ├── ARCHITECTURE.md    # the module contract (seeded from docs/modules/<Module>.md)
+│   │       └── CMakeLists.txt     # one runic_add_module(...) call
+│   └── Programs/                  # executables the Engine owns: RunicEditor (RunicBot later); not modules
+├── cmake/                         # helpers, catalog, toolchain, checks
+├── docs/
+├── external/                      # code we did not write: the Godot and godot-cpp submodules, downloaded archives (ignored)
+├── scripts/                       # developer scripts: the libgodot build (godot/), the docs links (docs/)
+├── tests/                         # repository-level tests: build/ (BUILD-1 fixtures), godot/ (spike project), sandbox/
+└── build/                         # build trees (ignored)
 ```
+
+**Naming rule.** PascalCase is for what the architecture defines: product code and, in a game project, content
+(`Engine/`, groups, modules, `Public/`, `Source/`, `Tests/`, `Programs/`; RunicGame's `Source/`, `Content/`,
+`Data/`, `Tools/`, `Services/`, `Build/`). Lowercase is for repository plumbing with ecosystem conventions
+(`.github/`, `.vscode/`, `cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`). No two folders at the same
+level may differ only by case: Windows and macOS would see them as one.
 
 - **One target per module**, named `Runic::<Module>`, namespace `Runic::<Module>`. The `runic_add_module` helper (BUILD-1) creates the target and alias, wires `Public/`, `Source/` and `Tests/`, sets warnings, registers tests and adds the headless check.
 - **A group** is a folder plus, where useful, an INTERFACE umbrella that only links its modules. `Runic::GameplayAPI` links Gameplay, Combat, GameplayFlow and Quest so the Game links one name.
 - **Header-only interface targets.** A module may export one header-only target for an interface the Platform implements; its headers include only Core types. There are two: `Runic::NetworkTransport`[^engine-network] (transport interface and connect-ticket hook, from Network, NET-1) and `Runic::SimulationPort`[^engine-simulation] (service port, from Simulation, SIM-5).
-- **Transitional bundles.** `Runic::Runtime` and `Runic::Presentation` stay until RunicGame links per-module targets (OQ-8[^oq-8]). Today's `include/RunicEngine/` and `src/` scaffold moves to `Engine/` in BUILD-1 ([current-state.md](current-state.md)).
+- **Transitional bundle.** `Runic::Runtime` (Flecs, GLM, Jolt) stays until RunicGame links per-module targets (OQ-8[^oq-8]); `Runic::Presentation` was removed with GLFW, bgfx and ImGui in BUILD-1, and so was the pre-v3 `include/` and `src/` scaffold ([current-state.md](current-state.md)).
 
 ## Layered build view
 
@@ -154,7 +163,7 @@ Jolt, bgfx, RmlUi, ImGui, Detour and GameNetworkingSockets always stay hidden. A
 
 ## Third-party placement
 
-Pins live in `cmake/Dependencies.cmake`; sources are fetched into `ThirdParty/` and never edited. A library not yet pinned is added by the package that first needs it.
+Pins live in `cmake/Dependencies.cmake`; sources are fetched into `external/` (git-ignored) and never edited. A library not yet pinned is added by the package that first needs it.
 
 | Library | Pin today | Owner module | Builds |
 | --- | --- | --- | --- |
@@ -215,7 +224,7 @@ GameNetworkingSockets, Protobuf, gRPC, NATS and the Agones SDK belong to RunicPl
 
 - **See also:** [[../docs/README|Engine docs README]] · [[../docs/system/README|System README]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-editor]: [[../docs/modules/Editor|Editor]] — Engine module · Tools
 [^engine-cooker]: [[../docs/modules/Cooker|Cooker]] — Engine module · Tools
 [^platform-serverbindings]: [[../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++

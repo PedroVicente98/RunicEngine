@@ -146,7 +146,7 @@ The Done when column is the acceptance list. Slice 3 also runs the scheduler at 
 - **Packages that need it:** [[../modules/Combat|Combat]] · [[../modules/Quest|Quest]] · [[../modules/AI|AI]] · [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-physics]: [[../modules/Physics|Physics]] — Engine module · Simulation core
 [^oq-15]: [[../system/11-open-questions#OQ-15 — What the client runs for prediction (decided 2026-10-09)|OQ-15]] — open question or decision
 [^platform-serverbindings]: [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]] — Platform module · C++

@@ -7,6 +7,7 @@ tags:
   - group/presentation
   - headless/no
   - slice/2
+  - status/superseded
 aliases:
   - "Runic::UI"
 ---
@@ -110,12 +111,11 @@ The Done when column is the acceptance list. Slice 2 shows the ImGui overlay ove
 
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
-- **Depends on:** [[../modules/Application|Application]] · [[../modules/Renderer|Renderer]] · [[../modules/Assets|Assets]]
-- **Depended on by:** [[../modules/Client|Client]]
+- **Its packages need:** [[../modules/Application|Application]] · [[../modules/Renderer|Renderer]] · [[../modules/Client|Client]]
 - **Packages that need it:** [[../modules/Editor|Editor]] · [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation
 [^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation
 [^engine-application]: [[../modules/Application|Application]] — Engine module · Foundation

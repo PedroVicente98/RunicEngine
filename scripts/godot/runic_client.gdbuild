@@ -1,0 +1,28 @@
+{
+	"type": "build_profile",
+	"disabled_classes": [
+		"TileMap",
+		"TileMapLayer",
+		"TileSet",
+		"Parallax2D",
+		"ParallaxBackground",
+		"ParallaxLayer",
+		"Skeleton2D",
+		"Bone2D",
+		"Path2D",
+		"PathFollow2D",
+		"CPUParticles2D",
+		"GPUParticles2D",
+		"PointLight2D",
+		"DirectionalLight2D",
+		"LightOccluder2D",
+		"HTTPRequest"
+	],
+	"disabled_build_options": {
+		"disable_physics_2d": true,
+		"disable_physics_3d": true,
+		"disable_navigation_2d": true,
+		"disable_navigation_3d": true,
+		"disable_xr": true
+	}
+}

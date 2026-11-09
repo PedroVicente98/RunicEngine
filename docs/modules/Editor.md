@@ -7,6 +7,7 @@ tags:
   - group/tools
   - headless/never-shipped
   - slice/6
+  - status/superseded
 aliases:
   - "Runic::Editor"
 ---
@@ -148,12 +149,12 @@ The Done when column is the acceptance list. Editor validation: unknown nodes, p
 
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
-- **Depends on:** [[../modules/Core|Core]] · [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Gameplay|Gameplay]] · [[../modules/Combat|Combat]] · [[../modules/GameplayFlow|GameplayFlow]] · [[../modules/Quest|Quest]] · [[../modules/Perception|Perception]] · [[../modules/Navigation|Navigation]] · [[../modules/AI|AI]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Network|Network]] · [[../modules/DistributedSimulation|DistributedSimulation]] · [[../modules/Client|Client]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/UI|UI]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]]
+- **Its packages need:** [[../modules/Application|Application]] · [[../modules/UI|UI]] · [[../modules/Simulation|Simulation]] · [[../modules/Physics|Physics]] · [[../modules/Combat|Combat]] · [[../modules/Cooker|Cooker]] · [[../modules/AI|AI]] · [[../modules/Network|Network]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
 [^engine-ecs]: [[../modules/ECS|ECS]] — Engine module · Simulation core
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
 [^engine-application]: [[../modules/Application|Application]] — Engine module · Foundation
 [^engine-ui]: [[../modules/UI|UI]] — Engine module · Presentation

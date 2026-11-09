@@ -1,8 +1,11 @@
-# Engine module catalog: one row per module of docs/system/03-dependency-rules.md § Engine modules.
+# Engine module catalog: one row per module of docs/system/03-dependency-rules.md § Engine modules, which is
+# written from RunicDocs › Architecture › Repositories, build targets and processes (Technical Architecture v4).
 # The "Depends on" column is a ceiling (ALLOWS); third parties are PRIVATE unless listed in PUBLIC_EXCEPTIONS.
-# Third parties are library IDs that cmake/Dependencies.cmake maps to targets when it adds each library.
-# Changing a row is an owner decision recorded in ARCH first; checks.catalog_sync keeps this file equal to 03.
+# Third parties are library IDs that cmake/Dependencies.cmake and cmake/RunicGodot.cmake map to targets.
+# Changing a row is an owner decision recorded in the architecture first; checks.catalog_sync keeps this file
+# equal to 03.
 
+# ---- Foundation ----
 runic_catalog_module(Core
     GROUP Foundation
     THIRD_PARTY glm
@@ -11,7 +14,6 @@ runic_catalog_module(Core
 runic_catalog_module(Application
     GROUP Foundation
     ALLOWS Runic::Core
-    THIRD_PARTY glfw
     HEADLESS yes)
 runic_catalog_module(Events
     GROUP Foundation
@@ -26,6 +28,8 @@ runic_catalog_module(Assets
     ALLOWS Runic::Core Runic::Content
     THIRD_PARTY zstd
     HEADLESS yes)
+
+# ---- Simulation core ----
 runic_catalog_module(ECS
     GROUP SimulationCore
     ALLOWS Runic::Core
@@ -45,6 +49,8 @@ runic_catalog_module(Simulation
     GROUP SimulationCore
     ALLOWS Runic::Core Runic::Application Runic::ECS Runic::Events Runic::World Runic::Physics Runic::Content
     HEADLESS yes)
+
+# ---- GameplayAPI ----
 runic_catalog_module(Gameplay
     GROUP GameplayAPI
     ALLOWS Runic::Simulation Runic::Environment
@@ -61,6 +67,8 @@ runic_catalog_module(Quest
     GROUP GameplayAPI
     ALLOWS Runic::GameplayFlow Runic::DistributedSimulation
     HEADLESS yes)
+
+# ---- World systems ----
 runic_catalog_module(Perception
     GROUP WorldSystems
     ALLOWS Runic::Gameplay Runic::World Runic::Environment Runic::Water
@@ -84,6 +92,8 @@ runic_catalog_module(Water
     GROUP WorldSystems
     ALLOWS Runic::World Runic::Physics Runic::Simulation Runic::Gameplay Runic::Environment Runic::DistributedSimulation
     HEADLESS yes)
+
+# ---- Networking ----
 runic_catalog_module(Network
     GROUP Networking
     ALLOWS Runic::Application Runic::Simulation Runic::DistributedSimulation Runic::Gameplay Runic::Perception
@@ -92,38 +102,38 @@ runic_catalog_module(DistributedSimulation
     GROUP Networking
     ALLOWS Runic::Simulation Runic::Events Runic::World
     HEADLESS yes)
+
+# ---- Presentation (never reached by a headless target) ----
 runic_catalog_module(Client
     GROUP Presentation
-    ALLOWS Runic::Application Runic::Simulation Runic::Network Runic::Perception Runic::Environment Runic::Water Runic::Renderer Runic::Animation Runic::Audio Runic::UI Runic::Assets
+    ALLOWS Runic::Application Runic::Simulation Runic::Network Runic::Perception Runic::Environment Runic::Water Runic::Animation Runic::Audio Runic::Assets
     HEADLESS no)
-runic_catalog_module(Renderer
+runic_catalog_module(GodotBridge
     GROUP Presentation
-    ALLOWS Runic::Core Runic::Assets
-    THIRD_PARTY bgfx
+    ALLOWS Runic::Application Runic::Client Runic::Audio Runic::Assets
+    THIRD_PARTY libgodot godot-cpp dl
     HEADLESS no)
 runic_catalog_module(Animation
     GROUP Presentation
     ALLOWS Runic::Core Runic::Assets
     HEADLESS no)
-runic_catalog_module(UI
-    GROUP Presentation
-    ALLOWS Runic::Application Runic::Renderer Runic::Assets
-    THIRD_PARTY rmlui imgui
-    HEADLESS no)
 runic_catalog_module(Audio
     GROUP Presentation
     ALLOWS Runic::Core Runic::Assets
-    THIRD_PARTY audio-backend
     HEADLESS no)
-runic_catalog_module(Editor
+
+# ---- Tools ----
+runic_catalog_module(GodotTools
     GROUP Tools
+    ALLOWS Runic::Cooker
     ALLOWS_ANY_MODULE
-    THIRD_PARTY imgui imnodes
+    THIRD_PARTY libgodot godot-cpp
+    PUBLIC_EXCEPTIONS godot-cpp
     HEADLESS never-shipped)
 runic_catalog_module(Cooker
     GROUP Tools
     ALLOWS Runic::Core Runic::Content Runic::Assets Runic::World Runic::Physics Runic::Navigation Runic::Water
-    THIRD_PARTY fastgltf meshoptimizer mikktspace xatlas ktx basisu jolt recast zstd
+    THIRD_PARTY jolt recast meshoptimizer zstd
     HEADLESS tool)
 
 # Header-only interface targets the Platform implements; each may link Runic::Core only.

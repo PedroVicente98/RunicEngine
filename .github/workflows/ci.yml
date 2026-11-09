@@ -1,0 +1,109 @@
+# RunicEngine CI (BUILD-1, slice 0). Contract: docs/build/BUILD-1.md.
+# Security (BUILD-1): every Action is pinned to a full commit SHA (checks.repository_workflow_pins fails on a
+# tag), the default token is read-only, credentials are never persisted, and no job uses a secret, so pull
+# requests from forks get nothing they could leak.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build-${{ matrix.compiler }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: godot-cpp (pinned submodule; libgodot is built in the godot job)
+        run: git submodule update --init --depth 1 external/godot-cpp
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure (warnings as errors)
+        run: cmake --preset ci-${{ matrix.compiler }}
+      - name: Build
+        run: cmake --build --preset ci-${{ matrix.compiler }}
+      - name: Test (module, build and checks; Godot runtime tests skip without libgodot)
+        run: ctest --preset ci-${{ matrix.compiler }}
+
+  headless:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure with no Godot and no graphics library (the configure-time headless check runs)
+        run: cmake --preset headless
+      - name: Build
+        run: cmake --build --preset headless
+      - name: Checks (public headers, source includes, catalog sync, workflow pins)
+        run: ctest --preset headless -L checks
+
+  godot:
+    name: godot (libgodot from source, GDT-1 spike)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Godot and godot-cpp (pinned submodules)
+        run: git submodule update --init --depth 1 external/godot external/godot-cpp
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libwayland-bin
+      - name: SCons cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .scons-cache
+          key: scons-${{ runner.os }}-${{ hashFiles('scripts/godot/*', '.gitmodules') }}-${{ github.sha }}
+          restore-keys: |
+            scons-${{ runner.os }}-${{ hashFiles('scripts/godot/*', '.gitmodules') }}-
+            scons-${{ runner.os }}-
+      - name: Configure
+        run: cmake --preset ci-godot
+      - name: Build libgodot (editor and template) and the RunicEditor
+        run: cmake --build --preset ci-godot
+      - name: The RunicEditor opens with the test plugin and exits; Godot starts headless and exits
+        run: ctest --preset ci-godot
+
+  docs:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: A module change carries its contract and docs/current-state.md
+        run: |
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
+          cmake -DCHANGED=changed.txt -DROOT=. -P cmake/checks/DocsCheck.cmake
+
+  build-msvc:
+    # Not required until a module needs Windows (BUILD-1 decision 6).
+    runs-on: windows-2022
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Configure (MSVC 2022, headless)
+        run: cmake -S . -B build/msvc -G "Visual Studio 17 2022" -DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF -DRUNIC_ENGINE_BUILD_TOOLS=OFF
+      - name: Build
+        run: cmake --build build/msvc --config Debug
+      - name: Test
+        run: ctest --test-dir build/msvc -C Debug -L "module|checks" --output-on-failure

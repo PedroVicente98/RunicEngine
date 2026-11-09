@@ -88,7 +88,7 @@ The Done when column is the acceptance list. Slice 23 shows a skinned character 
 - **Depended on by:** [[../modules/Client|Client]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-client]: [[../modules/Client|Client]] — Engine module · Presentation
 [^engine-core]: [[../modules/Core|Core]] — Engine module · Foundation
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools

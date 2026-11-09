@@ -124,11 +124,13 @@ The Done when column is the acceptance list. Runnable results by slice: 5, entit
 
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
-- **Depends on:** [[../modules/Application|Application]] · [[../modules/Simulation|Simulation]] · [[../modules/Network|Network]] · [[../modules/Perception|Perception]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/UI|UI]] · [[../modules/Assets|Assets]]
-- **Its packages need:** [[../modules/ECS|ECS]] · [[../modules/Core|Core]]
+- **Depends on:** [[../modules/Application|Application]] · [[../modules/Simulation|Simulation]] · [[../modules/Network|Network]] · [[../modules/Perception|Perception]] · [[../modules/Environment|Environment]] · [[../modules/Water|Water]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/Assets|Assets]]
+- **Depended on by:** [[../../Engine/Presentation/GodotBridge/ARCHITECTURE|GodotBridge]]
+- **Its packages need:** [[../modules/ECS|ECS]] · [[../modules/Renderer|Renderer]] · [[../modules/Core|Core]]
+- **Packages that need it:** [[../modules/UI|UI]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^oq-4]: [[../system/11-open-questions#OQ-4 — OS window and input layer (decided 2026-10-09)|OQ-4]] — open question or decision
 [^engine-animation]: [[../modules/Animation|Animation]] — Engine module · Presentation
 [^engine-water]: [[../modules/Water|Water]] — Engine module · World systems

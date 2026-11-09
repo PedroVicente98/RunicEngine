@@ -131,7 +131,7 @@ The Done when column is the acceptance list.
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
 [^platform-buildingblocks]: [[../../../RunicPlatform/docs/modules/BuildingBlocks|BuildingBlocks]] — Platform module · Go
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-environment]: [[../modules/Environment|Environment]] — Engine module · World systems
 [^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
 [^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI

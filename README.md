@@ -1,49 +1,54 @@
 # RunicEngine
 
-RunicEngine is an open-source (MIT) C++20 engine of generic mechanisms for a server-authoritative MMORPG: a headless multi-rate simulation on Flecs and Jolt, 64-bit world space, gameplay and combat toolkits, AI, water and environment, realtime replication and distributed simulation, client presentation, and the Editor and Cooker tools.
+RunicEngine is an open-source (MIT) C++20 engine of generic mechanisms for a server-authoritative MMORPG: a headless multi-rate simulation on Flecs and Jolt, 64-bit world space, gameplay and combat toolkits, AI, water and environment, realtime replication and distributed simulation, client presentation, and the RunicEditor (the Godot editor through LibGodot) and the Cooker.
 
 It is one of three repositories. RunicGame (proprietary) builds its game on it; RunicPlatform (MIT) supplies the realtime transport, services and infrastructure and implements the Engine's interfaces. The Engine contains no game rules or content and depends on neither.
 
 ## Status
 
-Bootstrap only. The build skeleton, pinned third-party dependencies and a disposable dependency check (`RunicSandbox`) exist; **no Engine module is implemented yet (0 of 27)**. The next work is slice 0 (BUILD-1: module helper, CI, test framework, headless checks, CPU baseline) and slice 1 (CORE-1, APP-1, APP-2). Details: [docs/current-state.md](docs/current-state.md).
+Slice 0 (Build skeleton) is implemented and awaiting review: the module helpers and their checks, the v4 module
+catalog, GoogleTest, presets, CI, the x86-64-v3 baseline, Godot 4.7.2 and godot-cpp 10.0.0 pinned, libgodot built
+from source in the editor and template targets, and the RunicEditor opening the Godot editor through LibGodot with a
+test plugin (GDT-1). Details: [docs/current-state.md](docs/current-state.md), [docs/build/BUILD-1.md](docs/build/BUILD-1.md),
+[docs/build/GDT-1.md](docs/build/GDT-1.md).
 
 ## Build
 
-Requires CMake 3.24+, Ninja, a C++20 compiler, and on Linux the X11 and OpenGL development libraries that GLFW and bgfx use.
+Requires CMake 3.24+, Ninja, a C++20 compiler (GCC 13+ or Clang 18+), Python 3.8+ and git. Godot is built with
+SCons, which the build installs into `external/scons-venv` (pinned and hash-checked) on first use; clang with lld
+is used for it when available. No X11, Wayland, Vulkan or audio development packages are needed: Godot loads those
+libraries at runtime.
 
 ```sh
+git submodule update --init --depth 1 external/godot external/godot-cpp
+
 cmake --preset debug
-cmake --build --preset debug --parallel 2
-./build/debug/bin/RunicSandbox          # prints "RunicSandbox ready."
+cmake --build --preset debug        # the first build also compiles libgodot (several minutes)
+ctest --preset debug                # module, build, checks and Godot spike tests
 
-cmake --preset release
-cmake --build --preset release --parallel 2
-./build/release/bin/RunicSandbox
+./build/debug/bin/RunicEditor                                                  # project manager
+./build/debug/bin/RunicEditor --editor --path build/debug/godot/SpikeProject   # editor + test plugin
+./build/debug/bin/RunicEditor --headless --editor --path build/debug/godot/SpikeProject --quit-after 120
 ```
 
-Headless engine-only build (no GLFW, bgfx or ImGui configured):
+Headless build (no Godot, no graphics library configured), as the server and the Platform use the Engine:
 
 ```sh
-cmake -S . -B build/headless -G Ninja -DCMAKE_BUILD_TYPE=Debug \
-  -DRUNIC_BUILD_SANDBOX=OFF -DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF
-cmake --build build/headless --parallel 2
+cmake --preset headless && cmake --build --preset headless && ctest --preset headless
 ```
 
-Third-party sources are downloaded on the first configure into `ThirdParty/` (git-ignored) from pinned archives with SHA-256 checks, and reused afterwards. To change a pin, update its URL and hash in `cmake/Dependencies.cmake` and delete the old source folder.
-
-| Dependency | Pin today |
+| Dependency | Pin |
 | --- | --- |
-| Flecs | 4.0.4 (C++ API) |
+| Godot | 4.7.2-stable (submodule `external/godot`), built as libgodot: editor and template targets, module lists in `scripts/godot/` |
+| godot-cpp | 10.0.0-stable (submodule `external/godot-cpp`), API 4.7 |
+| GoogleTest | 1.17.0 (tests only) |
+| Flecs | 4.0.4 (transitional `Runic::Runtime` bundle) |
 | GLM | 1.0.1 |
-| Jolt Physics | 5.2.0 (moving to 5.6.0 in double precision with the AVX2 path in BUILD-1 and PHYS-1) |
-| GLFW | 3.4 (client and tools builds only) |
-| bgfx, bx, bimg | bgfx.cmake `0fb9ec06bdaa7c3ae31ce6a3521e211183a0cead` with matching revisions (client and tools builds only) |
-| Dear ImGui | 1.91.8, core only (client development builds and tools only) |
+| Jolt Physics | 5.2.0 with SIMD from the CPU baseline (moving to 5.6.0 in double precision in PHYS-1) |
 
-Today's targets: `Runic::Core` (bootstrap include root), `Runic::Runtime` (headless bundle: Flecs, GLM, Jolt) and `Runic::Presentation` (client bundle: GLFW, bgfx, ImGui). RunicGame links the two bundles until it moves to per-module targets.
-
-Editors: open `Runic.code-workspace` to see all three sibling repositories; the `.vscode` launch configurations build the matching preset first, and `.clangd` reads the Debug compile database.
+Third-party archives are downloaded on configure into versioned folders in `external/` (git-ignored) with SHA-256
+checks and reused afterwards. Editors: open `Runic.code-workspace` for the Engine, Platform, Game and Docs folders;
+`.vscode/` has build and test tasks and launch configurations for the RunicEditor and the tests.
 
 ## Documentation
 

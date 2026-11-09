@@ -157,7 +157,7 @@ The Done when column is the acceptance list. Slice 7 also requires a capsule tha
 - **Packages that need it:** [[../modules/Gameplay|Gameplay]] · [[../modules/Renderer|Renderer]] · [[../modules/Editor|Editor]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-combat]: [[../modules/Combat|Combat]] — Engine module · GameplayAPI
 [^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
 [^engine-renderer]: [[../modules/Renderer|Renderer]] — Engine module · Presentation

@@ -193,7 +193,7 @@ Tests use Engine test patterns, never RunicGame weather tables.
 - **Packages that need it:** [[../../../RunicGame/docs/game-packages|Game work packages]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-water]: [[../modules/Water|Water]] — Engine module · World systems
 [^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go
 [^engine-gameplay]: [[../modules/Gameplay|Gameplay]] — Engine module · GameplayAPI

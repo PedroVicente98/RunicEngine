@@ -1,0 +1,21 @@
+; Engine configuration file.
+; A neutral Godot project for the slice 0 spike tests (BUILD-1, GDT-1). It holds no game content.
+; The build copies it to <build>/godot/SpikeProject, so the editor's .godot/ cache stays out of the sources.
+
+config_version=5
+
+[application]
+
+config/name="Runic Spike Project"
+config/description="Neutral project for the RunicEngine slice 0 spike tests."
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+
+[physics]
+
+3d/physics_engine="Dummy"
+2d/physics_engine="Dummy"

@@ -115,7 +115,7 @@ The Done when column is the acceptance list. Slice 36 walks from simulation A in
 - **Packages that need it:** [[../../../RunicPlatform/docs/modules/Transport|Transport]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^oq-2]: [[../system/11-open-questions#OQ-2 — Where shared ID and time types live (decided 2026-10-09)|OQ-2]] — open question or decision
 [^engine-network]: [[../modules/Network|Network]] — Engine module · Networking
 [^engine-gameplayflow]: [[../modules/GameplayFlow|GameplayFlow]] — Engine module · GameplayAPI

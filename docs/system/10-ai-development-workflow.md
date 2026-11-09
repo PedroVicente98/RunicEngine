@@ -184,7 +184,7 @@ recorded in ARCH[^arch] first.
 
 - **See also:** [[../system/README|System README]] · [[../system/glossary|Glossary]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^doc-build-build-1]: [[../build/BUILD-1|BUILD-1 contract]] — this repository
 [^engine-renderer]: [[../../../RunicEngine/docs/modules/Renderer|Renderer]] — Engine module · Presentation
 [^engine-simulation]: [[../../../RunicEngine/docs/modules/Simulation|Simulation]] — Engine module · Simulation core

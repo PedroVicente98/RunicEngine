@@ -2,42 +2,80 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug",
+      "name": "RunicEditor: spike project with the test plugin",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/debug/bin/RunicSandbox",
-      "cwd": "${workspaceFolder}",
-      "args": [],
+      "program": "${workspaceFolder}/build/debug/bin/RunicEditor",
+      "args": ["--editor", "--path", "${workspaceFolder}/build/debug/godot/SpikeProject"],
+      "cwd": "${workspaceFolder}/build/debug/bin",
       "stopAtEntry": false,
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",
-      "preLaunchTask": "Build Debug",
+      "preLaunchTask": "Engine: build (debug)",
       "setupCommands": [
-        {
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
+        { "text": "-enable-pretty-printing", "ignoreFailures": true },
+        { "text": "handle SIGPIPE nostop noprint pass", "ignoreFailures": true }
       ]
     },
     {
-      "name": "Release",
+      "name": "RunicEditor: project manager (New / Open)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/release/bin/RunicSandbox",
-      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/build/debug/bin/RunicEditor",
       "args": [],
+      "cwd": "${workspaceFolder}/build/debug/bin",
       "stopAtEntry": false,
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",
-      "preLaunchTask": "Build Release",
+      "preLaunchTask": "Engine: build (debug)",
       "setupCommands": [
-        {
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
+        { "text": "-enable-pretty-printing", "ignoreFailures": true },
+        { "text": "handle SIGPIPE nostop noprint pass", "ignoreFailures": true }
       ]
+    },
+    {
+      "name": "RunicEditor: GDT-1 check (headless, quits after 120 frames)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/RunicEditor",
+      "args": ["--headless", "--editor", "--path", "${workspaceFolder}/build/debug/godot/SpikeProject", "--quit-after", "120"],
+      "cwd": "${workspaceFolder}/build/debug/bin",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Engine: build (debug)",
+      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
+    },
+    {
+      "name": "GodotBridge tests (GoogleTest)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/RunicGodotBridgeTests",
+      "args": [],
+      "cwd": "${workspaceFolder}/build/debug/bin",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Engine: build (debug)",
+      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
+    },
+    {
+      "name": "RunicSandbox (bundle check: Flecs, GLM, Jolt)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/RunicSandbox",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Engine: build (debug)",
+      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
     }
   ]
 }

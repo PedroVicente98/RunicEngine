@@ -174,13 +174,13 @@ The Done when column is the acceptance list; each contract session turns its row
 
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
-- **Depended on by:** [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Environment|Environment]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]]
+- **Depended on by:** [[../modules/Application|Application]] · [[../modules/Events|Events]] · [[../modules/Content|Content]] · [[../modules/Assets|Assets]] · [[../modules/ECS|ECS]] · [[../modules/World|World]] · [[../modules/Physics|Physics]] · [[../modules/Simulation|Simulation]] · [[../modules/Environment|Environment]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]] · [[../../../RunicPlatform/docs/modules/ServerBindings|ServerBindings]]
 - **Its packages need:** [[../build/BUILD-1|Engine BUILD-1 contract]]
-- **Packages that need it:** [[../modules/Network|Network]] · [[../modules/Client|Client]]
+- **Packages that need it:** [[../modules/Network|Network]] · [[../modules/Client|Client]] · [[../modules/Renderer|Renderer]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
 [^doc-build-build-1]: [[../build/BUILD-1|Engine BUILD-1 contract]] — RunicEngine doc
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^oq-2]: [[../system/11-open-questions#OQ-2 — Where shared ID and time types live (decided 2026-10-09)|OQ-2]] — open question or decision
 [^engine-distributedsimulation]: [[../modules/DistributedSimulation|DistributedSimulation]] — Engine module · Networking
 [^platform-coreservices]: [[../../../RunicPlatform/docs/modules/CoreServices|CoreServices]] — Platform module · Go

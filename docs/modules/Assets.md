@@ -99,11 +99,12 @@ The Done when column is the acceptance list. Slice 9 cooks a Blender test mesh (
 *Generated for the Obsidian graph. The numbered markers in the text jump to the footnotes below, which link the notes they refer to.*
 
 - **Depends on:** [[../modules/Core|Core]] · [[../modules/Content|Content]]
-- **Depended on by:** [[../modules/Navigation|Navigation]] · [[../modules/Client|Client]] · [[../modules/Renderer|Renderer]] · [[../modules/Animation|Animation]] · [[../modules/UI|UI]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]]
+- **Depended on by:** [[../modules/Navigation|Navigation]] · [[../modules/Client|Client]] · [[../../Engine/Presentation/GodotBridge/ARCHITECTURE|GodotBridge]] · [[../modules/Animation|Animation]] · [[../modules/Audio|Audio]] · [[../modules/Cooker|Cooker]]
 - **Its packages need:** [[../modules/World|World]]
+- **Packages that need it:** [[../modules/Renderer|Renderer]]
 - **See also:** [[../modules/README|Engine module catalog]] · [[../system/03-dependency-rules|03 — Dependency rules]] · [[../system/12-work-packages|12 — Work packages]] · [[../current-state|Engine current state]]
 
-[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture v3": the architecture source of truth (a project document, not a note in this vault)
+[^arch]: #source/arch — ARCH, "RunicEngine — Technical Architecture" (v4, in the RunicDocs vault): the architecture source of truth
 [^engine-cooker]: [[../modules/Cooker|Cooker]] — Engine module · Tools
 [^engine-world]: [[../modules/World|World]] — Engine module · Simulation core
 [^oq-3]: [[../system/11-open-questions#OQ-3 — Asset loading for streamed cells (narrowed)|OQ-3]] — open question or decision
