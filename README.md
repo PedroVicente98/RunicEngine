@@ -6,11 +6,12 @@ It is one of three repositories. RunicGame (proprietary) builds its game on it; 
 
 ## Status
 
-Slice 0 (Build skeleton) is implemented and awaiting review: the module helpers and their checks, the v4 module
-catalog, GoogleTest, presets, CI, the x86-64-v3 baseline, Godot 4.7.2 and godot-cpp 10.0.0 pinned, libgodot built
-from source in the editor and template targets, and the RunicEditor opening the Godot editor through LibGodot with a
-test plugin (GDT-1). Details: [docs/current-state.md](docs/current-state.md), [docs/build/BUILD-1.md](docs/build/BUILD-1.md),
-[docs/build/GDT-1.md](docs/build/GDT-1.md).
+Slice 0 (Build skeleton) is done: the module helpers and their checks, the v4 module catalog, GoogleTest, presets,
+CI, the x86-64-v3 baseline, Godot 4.7.2 and godot-cpp 10.0.0 pinned, libgodot built from source in the editor and
+template targets, and the RunicEditor opening the Godot editor through LibGodot with a test plugin (GDT-1). Every
+module and subsystem folder exists with a README saying what it will hold ([Engine/README.md](Engine/README.md)).
+Slice 1 (Application and layers) is next. The build skeleton is described in [cmake/README.md](cmake/README.md); the
+plan and the status of every slice and package are in RunicDocs (Development).
 
 ## Build
 
@@ -42,9 +43,9 @@ cmake --preset headless && cmake --build --preset headless && ctest --preset hea
 | Godot | 4.7.2-stable (submodule `external/godot`), built as libgodot: editor and template targets, module lists in `scripts/godot/` |
 | godot-cpp | 10.0.0-stable (submodule `external/godot-cpp`), API 4.7 |
 | GoogleTest | 1.17.0 (tests only) |
-| Flecs | 4.0.4 (transitional `Runic::Runtime` bundle) |
+| Flecs | 4.0.4 (transitional `Runic::Runtime` bundle; 4.2 is decided and set by ECS-1) |
 | GLM | 1.0.1 |
-| Jolt Physics | 5.2.0 with SIMD from the CPU baseline (moving to 5.6.0 in double precision in PHYS-1) |
+| Jolt Physics | 5.2.0 with SIMD from the CPU baseline (5.6 in double precision is decided and set by PHYS-1) |
 
 Third-party archives are downloaded on configure into versioned folders in `external/` (git-ignored) with SHA-256
 checks and reused afterwards. Editors: open `Runic.code-workspace` for the Engine, Platform, Game and Docs folders;
@@ -52,11 +53,15 @@ checks and reused afterwards. Editors: open `Runic.code-workspace` for the Engin
 
 ## Documentation
 
-- [docs/README.md](docs/README.md) — documentation index
-- [docs/architecture.md](docs/architecture.md) — how the Engine is organized
-- [docs/modules/README.md](docs/modules/README.md) — module catalog and contracts
-- [docs/current-state.md](docs/current-state.md) — what exists and what comes next
+The architecture, the roadmap and the status of every package live in one place, the RunicDocs vault
+([pedrovicente98.github.io/RunicDocs](https://pedrovicente98.github.io/RunicDocs/)): this repository keeps no copy.
+Next to the code:
+
+- [Engine/README.md](Engine/README.md) — every group, module and subsystem folder, and the package that fills it;
+  each module's own `README.md` and `ARCHITECTURE.md`
+- [cmake/README.md](cmake/README.md) — the build helpers, the checks, the presets and CI
 - [CLAUDE.md](CLAUDE.md) — rules for Claude Code sessions in this repository
+- `docs/` will hold the generated API documentation (Doxygen, later)
 
 ## License
 

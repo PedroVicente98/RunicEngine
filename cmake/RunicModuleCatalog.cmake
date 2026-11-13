@@ -1,9 +1,9 @@
-# Engine module catalog: one row per module of docs/system/03-dependency-rules.md § Engine modules, which is
-# written from RunicDocs › Architecture › Repositories, build targets and processes (Technical Architecture v4).
+# Engine module catalog: one row per module of RunicDocs › Architecture › Repositories, build targets and processes
+# › Engine modules (the architecture source of truth; there is no copy of it in this repository).
 # The "Depends on" column is a ceiling (ALLOWS); third parties are PRIVATE unless listed in PUBLIC_EXCEPTIONS.
 # Third parties are library IDs that cmake/Dependencies.cmake and cmake/RunicGodot.cmake map to targets.
-# Changing a row is an owner decision recorded in the architecture first; checks.catalog_sync keeps this file
-# equal to 03.
+# Changing a row is an owner decision recorded in RunicDocs first; checks.catalog_sync keeps this file equal to that
+# table (read from the RunicDocs checkout, RUNIC_DOCS_DIR).
 
 # ---- Foundation ----
 runic_catalog_module(Core
@@ -30,11 +30,12 @@ runic_catalog_module(Assets
     HEADLESS yes)
 
 # ---- Simulation core ----
+# Flecs stays private to ECS (decided 2026-11-12): modules use Runic types, and the Flecs world is reachable only
+# through the opt-in Runic::ECSNative target that ECS-1 adds (discouraged; the dependency check lists its users).
 runic_catalog_module(ECS
     GROUP SimulationCore
     ALLOWS Runic::Core
     THIRD_PARTY flecs
-    PUBLIC_EXCEPTIONS flecs-world
     HEADLESS yes)
 runic_catalog_module(World
     GROUP SimulationCore
@@ -82,7 +83,7 @@ runic_catalog_module(AI
     GROUP WorldSystems
     ALLOWS Runic::Gameplay Runic::Combat Runic::Perception Runic::Navigation
     THIRD_PARTY behaviortree
-    PUBLIC_EXCEPTIONS flecs-world behaviortree-nodes
+    PUBLIC_EXCEPTIONS behaviortree-nodes
     HEADLESS yes)
 runic_catalog_module(Environment
     GROUP WorldSystems

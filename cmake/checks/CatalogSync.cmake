@@ -1,6 +1,7 @@
-# Catalog sync (BUILD-1): a repository's CMake catalog equals the dependency table of docs/system/03.
+# Catalog sync (BUILD-1): a repository's CMake catalog equals its module table in RunicDocs › Architecture ›
+# Repositories, build targets and processes (Engine modules, Platform modules, Game modules).
 #
-#   cmake -DCATALOG=<catalog file> -DDOCS=<03-dependency-rules.md> -DTABLE=<engine|platform|game>
+#   cmake -DCATALOG=<catalog file> -DDOCS=<RunicDocs note> -DTABLE=<engine|platform|game>
 #         -P CatalogSync.cmake
 #
 # Compared per row: the module exists on both sides, its allowed module dependencies (the "Depends on"
@@ -35,13 +36,13 @@ string(REPLACE ";" "%SEMI%" text "${text}")
 string(REPLACE "\n" ";" lines "${text}")
 
 if(TABLE STREQUAL "engine")
-    set(heading "^## Engine modules")
+    set(heading "^#+ Engine modules")
     set(name_header "Module")
 elseif(TABLE STREQUAL "platform")
-    set(heading "^## Platform modules")
+    set(heading "^#+ Platform modules")
     set(name_header "Module")
 else()
-    set(heading "^## Game (modules|targets)")
+    set(heading "^#+ Game (modules|targets)")
     set(name_header "Target")
 endif()
 

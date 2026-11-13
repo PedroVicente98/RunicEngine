@@ -1,4 +1,4 @@
-# The module helpers of the three repositories (BUILD-1). Contract: docs/build/BUILD-1.md; rules: RunicDocs ›
+# The module helpers of the three repositories (BUILD-1). Contract: cmake/README.md; rules: RunicDocs ›
 # Modules, work packages and the implementation contract (Module contract, Dependency rules).
 #
 #   runic_catalog_module(<Name> GROUP <g> [ALLOWS <target>...] [THIRD_PARTY <id-or-target>...]
@@ -19,14 +19,14 @@ include("${CMAKE_CURRENT_LIST_DIR}/RunicToolchain.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/RunicChecks.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/RunicTesting.cmake")
 
-# The four approved public-header exceptions and the library each one lets through (RunicDocs › Module
-# contract): GLM math types in Core, the Flecs world handle for modules that register systems,
-# BehaviorTree.CPP node base types for Game custom AI nodes, godot-cpp types in GodotTools.
+# The three approved public-header exceptions and the library each one lets through (RunicDocs › Module
+# contract, decided 2026-11-12): GLM math types in Core, BehaviorTree.CPP node base types for Game custom AI nodes,
+# godot-cpp types in GodotTools. Flecs has none: the Flecs world is reachable only through Runic::ECSNative (ECS-1).
 # Constants live inside functions: this file is included once (include_guard), from whichever directory
 # comes first, so a directory-scope variable would be invisible to the Platform's and the Game's scopes.
 function(_runic_public_exceptions out_ids out_libraries)
-    set(${out_ids} "glm" "flecs-world" "behaviortree-nodes" "godot-cpp" PARENT_SCOPE)
-    set(${out_libraries} "glm" "flecs" "behaviortree" "godot-cpp" PARENT_SCOPE)
+    set(${out_ids} "glm" "behaviortree-nodes" "godot-cpp" PARENT_SCOPE)
+    set(${out_libraries} "glm" "behaviortree" "godot-cpp" PARENT_SCOPE)
 endfunction()
 
 function(_runic_public_exception_library exception out_var)

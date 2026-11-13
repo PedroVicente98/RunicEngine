@@ -1,4 +1,4 @@
-# BUILD-1 acceptance tests (contract: docs/build/BUILD-1.md).
+# BUILD-1 acceptance tests (contract: cmake/README.md).
 #
 # Added by the Engine when RUNIC_ENGINE_BUILD_TESTS is ON, or run on their own without configuring any
 # Engine third party:
@@ -157,9 +157,7 @@ runic_script_test(repository_workflow_pins
     SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/WorkflowPinCheck.cmake" EXPECT pass
     ARGS "-DROOT=${RUNIC_BUILD_TESTS_ENGINE}")
 
-# ---- the catalog equals docs/system/03 ----
-runic_script_test(catalog_sync
-    SCRIPT "${RUNIC_BUILD_TESTS_CHECKS}/CatalogSync.cmake" EXPECT pass
-    ARGS "-DCATALOG=${RUNIC_BUILD_TESTS_ENGINE}/cmake/RunicModuleCatalog.cmake"
-         "-DDOCS=${RUNIC_BUILD_TESTS_ENGINE}/docs/system/03-dependency-rules.md"
-         "-DTABLE=engine")
+# ---- the catalog equals the Engine modules table in RunicDocs ----
+include("${CMAKE_CURRENT_LIST_DIR}/CatalogSyncTest.cmake")
+runic_add_catalog_sync_test(CATALOG "${RUNIC_BUILD_TESTS_ENGINE}/cmake/RunicModuleCatalog.cmake" TABLE engine
+    ROOT "${RUNIC_BUILD_TESTS_ENGINE}")

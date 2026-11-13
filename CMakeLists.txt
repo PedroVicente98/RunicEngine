@@ -1,4 +1,4 @@
-# RunicEngine. Contract of this build skeleton: docs/build/BUILD-1.md (slice 0).
+# RunicEngine. Contract of this build skeleton: cmake/README.md (BUILD-1, slice 0).
 cmake_minimum_required(VERSION 3.24)
 project(RunicEngine VERSION 0.1.0 LANGUAGES C CXX)
 

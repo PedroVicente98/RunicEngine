@@ -1,4 +1,4 @@
-# RunicEngine CI (BUILD-1, slice 0). Contract: docs/build/BUILD-1.md.
+# RunicEngine CI (BUILD-1, slice 0). Contract: cmake/README.md.
 # Security (BUILD-1): every Action is pinned to a full commit SHA (checks.repository_workflow_pins fails on a
 # tag), the default token is read-only, credentials are never persisted, and no job uses a secret, so pull
 # requests from forks get nothing they could leak.
@@ -45,10 +45,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: RunicDocs, the architecture source of truth (checks.catalog_sync compares the catalog with it)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: PedroVicente98/RunicDocs
+          path: RunicDocs
+          persist-credentials: false
       - name: Tools
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Configure with no Godot and no graphics library (the configure-time headless check runs)
-        run: cmake --preset headless
+        run: cmake --preset headless -DRUNIC_DOCS_DIR="${{ github.workspace }}/RunicDocs"
       - name: Build
         run: cmake --build --preset headless
       - name: Checks (public headers, source includes, catalog sync, workflow pins)
@@ -88,7 +94,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: A module change carries its contract and docs/current-state.md
+      - name: A module code change carries its ARCHITECTURE.md
         run: |
           git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
           cmake -DCHANGED=changed.txt -DROOT=. -P cmake/checks/DocsCheck.cmake

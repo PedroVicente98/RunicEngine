@@ -4,7 +4,8 @@ Group: Presentation · Headless: **no** · Target: `Runic::GodotBridge` (`runic_
 
 Source: RunicDocs › Architecture › Godot integration (Engine), Repositories, build targets and processes
 (Engine modules), Render data, extraction and world UI. Status: **slice 0 code only** (the LibGodot host, written
-for the slice 0 spike, see [docs/build/GDT-1.md](../../../docs/build/GDT-1.md)); GDB-1 is not started.
+for the slice 0 spike, see RunicDocs › Architecture › Godot integration (Engine) › Slice 0 spike results (GDT-1));
+GDB-1 is not started. The folder map is [README.md](README.md).
 
 ## Purpose
 

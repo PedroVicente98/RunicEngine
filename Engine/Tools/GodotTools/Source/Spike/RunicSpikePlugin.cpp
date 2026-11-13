@@ -30,22 +30,13 @@ void RunicSpikePlugin::_enter_tree() {
                       "Godot " + String(version["string"]) + (gdscript ? ", GDScript on" : ", GDScript off") + ".");
     add_child(m_About);
 
-    m_Button = memnew(Button);
-    m_Button->set_text("Runic");
-    m_Button->set_tooltip_text("RunicEditor slice 0: the GDT-1 test plugin");
-    m_Button->connect("pressed", callable_mp(this, &RunicSpikePlugin::ShowAbout));
-    add_control_to_container(CONTAINER_TOOLBAR, m_Button);
-
+    // Project › Tools only: a toolbar control would sit at the far right of the editor's top bar and break its
+    // layout. The real Runic UI (docks, inspectors) arrives with GDT-2.
     add_tool_menu_item(kToolMenuItem, callable_mp(this, &RunicSpikePlugin::ShowAbout));
 }
 
 void RunicSpikePlugin::_exit_tree() {
     remove_tool_menu_item(kToolMenuItem);
-    if (m_Button != nullptr) {
-        remove_control_from_container(CONTAINER_TOOLBAR, m_Button);
-        memdelete(m_Button);
-        m_Button = nullptr;
-    }
     m_About = nullptr;  // a child of this node
     godot::UtilityFunctions::print(kPluginUnloadedLine);
 }

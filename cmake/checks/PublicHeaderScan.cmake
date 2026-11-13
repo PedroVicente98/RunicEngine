@@ -5,8 +5,9 @@
 #
 # Fails when
 #   1. a header under a module's Public/ includes or names a third-party library, unless the module's catalog
-#      row lists the matching approved exception (glm in Core, the Flecs world handle, BehaviorTree.CPP node
-#      base types, godot-cpp types in GodotTools);
+#      row lists the matching approved exception (glm in Core, BehaviorTree.CPP node base types, godot-cpp
+#      types in GodotTools). Flecs has no exception: the opt-in Runic::ECSNative target keeps its headers
+#      outside Public/;
 #   2. any file of a module includes or names Godot or godot-cpp, unless that module may use Godot: its row
 #      lists godot-cpp or libgodot as a third party, or allows Runic::GodotTools (the game's editor library).
 cmake_minimum_required(VERSION 3.24)
@@ -29,7 +30,7 @@ function(_library id include_re name_re exception)
     set(LIB_${id}_NAME "${name_re}" PARENT_SCOPE)
     set(LIB_${id}_EXCEPTION "${exception}" PARENT_SCOPE)
 endfunction()
-_library(flecs "^flecs(\\.h|/)" "flecs::" "flecs-world")
+_library(flecs "^flecs(\\.h|/)" "flecs::" "")
 _library(glm "^glm/" "glm::" "glm")
 _library(jolt "^Jolt/" "JPH::" "")
 _library(godot-cpp "^(godot_cpp/|gdextension_interface\\.h)" "godot::" "godot-cpp")

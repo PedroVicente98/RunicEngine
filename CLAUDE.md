@@ -11,17 +11,22 @@ RunicEngine is the public (MIT) C++20 engine of a three-repository MMORPG projec
 - **RunicGame** (`../RunicGame`, proprietary) — all concrete game rules, content and executables.
 
 The source of truth is ARCH v4 (RunicEngine — Technical Architecture), kept in the RunicDocs vault
-(`../RunicDocs/content/Architecture/`). `docs/system/03-dependency-rules.md` and `docs/build/` follow v4; the other
-`docs/system/` and `docs/modules/` files are still v3 and lose to RunicDocs where they disagree (Godot replaces
-bgfx, RmlUi, ImGui and GLFW; there is no Renderer, UI or Editor module and no Window class).
+(`../RunicDocs/content/Architecture/`). RunicDocs is the only place the architecture and the development plan are
+written: this repository keeps no copy of them (decided 2026-11-12). RunicDocs is edited on GitHub, so run
+`git -C ../RunicDocs pull` before reading it; the local clone can lag. When RunicDocs and anything here disagree,
+RunicDocs wins: report the difference. This repository's own documents sit next to the code: each module's
+`README.md` and `ARCHITECTURE.md`, `Engine/README.md`, `cmake/README.md` and this file.
 
 ## Read before changing anything
 
-1. `docs/README.md`
-2. `docs/system/01-architecture-overview.md`, `02-module-contract.md`, `03-dependency-rules.md`
-3. `docs/architecture.md` and `docs/current-state.md`
-4. The module you are working on: `docs/modules/<Module>.md` (or `Engine/<Group>/<Module>/ARCHITECTURE.md` once it exists)
-5. `docs/system/12-work-packages.md` and `docs/system/10-ai-development-workflow.md` — how a package is done
+1. The module you are working on: `Engine/<Group>/<Module>/README.md` (its folders and the package that fills each
+   one) and its `ARCHITECTURE.md` once the module has one.
+2. The RunicDocs notes that README lists under Sources, and the module's row in RunicDocs › Architecture ›
+   Repositories, build targets and processes › Engine modules.
+3. RunicDocs › Architecture › Modules, work packages and the implementation contract — the package (write scope,
+   Done when, Needs, slice), the module contract and the Building with Claude Code cycle; RunicDocs › Development ›
+   the slice note for the package's slice.
+4. `Engine/README.md` (the folder map) and `cmake/README.md` (the build helpers and checks).
 
 ## Hard rules
 
@@ -35,20 +40,27 @@ bgfx, RmlUi, ImGui and GLFW; there is no Renderer, UI or Editor module and no Wi
   Needs orders merges; it never grants a link. Third-party libraries are PRIVATE except the
   approved public-header exceptions below (GLM is a PUBLIC dependency of Core).
 - **Public headers carry no library types** (Flecs, Jolt, Godot and godot-cpp, BehaviorTree.CPP,
-  Detour, GameNetworkingSockets). Exactly four exceptions are approved: GLM math types in Core,
-  the Flecs world handle for modules that register systems (for example `AIModule`; ECS re-exports
-  Flecs only to them), BehaviorTree.CPP node base types for Game custom AI nodes, and godot-cpp
-  types in GodotTools' public headers. Record a used exception in the module's `ARCHITECTURE.md`.
+  Detour, GameNetworkingSockets). Exactly three exceptions are approved: GLM math types in Core,
+  BehaviorTree.CPP node base types for Game custom AI nodes, and godot-cpp types in GodotTools' public
+  headers. Flecs has none: modules use the Runic API, and the Flecs world is reachable only through the
+  opt-in `Runic::ECSNative` target (discouraged). Record a used exception in the module's `ARCHITECTURE.md`.
 - **Godot is presentation and tooling only.** Only GodotBridge and GodotTools include Godot or
   godot-cpp; Godot never reads Flecs, Jolt or domain modules; the RenderFrame is the only door.
   No GDScript in the game (the module is off in both Godot targets until slices 20–21, editor only).
 - **Headless modules** never link libgodot, godot-cpp, GodotBridge, GodotTools, an audio backend or
   editor code; the configure-time headless check fails the build if they do. There is no window
   class: the window comes from Godot through the GodotLayer.
-- **Folder names.** PascalCase for what the architecture defines (`Engine/<Group>/<Module>/` with `Public/`,
-  `Source/`, `Tests/`; `Engine/Programs/` for the Engine's executables); lowercase for repository plumbing
-  (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`). Never two folders that differ only by case.
-  Third-party code lives in `external/`: Godot and godot-cpp as submodules, everything else as pinned downloads.
+- **Folders.** Every group, module and subsystem folder already exists with a README (`Engine/<Group>/<Module>/`
+  with `Public/`, `Source/<Subsystem>/`, `Tests/`; `Engine/Programs/` for the Engine's executables). A package puts
+  its code in the folders its README names and never moves or renames a folder; a module's first package adds its
+  `CMakeLists.txt` and `ARCHITECTURE.md`. PascalCase for what the architecture defines, lowercase for repository
+  plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`). Never two folders that differ only by
+  case. Third-party code lives in `external/`: Godot and godot-cpp as submodules, everything else as pinned downloads.
+- **Programs are composition roots, not modules.** A package may also edit the Engine program that shows its result
+  (`Engine/Programs/`: RunicServer, RunicClient, the RunicEditor), and nothing else outside its module.
+- **Code visibility.** `Public/` headers, namespace `Runic::<Module>`: the module's API. Headers in
+  `Source/<Subsystem>/`, namespace `Runic::<Module>::Detail` when several files of the module share them: private to
+  the module. An unnamed namespace for helpers one `.cpp` uses.
 - **No game content.** No RunicGame rules, names, numbers or content anywhere in this repository,
   tests and docs included. Tests use neutral IDs such as `engine:test_ability`.
 - **No Agones, Kubernetes, database, gRPC or NATS** dependency anywhere in the Engine.
@@ -63,7 +75,8 @@ bgfx, RmlUi, ImGui and GLFW; there is no Renderer, UI or Editor module and no Wi
 - **Never mutate Flecs from an I/O callback.** Only the simulation's own phases mutate the world.
 - **Local Flecs entity IDs never leave the process.** Across processes use `GlobalEntityId`,
   `GlobalPlayerId` and the other plain ID types in Core.
-- **Do not silently resolve items in `docs/system/11-open-questions.md`;** ask the owner.
+- **Do not silently resolve open questions** (RunicDocs › Architecture › Open questions, and the open decisions in
+  the RunicDocs notes); ask the owner.
 
 ## Build
 
@@ -75,16 +88,16 @@ cmake --preset headless && cmake --build --preset headless                     #
 ```
 
 The first `debug` build compiles libgodot from `external/godot` (editor and template targets, several minutes);
-later builds only check it. The contract of the build is `docs/build/BUILD-1.md`. Do not change a pin in
+later builds only check it. The contract of the build is `cmake/README.md`. Do not change a pin in
 `cmake/Dependencies.cmake` without its SHA-256 (third-party folders carry their version), and change the Godot
 pins only to release tags, after reviewing `scripts/godot/` with `scripts/godot/list_modules.py`.
 
 ## Docs maintenance
 
-- Update the module contract, `docs/modules/README.md` status and `docs/current-state.md`
-  in the same change as the code.
-- `docs/system/` is mirrored in all three repositories; edit all copies together.
-- The docs carry generated Obsidian links: frontmatter tags, `[^…]` markers after names, and the
-  `## Connections` footer. Never edit them by hand; after any docs change, run
-  `python3 RunicEngine/scripts/docs/obsidian_graph.py RunicEngine RunicPlatform RunicGame --write` from the
-  folder that holds the three repositories (sibling checkouts).
+- In the same change as the code: the module's `ARCHITECTURE.md` (its contract and package status) and its
+  `README.md` when what a folder holds changes. The PR closes the package's GitHub issue; RunicDocs' Development notes
+  read the status from the issues.
+- A change to the architecture or the plan (a rule, a catalog row, a package, a slice) is a RunicDocs change, made
+  there by the owner or with the owner's approval, never a copy here. Then the code follows (`cmake/RunicModuleCatalog.cmake`
+  must equal RunicDocs' Engine modules table: `checks.catalog_sync`).
+- `docs/` is reserved for generated API documentation (Doxygen, later).

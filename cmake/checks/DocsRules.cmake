@@ -1,6 +1,6 @@
-# DocsCheck rules for RunicEngine: Engine/<Group>/<Module>/... needs Engine/<Group>/<Module>/ARCHITECTURE.md, or
-# docs/modules/<Module>.md while the module folder has no ARCHITECTURE.md yet. Engine/Programs/ holds executables,
-# not modules, and has no module contract.
+# DocsCheck rules for RunicEngine: a code change in Engine/<Group>/<Module>/ needs that module's ARCHITECTURE.md (its
+# contract and package status; the module's first package writes it). Engine/Programs/ holds executables, not
+# modules, and has no module contract.
 function(runic_docs_rule path out_module out_contracts)
     set(module "")
     set(contracts "")
@@ -11,9 +11,6 @@ function(runic_docs_rule path out_module out_contracts)
         set(module "${CMAKE_MATCH_2}")
         set(folder "Engine/${CMAKE_MATCH_1}/${CMAKE_MATCH_2}")
         list(APPEND contracts "${folder}/ARCHITECTURE.md")
-        if(NOT EXISTS "${ROOT}/${folder}/ARCHITECTURE.md")
-            list(APPEND contracts "docs/modules/${module}.md")
-        endif()
     endif()
     set(${out_module} "${module}" PARENT_SCOPE)
     set(${out_contracts} "${contracts}" PARENT_SCOPE)

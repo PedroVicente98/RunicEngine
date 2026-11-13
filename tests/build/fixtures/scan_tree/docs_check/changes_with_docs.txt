@@ -1,3 +1,2 @@
 Engine/Foundation/Alpha/Source/Alpha.cpp
 Engine/Foundation/Alpha/ARCHITECTURE.md
-docs/current-state.md

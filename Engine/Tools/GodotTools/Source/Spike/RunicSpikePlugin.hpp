@@ -1,14 +1,14 @@
 #pragma once
 
 #include <godot_cpp/classes/accept_dialog.hpp>
-#include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/editor_plugin.hpp>
 
 namespace Runic::GodotTools {
 
 // GDT-1 spike: the test plugin that proves the RunicEditor (the Godot editor run through LibGodot) loads Runic
 // tool code compiled into the executable. It reports what the spike must find out (the editor opened, and
-// without GDScript), adds a "Runic" toolbar button and a Project › Tools item, and cleans up on exit.
+// without GDScript), adds a Project › Tools item that opens an About dialog, and cleans up on exit. It adds
+// nothing to the editor's toolbar. GDT-2 replaces it with the real Runic editor plugin.
 class RunicSpikePlugin : public godot::EditorPlugin {
     GDCLASS(RunicSpikePlugin, godot::EditorPlugin)
 
@@ -23,7 +23,6 @@ protected:
 private:
     void ShowAbout();
 
-    godot::Button* m_Button = nullptr;
     godot::AcceptDialog* m_About = nullptr;
 };
 

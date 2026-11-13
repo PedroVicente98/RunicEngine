@@ -3,8 +3,9 @@
 Group: Tools · Headless: **never shipped** · Target: `Runic::GodotTools` (`runic_godottools`) · Packages: GDT-1 to GDT-16
 
 Source: RunicDocs › Architecture › Godot integration (Engine), Tools (Engine), Repositories, build targets and processes
-(Engine modules), World authoring and cooking. Status: **GDT-1 (spike) done locally**, see
-[docs/build/GDT-1.md](../../../docs/build/GDT-1.md).
+(Engine modules), World authoring and cooking. Status: **GDT-1 (spike) done** in slice 0; its findings are in
+RunicDocs › Architecture › Godot integration (Engine) › Slice 0 spike results (GDT-1). The folder map is
+[README.md](README.md).
 
 ## Purpose
 
@@ -26,7 +27,9 @@ extend marker nodes and docks (the fourth public-header exception). GDT-1's head
 
 - The classes registered at Godot's editor initialization level, which the client never reaches. GDT-1: the test
   plugin `RunicSpikePlugin` (always on, no `plugin.cfg`): it reports that it loaded and whether GDScript exists,
-  adds the **Runic** toolbar button and a Project › Tools item, and removes them on exit.
+  adds a Project › Tools item (**Runic: About this editor**), and removes it on exit. It adds nothing to the
+  editor's toolbar (the toolbar button it had at first sat at the far right of the top bar and broke its layout;
+  removed on 2026-11-12).
 
 ## Does not own
 
@@ -49,8 +52,8 @@ Godot's main thread only: plugins run inside the editor's frames (`GodotRuntime:
 
 ## Data ownership
 
-Godot owns the plugin node; its children (the About dialog) are freed with it. The toolbar button is created and
-deleted by the plugin.
+Godot owns the plugin node; its children (the About dialog) are freed with it. The Project › Tools item is added
+and removed by the plugin.
 
 ## Integration points
 
@@ -61,12 +64,14 @@ deleted by the plugin.
 
 | ID | Package | Done when | Status |
 | --- | --- | --- | --- |
-| GDT-1 | Spike: the RunicEditor executable on libgodot (editor target) opens the Godot editor with a test plugin; the editor target builds and opens without GDScript | The editor opens, loads the plugin and exits cleanly in CI; the spike's findings decide the fallback | Done locally (`godot.editor_spike`); findings in docs/build/GDT-1.md |
+| GDT-1 | Spike: the RunicEditor executable on libgodot (editor target) opens the Godot editor with a test plugin; the editor target builds and opens without GDScript | The editor opens, loads the plugin and exits cleanly in CI; the spike's findings decide the fallback | Done in slice 0 (`godot.editor_spike`); findings in RunicDocs › Godot integration (Engine) |
 | GDT-2 | Project model: runic.project.json, the runic-mmo template, New and Open, the project's editor library, IDE bridge, first dock | See RunicDocs › Modules, work packages | Not started (needs APP-1, SIM-2) |
 | GDT-3 to GDT-16 | Physics inspector, Cooker integration, docks, schema inspectors, region tools, Run, AI editor, live attach, water authoring, GDScript locks | See RunicDocs | Not started |
 
 ## Future extensions
 
-The test plugin is the spike's proof and is replaced by the real plugin in GDT-2. A branding patch (separate editor
+The test plugin is the spike's proof and is replaced by the real plugin in GDT-2. Every Runic tool's UI follows the editor: it uses only the editor's extension points
+(docks, the bottom panel, a main-screen tab, inspector plugins, Project › Tools and context menus) and the editor
+theme and scale, and never inserts controls into a container whose layout it does not own (RunicDocs › Tools (Engine)). A branding patch (separate editor
 settings folder) and the editor feature profile (hide the Script tab, physics nodes, plugin creation) are tool-phase
 decisions.

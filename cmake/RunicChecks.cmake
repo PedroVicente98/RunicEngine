@@ -1,4 +1,4 @@
-# Link checks run at the end of configure (BUILD-1). Contract: docs/build/BUILD-1.md.
+# Link checks run at the end of configure (BUILD-1). Contract: cmake/README.md.
 #
 #   runic_mark_presentation(<target>...)   targets a headless target must never reach (libgodot, godot-cpp,
 #                                          GodotBridge, GodotTools, an audio backend, editor code)
