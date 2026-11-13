@@ -323,12 +323,12 @@ Result on the reference machine (Linux, GCC 16, Clang 23): `debug` 51 of 51, `he
 
 ## Submodule pins
 
-On `main`, RunicPlatform pins this repository at `b2450cf`, and RunicGame pins it at `b2450cf` and RunicPlatform at
-`3d833e4`: the slice 0 commits with the single-source docs. A pin moves in its own commit after the pinned commit is on
-`main`. BUILD-2 is the exception while it is reviewed: on the `temp/build-2` branches the Platform's and the Game's pins
-already name the BUILD-2 commits, so the branches reach `main` in the order RunicEngine, RunicPlatform, RunicGame, each
-by fast-forward (a squash or a rebase would leave the pins naming commits that are not on `main`). Local builds use the
-sibling checkouts through the `*-siblings` presets.
+RunicPlatform pins this repository at `2013e9b` (BUILD-2), and RunicGame pins it at `2013e9b` and RunicPlatform at
+`74e87e3`. A pin moves in its own commit. During a slice, the Platform's and the Game's slice branches may pin commits
+of this repository's slice branch; the slice check merges the branches into `main` in Needs order (RunicEngine,
+RunicPlatform, RunicGame), by fast-forward or a merge commit, never squashed or rebased (a squash or a rebase would
+leave the pins naming commits that are not on `main`). Local builds use the sibling checkouts through the
+`*-siblings` presets.
 
 ## BUILD-2
 
@@ -337,7 +337,7 @@ sibling checkouts through the `*-siblings` presets.
 | Package | BUILD-2 (slice 0), Stage A · [RunicEngine#198](https://github.com/PedroVicente98/RunicEngine/issues/198) |
 | Repositories | RunicEngine (the helpers, checks and tests above), RunicPlatform, RunicGame |
 | Needs | BUILD-1 |
-| Status | Built and tested in all three repositories; committed on the `temp/build-2` branch of the three repositories for review, not on `main` yet. Its RunicDocs part (the package row and the Decisions log rows) is on RunicDocs' `main` |
+| Status | **Done**: built and tested in all three repositories and merged into `main` by the slice 0 check ([RunicEngine#143](https://github.com/PedroVicente98/RunicEngine/issues/143)). Its RunicDocs part (the package row and the Decisions log rows) is on RunicDocs' `main` |
 | Source | Decisions of the owner on 2026-11-12 (RunicDocs › Decisions log › Includes, Modules from the catalog, Third parties by need) |
 
 Build plumbing, built before CORE-1 so every module package writes only inside its own folder:
