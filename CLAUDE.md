@@ -30,9 +30,11 @@ RunicDocs wins: report the difference. This repository's own documents sit next 
 
 ## Hard rules
 
-- **One work package = one module = one PR.** Write only inside that module's folder, its CMake
-  target and its docs. If another module needs a change, stop and report the interface change
-  instead of making it.
+- **One work package = one module.** Write only inside that module's folder, its CMake target and its docs. If
+  another module needs a change, stop and report the interface change instead of making it. Packages are built in
+  the slice pipeline (RunicDocs › Modules, work packages and the implementation contract › Building with Claude
+  Code): a slice kickoff, then per package a contract session, an implementation session and a verify step, then
+  the slice check. A package's commits sit on the slice branch and name the package (`CORE-1: …`).
 - **Contract first.** The module's `ARCHITECTURE.md`, the public headers and the acceptance tests
   are approved before any `Source/` code. Implement **Stage A only**: what the tests need, no
   speculative features, no placeholders in other modules.
@@ -102,8 +104,8 @@ Godot pins only to release tags, after reviewing `scripts/godot/` with `scripts/
 ## Docs maintenance
 
 - In the same change as the code: the module's `ARCHITECTURE.md` (its contract and package status) and its
-  `README.md` when what a folder holds changes. The PR closes the package's GitHub issue; RunicDocs' Development notes
-  read the status from the issues.
+  `README.md` when what a folder holds changes. The package's GitHub issue closes when its verify step ends, and the slice
+  check merges the slice branch into `main`; RunicDocs' Development notes read the status from the issues.
 - A change to the architecture or the plan (a rule, a catalog row, a package, a slice) is a RunicDocs change, made
   there by the owner or with the owner's approval, never a copy here. Then the code follows (`cmake/RunicModuleCatalog.cmake`
   must equal RunicDocs' Engine modules table: `checks.catalog_sync`).
