@@ -2,7 +2,7 @@
 
 This folder holds the CMake helpers, the module catalog, the toolchain, the Godot build and the checks that the three
 repositories share. This README is their reference: what each helper and check does, the presets, CI and the
-acceptance tests. It is also the contract of BUILD-1, the slice 0 package that builds the skeleton every later package stands on: the `runic_add_module` helper, presets, CI, the test framework, the automated checks, the submodule pins, the CPU baseline, and libgodot built from source in the editor and template targets. It is the canonical contract for all three repositories; RunicPlatform and RunicGame each keep a short `cmake/README.md` with their part. The slice 0 spike that runs on it (GDT-1) is reported in RunicDocs › Architecture › Godot integration (Engine) › Slice 0 spike results (GDT-1). The architecture itself is only in RunicDocs.
+acceptance tests. It is also the contract of BUILD-1, the slice 0 package that builds the skeleton every later package stands on: the `runic_add_module` helper, presets, CI, the test framework, the automated checks, the submodule pins, the CPU baseline, and libgodot built from source in the editor and template targets. It is the canonical contract for all three repositories; RunicPlatform and RunicGame each keep a short `cmake/README.md` with their part. It is also the contract of BUILD-2 (slice 0), the build plumbing after it that lets every module package write only inside its own folder: unique public header paths, modules from the catalog and third parties by need (section BUILD-2 at the end). The slice 0 spike that runs on it (GDT-1) is reported in RunicDocs › Architecture › Godot integration (Engine) › Slice 0 spike results (GDT-1). The architecture itself is only in RunicDocs.
 
 | Field | Value |
 | --- | --- |
@@ -27,7 +27,7 @@ Approving this contract approves these choices. The v3 draft of this contract (b
 | 1 | C++ test framework: **GoogleTest** with GoogleMock, one version for all three repositories | Decided (Decisions log) |
 | 2 | GoogleTest **v1.17.0**, fetched like the other third parties: pinned archive URL and SHA-256 into `external/googletest-1.17.0`, reused when present, fetched only when tests are enabled | Proposal |
 | 3 | The helpers and checks are **CMake** code and CMake scripts (`cmake -P`). The only Python is the Godot build driver, because SCons is Python | Proposal |
-| 4 | A module's include root is its `Public/` folder; headers are included by their path under it (for example `RenderData/RenderFrame.hpp`). BUILD-2 adds a check that no two modules of the three repositories export the same path | Decided by the owner, 2026-11-12 |
+| 4 | A module's include root is its `Public/` folder; headers are included by their path under it (for example `RenderData/RenderFrame.hpp`). A configure-time check fails when two modules or interface targets of the three repositories export the same path | Decided by the owner, 2026-11-12; built in BUILD-2 |
 | 5 | The allowed-dependency rows of RunicDocs › Repositories, build targets and processes are written once more as a CMake **catalog** per repository, and `checks.catalog_sync` keeps the catalog equal to those tables, read from the RunicDocs checkout (`RUNIC_DOCS_DIR`, default `../RunicDocs`; the check is skipped when none is found) | Decided; source changed to RunicDocs on 2026-11-13 |
 | 6 | CI is **GitHub Actions**. Required jobs run on Linux (Ubuntu 24.04, GCC and Clang); a Windows MSVC 2022 job is non-blocking until a module needs Windows | Proposal |
 | 7 | CPU baseline option `RUNIC_CPU_BASELINE`, default `x86-64-v3` (`-march=x86-64-v3`, `/arch:AVX2`); `none` leaves the compiler's default target. Jolt's SIMD options follow it | Proposal (the baseline itself is decided) |
@@ -37,7 +37,7 @@ Approving this contract approves these choices. The v3 draft of this contract (b
 | 11 | libgodot is built by `scripts/godot/build_libgodot.py` (SCons with `scripts/godot/runic_editor.py` and `runic_template.py`, the build profile `runic_client.gdbuild`, the SCons cache in CI) and **loaded at runtime** by the host, staged next to the executables. One client binary runs the editor library in development and the template library when shipping | Proposal |
 | 12 | The LibGodot host (`GodotRuntime`) is GodotBridge's first code, written in slice 0 because the client and the RunicEditor spike both need it; GDB-1 builds the GodotLayer on it | Proposal |
 | 13 | The RunicEditor executable lives in `Engine/Programs/RunicEditor/` (the Engine owns it); the GDT-1 test plugin lives in Runic::GodotTools | Proposal |
-| 14 | The transitional bundle `Runic::Runtime` (Flecs, GLM, Jolt) stays until RunicGame links per-module targets (OQ-8, decided 2026-10-09); `RUNIC_ENGINE_BUNDLES=OFF` lets the Platform configure the helpers without it. `Runic::Presentation` (GLFW, bgfx, ImGui) is removed | Proposal |
+| 14 | The transitional bundle `Runic::Runtime` (Flecs, GLM, Jolt) stays until RunicGame links per-module targets (OQ-8, decided 2026-10-09); `RUNIC_ENGINE_BUNDLES=OFF` lets the Platform configure the helpers without it. `Runic::Presentation` (GLFW, bgfx, ImGui) is removed; since BUILD-2 that name is the umbrella target of the Presentation group, and the bundle requires its three libraries by need like any module | Proposal |
 | 15 | Third-party source folders carry their version (`external/flecs-4.0.4`, …), so changing a pin can never silently reuse an old tree | Done |
 | 16 | Folder names: PascalCase for what the architecture defines (`Engine/<Group>/<Module>/` with `Public/`, `Source/`, `Tests/`; `Engine/Programs/` for the Engine's executables), lowercase for repository plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`); never two folders that differ only by case (Windows and macOS would merge them) | Decided by the owner, 2026-11-09 |
 | 17 | `external/` holds all third-party code: Godot and godot-cpp as the only submodules, every other library as a pinned, versioned download (ignored by git), plus the SCons environment. The disposable bundle check lives in `tests/sandbox/` and runs as the CTest test `build.bundle_links` | Decided by the owner, 2026-11-09 |
@@ -50,13 +50,14 @@ All helpers live in `cmake/` in this repository. A consumer gets them with `list
 
 | File | Provides |
 | --- | --- |
-| `cmake/RunicModule.cmake` | `runic_catalog_module`, `runic_catalog_interface`, `runic_third_party`, `runic_add_module`, `runic_add_interface_target`, `runic_add_group`; includes the three files below |
-| `cmake/RunicChecks.cmake` | `runic_mark_presentation`, `runic_check_headless`, the deferred end-of-configure link checks |
+| `cmake/RunicModule.cmake` | `runic_catalog_module`, `runic_catalog_interface`, `runic_third_party`, `runic_add_module`, `runic_add_interface_target`, `runic_add_group`, `runic_add_catalog_modules`; includes the four files below |
+| `cmake/RunicChecks.cmake` | `runic_mark_presentation`, `runic_check_headless`, the deferred end-of-configure checks (unique public header paths, links) |
+| `cmake/RunicThirdParty.cmake` | `runic_third_party_recipe`, `runic_require_third_party`, `runic_fetch_archive` (third parties by need) |
 | `cmake/RunicTesting.cmake` | `runic_enable_tests` (GoogleTest pin, CTest discovery) |
 | `cmake/RunicToolchain.cmake` | `runic_apply_toolchain`, `runic_apply_cpu_baseline`, `runic_enable_warnings`, `runic_fatal` |
 | `cmake/RunicModuleCatalog.cmake` | The Engine catalog: one `runic_catalog_module` call per row of RunicDocs › Repositories, build targets and processes › Engine modules (26 rows) |
 | `cmake/RunicGodot.cmake` | `runic_godot_setup` (godot-cpp, the `Runic::LibGodotEditor` and `Runic::LibGodotTemplate` targets that build and stage libgodot), `runic_godot_host_executable` |
-| `cmake/Dependencies.cmake` | The bundle's pinned third parties (Flecs 4.0.4, GLM 1.0.1, Jolt 5.2.0) and their library IDs |
+| `cmake/Dependencies.cmake` | The recipes of the Engine's pinned third parties (Flecs 4.0.4, GLM 1.0.1, Jolt 5.2.0), by library ID; nothing is fetched until a module or the bundle needs it |
 | `cmake/checks/PublicHeaderScan.cmake` | Script: library types in `Public/`; Godot outside GodotBridge and GodotTools |
 | `cmake/checks/SourceIncludeScan.cmake` | Script: includes of another module's `Source/` |
 | `cmake/checks/CatalogSync.cmake` | Script: the catalog equals the module tables of RunicDocs › Repositories, build targets and processes |
@@ -92,15 +93,16 @@ runic_third_party(<id> TARGETS <target>... [PRESENTATION] [INFRASTRUCTURE])
 runic_add_module(<Name> GROUP <Group> [PUBLIC_DEPS <target>...] [PRIVATE_DEPS <target>...] [HEADLESS])
 ```
 
-Called once in `<Group>/<Name>/CMakeLists.txt` (in the Engine: `Engine/<Group>/<Name>/CMakeLists.txt`).
+Called once in the module's own `CMakeLists.txt` (in the Engine: `Engine/<Group>/<Name>/CMakeLists.txt`), which `runic_add_catalog_modules` adds to the build; no other file lists the module.
 
 | Behavior | Rule |
 | --- | --- |
 | Target and alias | Target `<namespace>_<name>` in lower case, alias `<Namespace>::<Name>`; the namespace comes from `RUNIC_MODULE_NAMESPACE` in the calling directory (`Runic`, `RunicPlatform`, `RunicGame`) |
 | Sources | `Source/**/*.cpp` → a static library; no source files → an INTERFACE library (its dependencies are all interface) |
-| Include root | `Public/` is the only include directory exported; `Source/` is added PRIVATE and never exported |
+| Include root | `Public/` is the only include directory exported; `Source/` is added PRIVATE and never exported. Every header path under `Public/` is unique across the build (BUILD-2) |
 | Language | C++20 without extensions, the warnings and the CPU baseline (`runic_apply_toolchain`) |
 | Tests | When tests are enabled, `Tests/**/*.cpp` → one executable `<Namespace><Name>Tests` (namespaced, so `Runic::Client` and `RunicGame::Client` never collide) linking the module, `GTest::gtest_main` and `GTest::gmock`, registered with `gtest_discover_tests` and the CTest label `module` |
+| Third parties | A dependency that names a recipe ID (`glm`) or one of its targets (`glm::glm`) fetches that recipe once when the row lists it; an ID links the recipe's targets (section Third parties by need) |
 | Catalog | Configure fails if `<Name>` is not in the catalog, if `GROUP` or `HEADLESS` disagree with it, or if a module dependency is not in `ALLOWS` |
 | PUBLIC third parties | Configure fails if a third-party target is in `PUBLIC_DEPS` without a matching `PUBLIC_EXCEPTIONS` entry (`glm` → GLM, `behaviortree-nodes` → BehaviorTree.CPP, `godot-cpp` → godot-cpp). Flecs has no exception since 2026-11-12: the Flecs world is reachable only through the opt-in `Runic::ECSNative` target, whose helper support ECS-1 adds |
 | Headless | `HEADLESS` registers the module for the headless check; a module whose row is `no`, `tool` or `never-shipped` is marked presentation automatically |
@@ -112,7 +114,7 @@ Called once in `<Group>/<Name>/CMakeLists.txt` (in the Engine: `Engine/<Group>/<
 runic_add_interface_target(<Name> FROM <Module> HEADERS <dir>)
 ```
 
-The one header-only interface target a module may export for an interface the Platform implements (`Runic::NetworkTransport` from Network, `Runic::SimulationPort` from Simulation). An INTERFACE library with `<dir>` as include root, linking only `Runic::Core`; configure fails at the end of configure if anything else was linked to it.
+The one header-only interface target a module may export for an interface the Platform implements (`Runic::NetworkTransport` from Network, `Runic::SimulationPort` from Simulation). An INTERFACE library with `<dir>` as include root, linking only `Runic::Core`; configure fails at the end of configure if anything else was linked to it. It lives in `<module folder>/<Name>/` with its own `CMakeLists.txt` (`HEADERS ${CMAKE_CURRENT_SOURCE_DIR}`), which `runic_add_catalog_modules` adds even when the module itself is not configured.
 
 ### runic_add_group
 
@@ -120,7 +122,51 @@ The one header-only interface target a module may export for an interface the Pl
 runic_add_group(<Group> MODULES <target>...)
 ```
 
-The umbrella INTERFACE target of a group (`Runic::GameplayAPI`), linking only its modules.
+The umbrella INTERFACE target of a group (`Runic::GameplayAPI`), linking only its modules. `runic_add_catalog_modules` creates the Engine's umbrellas from the modules it configures; nothing else calls it.
+
+### runic_add_catalog_modules
+
+```cmake
+runic_add_catalog_modules(ROOT <dir> LAYOUT <GROUP|NAME>
+    [FOLDERS <Name>=<dir>...]              # a module whose folder is elsewhere (RunicPlatform: Contracts=proto)
+    [PRESENTATION <bool>] [TOOLS <bool>]
+    [MODULES <name>...|ALL])
+```
+
+Modules from the catalog (BUILD-2): adds every catalogued module of the calling directory's namespace whose folder has
+a `CMakeLists.txt`, so a module's first package adds only that file and never edits a shared one. Each repository
+calls it once: the Engine in `Engine/CMakeLists.txt`, RunicPlatform and RunicGame in their top-level `CMakeLists.txt`.
+
+| Behavior | Rule |
+| --- | --- |
+| Folders | `LAYOUT GROUP`: `<ROOT>/<Group>/<Module>/` (the Engine). `LAYOUT NAME`: `<ROOT>/<Module>/` (RunicPlatform `cpp/`, RunicGame `Source/`) |
+| Order | Catalog order, so Core comes first |
+| Build options | A row whose Headless value is `no` needs `PRESENTATION`; `tool` and `never-shipped` need `TOOLS`. The Engine passes `RUNIC_ENGINE_ENABLE_PRESENTATION` and `RUNIC_ENGINE_BUILD_TOOLS`, RunicGame `RUNIC_GAME_BUILD_CLIENT` and `RUNIC_GAME_BUILD_EDITOR` |
+| Allowlist | `MODULES` keeps the named modules and interface targets and everything their rows allow, transitively; given with no value it keeps none; `ALL` (or no `MODULES`) keeps every row. The Engine passes `RUNIC_ENGINE_MODULES` |
+| Interface targets | A catalogued interface target joins when `<module folder>/<Target>/CMakeLists.txt` exists (it calls `runic_add_interface_target(<Target> FROM <Module> HEADERS ${CMAKE_CURRENT_SOURCE_DIR})`), even when its module is not configured: the Platform links `Runic::NetworkTransport` without `Runic::Network` |
+| Groups | `LAYOUT GROUP`: the umbrella target `<Namespace>::<Group>` of each group with a configured module, linking those modules, so `Runic::GameplayAPI` grows as its modules arrive |
+| Checks | Configure fails when a folder's `CMakeLists.txt` does not create its row's target, and (`LAYOUT GROUP`) when `<ROOT>/<Group>/<Name>/CMakeLists.txt` exists in a module group with no row of that name and group |
+| Report | One line per call: `RUNIC: <Namespace> catalog: configured …; groups …; off in this build …` |
+
+The Engine's programs are not catalogued: `Engine/CMakeLists.txt` adds each `Engine/Programs/<Program>/` whose folder
+has a `CMakeLists.txt`. RunicServer and RunicBot need `RUNIC_ENGINE_BUILD_PROGRAMS`, RunicClient also presentation,
+the RunicEditor the tools. The package that shows its result in a program writes that file (APP-1: RunicServer;
+GDB-1: RunicClient).
+
+### Third parties by need
+
+```cmake
+runic_third_party_recipe(<id> TARGETS <target>... FETCH <function> [PRESENTATION] [INFRASTRUCTURE])
+runic_require_third_party(<id>...)
+runic_fetch_archive(<name> FOLDER <folder> URL <url> SHA256 <hash> [SOURCE_SUBDIR <dir>])
+```
+
+| Behavior | Rule |
+| --- | --- |
+| Recipe | A library ID, the targets it provides and the function that brings it in (`cmake/Dependencies.cmake`: `flecs`, `glm`, `jolt`). Declaring a recipe fetches nothing |
+| By need | `runic_add_module` requires the recipe behind each dependency that names a recipe ID (`PUBLIC_DEPS glm` stands for `glm::glm`) or one of its targets, when the module's row lists the library; the transitional bundle requires Flecs, GLM and Jolt. A library no configured target needs is never downloaded; one the row does not list is never fetched, and the end-of-configure check reports the link |
+| Once | A recipe runs once per build tree, whichever repository asks first; its targets are then registered with `runic_third_party` and marked `SYSTEM` |
+| Pins | `runic_fetch_archive` downloads a SHA-256 checked archive once into the Engine's `external/<FOLDER>` (the folder carries the version) and reuses it in every build tree of the three repositories. The package that first links a library adds its recipe, pinned the same way |
 
 ### Presentation marking and the headless check
 
@@ -131,7 +177,8 @@ runic_check_headless(<target>...)      # executables and libraries that must sta
 
 - Marked presentation: godot-cpp, the libgodot targets, and every module whose row is not `yes` (GodotBridge, GodotTools, Client, Animation, Audio, Cooker). Each later package that brings a presentation library (an audio backend) marks it in the same change.
 - At the end of configure (a deferred call in the top-level directory) every target registered with `runic_check_headless` and every `HEADLESS` module has its full link closure walked (`LINK_LIBRARIES` and `INTERFACE_LINK_LIBRARIES`, through `$<LINK_ONLY:…>`). Reaching a marked target fails configure with the chain, for example `RUNIC: headless target RunicGameServer reaches presentation target godot::cpp through Runic::GodotBridge`.
-- When every deferred check passes, configure prints `RUNIC: link checks passed (<n> targets)`.
+- Unique public header paths (BUILD-2): at the end of configure, every header (`.h`, `.hh`, `.hpp`, `.hxx`, `.inl`, `.ipp`) under each module's `Public/` and each interface target's folder is compared by its path under that root, without case (Windows and macOS file systems ignore it). Two roots exporting one path fail configure, for example `RUNIC: header path RenderData/RenderFrame.hpp is exported by both Runic::Core and RunicGame::Client: …`. RunicGame configures the three repositories together, so its builds compare all three.
+- When every deferred check passes, configure prints `RUNIC: public header paths are unique (<n> headers)` and `RUNIC: link checks passed (<n> targets)`.
 - RunicGame registers `RunicGameServer`; with the `server-only` preset, which never configures Godot, this is the headless build of GameServer that ARCH's Automated checks require. libgodot is loaded at runtime, so the link closure is what counts: a server that links GodotBridge, godot-cpp or a libgodot target fails.
 
 ### runic_enable_tests
@@ -179,7 +226,9 @@ The scans skip `tests/build/fixtures/` (whose trees break the rules on purpose),
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `RUNIC_ENGINE_BUILD_TESTS` | top-level project | `runic_enable_tests`, module tests, `tests/build/` and the Godot spike tests |
-| `RUNIC_ENGINE_BUNDLES` | `ON` | The `Runic::Runtime` bundle and its third parties. RunicPlatform sets it `OFF` |
+| `RUNIC_ENGINE_BUNDLES` | `ON` | The `Runic::Runtime` bundle, which requires Flecs, GLM and Jolt. RunicPlatform sets it `OFF` |
+| `RUNIC_ENGINE_MODULES` | `ALL` | The Engine modules a build configures (`runic_add_catalog_modules` `MODULES`): `ALL`, or module and interface-target names whose catalog closure is configured. RunicPlatform's standalone build sets it empty until a Platform package links an Engine module |
+| `RUNIC_ENGINE_BUILD_PROGRAMS` | top-level project | The Engine's RunicServer and RunicBot, and RunicClient with presentation, once their folders have a `CMakeLists.txt` |
 | `RUNIC_ENGINE_ENABLE_PRESENTATION` | top-level project | Godot: godot-cpp, the libgodot targets, Runic::GodotBridge |
 | `RUNIC_ENGINE_BUILD_TOOLS` | top-level project | The RunicEditor and Runic::GodotTools; requires presentation |
 | `RUNIC_BUILD_SANDBOX` | top-level project | The disposable check that the bundle compiles and links |
@@ -235,6 +284,18 @@ Merge order: RunicEngine, then RunicPlatform, then RunicGame.
 | `build.headless_executable_clean` | `headless_executable` | The same executable without the edge passes and prints `RUNIC: link checks passed` |
 | `build.cpu_baseline_default` | `cpu_baseline` | With the default baseline, a source that requires `__AVX2__` and `__FMA__` compiles (x86-64 GCC and Clang) |
 | `build.cpu_baseline_none` | `cpu_baseline` | With `RUNIC_CPU_BASELINE=none`, AVX2 is off |
+| `build.public_header_duplicate` | `public_header_paths` | Two modules exporting `Shared/Name.hpp` fail configure naming both (BUILD-2) |
+| `build.public_header_duplicate_case` | `public_header_paths` | `Shared/Name.hpp` and `shared/name.hpp` clash too |
+| `build.public_header_duplicate_interface` | `public_header_paths` | A module exporting the path of an interface target's header fails configure |
+| `build.public_header_unique` | `public_header_paths` | Distinct paths pass and are counted; README files in `Public/` are ignored |
+| `build.catalog_modules` | `catalog_modules` | Discovery adds the headless modules with a `CMakeLists.txt` in catalog order, the interface target and the Foundation umbrella; a row without a `CMakeLists.txt` and the `Programs/` folder are never added |
+| `build.catalog_modules_options` | `catalog_modules` | With presentation and tools on, the `no` and `tool` modules and their group umbrellas join |
+| `build.catalog_modules_allowlist` | `catalog_modules` | `MODULES View` adds View and its catalog closure (Beta, Alpha) and nothing else |
+| `build.catalog_modules_none` | `catalog_modules` | An empty `MODULES` adds nothing |
+| `build.catalog_modules_stray` | `catalog_modules` | A `CMakeLists.txt` in a group folder with no catalog row fails configure |
+| `build.third_party_by_need` | `third_party_need` | Two modules linking a recipe (by ID and by target) configure it once |
+| `build.third_party_unused` | `third_party_need` | With no module linking it, the recipe never runs |
+| `build.third_party_not_in_row` | `third_party_need` | A module linking a recipe its row does not list fails configure, and the library is not fetched |
 | `build.engine_headless_configure` | this repository | The Engine configures with presentation, sandbox and tools off, the helpers run, and no godot-cpp build tree, Godot stamp or libgodot exists |
 | `build.bundle_links` | `tests/sandbox` | `RunicSandbox` (Flecs, GLM, Jolt of the transitional bundle, with the CPU baseline) builds, links and runs |
 | `checks.public_header_forbidden` | `scan_tree/public_forbidden` | The scan fails on `#include <flecs.h>` in a `Public/` header |
@@ -258,23 +319,38 @@ Godot tests (label `godot`, need libgodot built) and module tests:
 | `godot.editor_project_manager` | `RunicEditor --headless --quit-after 30` (no project: the project manager) exits cleanly |
 | `GodotRuntime.*` (8 tests, label `module`) | The LibGodot host's unit tests, `StartsGodotHeadlessAndExits` (the editor library runs the spike project headless and quits; a second instance is refused) and `LoadsTheTemplateLibrary`; the last two skip when libgodot is not built |
 
-Result on the reference machine (Linux, GCC 16, Clang 23): `debug` 39 of 39, `headless` 28 of 28; before the folder moves, `ci-gcc` and `ci-clang` built with no warnings under `-Werror`.
+Result on the reference machine (Linux, GCC 16, Clang 23): `debug` 51 of 51, `headless` 40 of 40 (with BUILD-2); before the folder moves, `ci-gcc` and `ci-clang` built with no warnings under `-Werror`.
 
-## After slice 0
+## Submodule pins
 
-The Platform's pin of the Engine (`fb84529`) and the Game's pins of the Engine (`fb84529`) and the Platform (`ce8475a`)
-are older than BUILD-1: a build from those submodules fails, and local builds work only through the sibling checkouts.
-Move them to the commits that hold slice 0 once it is on `main`.
+On `main`, RunicPlatform pins this repository at `b2450cf`, and RunicGame pins it at `b2450cf` and RunicPlatform at
+`3d833e4`: the slice 0 commits with the single-source docs. A pin moves in its own commit after the pinned commit is on
+`main`. BUILD-2 is the exception while it is reviewed: on the `temp/build-2` branches the Platform's and the Game's pins
+already name the BUILD-2 commits, so the branches reach `main` in the order RunicDocs, RunicEngine, RunicPlatform,
+RunicGame, each by fast-forward (a squash or a rebase would leave the pins naming commits that are not on `main`).
+Local builds use the sibling checkouts through the `*-siblings` presets.
 
-## BUILD-2 (approved, not built)
+## BUILD-2
 
-Build plumbing the owner approved on 2026-11-12, built before CORE-1 so every module package writes only inside its
-own folder:
+| Field | Value |
+| --- | --- |
+| Package | BUILD-2 (slice 0), Stage A · [RunicEngine#198](https://github.com/PedroVicente98/RunicEngine/issues/198) |
+| Repositories | RunicEngine (the helpers, checks and tests above), RunicPlatform, RunicGame |
+| Needs | BUILD-1 |
+| Status | Built and tested in all three repositories; committed on the `temp/build-2` branch of RunicDocs and the three repositories for review, not on `main` yet |
+| Source | Decisions of the owner on 2026-11-12 (RunicDocs › Decisions log › Includes, Modules from the catalog, Third parties by need) |
 
-- **Unique public headers.** A check fails when two modules of the three repositories export the same header path,
-  because with every `Public/` folder on the include path the first one found would win silently.
-- **Modules from the catalog.** `Engine/CMakeLists.txt` adds each catalogued module whose folder has a
-  `CMakeLists.txt` (folders already exist with only READMEs), so no package edits that shared file.
-- **Third parties by need.** Each library is fetched once into its versioned `external/` folder and declared as one
-  target when any configured module lists it, instead of only with the `Runic::Runtime` bundle (GLM first: the Platform
-  turns bundles off but will link `Runic::Core`).
+Build plumbing, built before CORE-1 so every module package writes only inside its own folder:
+
+- **Unique public header paths.** Every header path under the include roots of a build is unique, without case
+  (section Presentation marking and the headless check). Tests `build.public_header_*`.
+- **Modules from the catalog.** `runic_add_catalog_modules` adds each catalogued module whose folder has a
+  `CMakeLists.txt`, its interface targets and its group's umbrella; `Engine/CMakeLists.txt` adds the Engine's programs
+  the same way. RunicPlatform (`cpp/`, Contracts in `proto/`) and RunicGame (`Source/`) call it too. Tests
+  `build.catalog_modules*`.
+- **Third parties by need.** Recipes in `cmake/Dependencies.cmake`; a library is fetched once, into its versioned
+  `external/` folder, when a configured module links it or the bundle needs it. GLM is ready for CORE-1 even where
+  bundles are off (RunicPlatform). Tests `build.third_party_*`.
+
+Done when: a duplicate header path fails configure naming both modules; a module joins the build by adding only its own
+`CMakeLists.txt`; a third party that no configured target links is never downloaded; every existing test still passes.

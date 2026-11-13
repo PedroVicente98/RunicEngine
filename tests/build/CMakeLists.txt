@@ -87,6 +87,48 @@ runic_fixture_test(headless_executable_clean FIXTURE "${F}/headless_executable" 
     ARGS "-DFIXTURE_CLEAN=ON"
     REGEX "RUNIC: link checks passed")
 
+# ---- BUILD-2: unique public header paths ----
+set(P "${F}/public_header_paths")
+runic_fixture_test(public_header_duplicate FIXTURE "${P}" EXPECT configure-fail
+    REGEX "RUNIC: header path Shared/Name\\.hpp is exported by both Fixture::Alpha and Fixture::Beta:")
+runic_fixture_test(public_header_duplicate_case FIXTURE "${P}" EXPECT configure-fail
+    ARGS "-DFIXTURE_BETA=BetaCase"
+    REGEX "RUNIC: header path Shared/Name\\.hpp is exported by both Fixture::Alpha and Fixture::Beta \\(as shared/name\\.hpp\\)")
+runic_fixture_test(public_header_duplicate_interface FIXTURE "${P}" EXPECT configure-fail
+    ARGS "-DFIXTURE_BETA=BetaPort"
+    REGEX "RUNIC: header path Port/PortApi\\.hpp is exported by both Fixture::Port and Fixture::Beta:")
+runic_fixture_test(public_header_unique FIXTURE "${P}" EXPECT pass
+    ARGS "-DFIXTURE_BETA=BetaUnique"
+    REGEX "RUNIC: public header paths are unique \\(3 headers\\)")
+
+# ---- BUILD-2: modules from the catalog ----
+set(C "${F}/catalog_modules")
+runic_fixture_test(catalog_modules FIXTURE "${C}" EXPECT pass
+    REGEX "FIXTURE: targets \\[Alpha Beta Port Foundation\\]")
+runic_fixture_test(catalog_modules_options FIXTURE "${C}" EXPECT pass
+    ARGS "-DFIXTURE_PRESENTATION=ON" "-DFIXTURE_TOOLS=ON"
+    REGEX "FIXTURE: targets \\[Alpha Beta View Forge Port Foundation Presentation Tools\\]")
+runic_fixture_test(catalog_modules_allowlist FIXTURE "${C}" EXPECT pass
+    ARGS "-DFIXTURE_PRESENTATION=ON" "-DFIXTURE_MODULES=View"
+    REGEX "FIXTURE: targets \\[Alpha Beta View Foundation Presentation\\]")
+runic_fixture_test(catalog_modules_none FIXTURE "${C}" EXPECT pass
+    ARGS "-DFIXTURE_MODULES="
+    REGEX "FIXTURE: targets \\[\\]")
+runic_fixture_test(catalog_modules_stray FIXTURE "${C}" EXPECT configure-fail
+    ARGS "-DFIXTURE_ROOT=Stray"
+    REGEX "RUNIC: Stray/Foundation/Stray/CMakeLists\\.txt has no catalog row")
+
+# ---- BUILD-2: third parties by need ----
+set(T "${F}/third_party_need")
+runic_fixture_test(third_party_by_need FIXTURE "${T}" EXPECT pass
+    REGEX "RUNIC: third party fakelib configured \\(fake::lib\\)")
+runic_fixture_test(third_party_unused FIXTURE "${T}" EXPECT pass
+    ARGS "-DFIXTURE_USERS=Gamma"
+    ABSENT "fakelib-configured.txt" "fakelib-build")
+runic_fixture_test(third_party_not_in_row FIXTURE "${T}" EXPECT configure-fail
+    ARGS "-DFIXTURE_USERS=Delta"
+    REGEX "RUNIC: module Fixture::Delta links fakelib, which is neither")
+
 # ---- CPU baseline (x86-64 GCC and Clang only) ----
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$" AND NOT CMAKE_HOST_WIN32)
     runic_fixture_test(cpu_baseline_default FIXTURE "${F}/cpu_baseline" EXPECT pass

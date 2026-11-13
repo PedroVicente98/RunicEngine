@@ -133,11 +133,62 @@ function(_runic_find_presentation root_display out_found out_chain)
     set(${out_chain} "" PARENT_SCOPE)
 endfunction()
 
+# ---- unique public header paths (BUILD-2) ------------------------------------------------------------------
+
+# Headers are included by their path under an include root (Public/, or an interface target's folder), and every
+# root of the build is on the include path of what links it, so two roots exporting one path would let the first
+# hide the other without a word (decided by the owner on 2026-11-12). Compared without case: Windows and macOS file
+# systems ignore it. Sets <out_errors> to one line per clash and <out_count> to the number of header paths.
+function(_runic_check_public_header_paths out_errors out_count)
+    get_property(roots GLOBAL PROPERTY RUNIC_PUBLIC_ROOTS)
+    set(errors "")
+    set(count 0)
+    set(seen_roots "")
+    foreach(entry IN LISTS roots)
+        string(FIND "${entry}" "|" bar)
+        string(SUBSTRING "${entry}" 0 ${bar} owner)
+        math(EXPR start "${bar} + 1")
+        string(SUBSTRING "${entry}" ${start} -1 root)
+        if(root IN_LIST seen_roots)
+            continue()   # the same folder registered twice holds the same files
+        endif()
+        list(APPEND seen_roots "${root}")
+        file(GLOB_RECURSE headers LIST_DIRECTORIES false RELATIVE "${root}"
+            "${root}/*.h" "${root}/*.hh" "${root}/*.hpp" "${root}/*.hxx" "${root}/*.inl" "${root}/*.ipp")
+        list(SORT headers)
+        foreach(path IN LISTS headers)
+            string(TOLOWER "${path}" lower)
+            string(MD5 slot "${lower}")
+            if(DEFINED header_owner_${slot})
+                set(first_path "${header_path_${slot}}")
+                set(text "RUNIC: header path ${first_path} is exported by both ${header_owner_${slot}} and ${owner}")
+                if(NOT path STREQUAL first_path)
+                    string(APPEND text " (as ${path})")
+                endif()
+                # No semicolon in the text: it would split the list entry.
+                list(APPEND errors
+                    "${text}: every include root is on the include path, so one would hide the other. Rename one of them (RunicDocs › Decisions log › Includes)")
+            else()
+                set(header_owner_${slot} "${owner}")
+                set(header_path_${slot} "${path}")
+                math(EXPR count "${count} + 1")
+            endif()
+        endforeach()
+    endforeach()
+    set(${out_errors} "${errors}" PARENT_SCOPE)
+    set(${out_count} "${count}" PARENT_SCOPE)
+endfunction()
+
 # ---- the deferred pass -------------------------------------------------------------------------------------
 
 function(_runic_run_link_checks)
     set(checked "")
     set(errors "")
+
+    # 0. Every exported header path is unique across the modules and interface targets of this build (the three
+    #    repositories, when RunicGame configures them together).
+    _runic_check_public_header_paths(header_errors header_count)
+    list(APPEND errors ${header_errors})
 
     # 1. Third parties linked by modules: listed in the row, PUBLIC only with an approved exception, never an
     #    infrastructure library in an Engine module.
@@ -225,6 +276,7 @@ function(_runic_run_link_checks)
     endif()
     list(REMOVE_DUPLICATES checked)
     list(LENGTH checked count)
+    message(STATUS "RUNIC: public header paths are unique (${header_count} headers)")
     message(STATUS "RUNIC: link checks passed (${count} targets)")
 endfunction()
 

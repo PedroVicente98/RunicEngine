@@ -46,7 +46,9 @@ Engine/<Group>/<Module>/
   `SimulationCore/Simulation/SimulationPort/` and `Networking/Network/NetworkTransport/` (header-only interface
   targets the Platform implements, Core types only).
 - A module joins the build when its first package adds its `CMakeLists.txt`; until then its folder holds only
-  READMEs.
+  READMEs. [`CMakeLists.txt`](CMakeLists.txt) adds every catalogued module that has one (BUILD-2), its extra
+  targets from their own `CMakeLists.txt`, the umbrella target of each group, and each program in `Programs/` that
+  has one; no package edits it.
 
 ## Where things are not
 

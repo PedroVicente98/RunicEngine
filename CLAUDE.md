@@ -39,6 +39,9 @@ RunicDocs wins: report the difference. This repository's own documents sit next 
 - **Link only the module's allowed dependencies** (the Depends on column is a ceiling). A package's
   Needs orders merges; it never grants a link. Third-party libraries are PRIVATE except the
   approved public-header exceptions below (GLM is a PUBLIC dependency of Core).
+- **Header paths are unique.** Headers are included by their path under `Public/`, and configure fails when two
+  modules (or interface targets) of the three repositories export the same path, case ignored: name files after
+  what they hold (`PhysicsWorld.hpp`), or put them under a folder the architecture defines.
 - **Public headers carry no library types** (Flecs, Jolt, Godot and godot-cpp, BehaviorTree.CPP,
   Detour, GameNetworkingSockets). Exactly three exceptions are approved: GLM math types in Core,
   BehaviorTree.CPP node base types for Game custom AI nodes, and godot-cpp types in GodotTools' public
@@ -53,11 +56,14 @@ RunicDocs wins: report the difference. This repository's own documents sit next 
 - **Folders.** Every group, module and subsystem folder already exists with a README (`Engine/<Group>/<Module>/`
   with `Public/`, `Source/<Subsystem>/`, `Tests/`; `Engine/Programs/` for the Engine's executables). A package puts
   its code in the folders its README names and never moves or renames a folder; a module's first package adds its
-  `CMakeLists.txt` and `ARCHITECTURE.md`. PascalCase for what the architecture defines, lowercase for repository
-  plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`). Never two folders that differ only by
-  case. Third-party code lives in `external/`: Godot and godot-cpp as submodules, everything else as pinned downloads.
+  `CMakeLists.txt` and `ARCHITECTURE.md`, and the build picks the module up from the catalog (never edit
+  `Engine/CMakeLists.txt` or another shared CMake file to add one). PascalCase for what the architecture defines,
+  lowercase for repository plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`). Never two
+  folders that differ only by case. Third-party code lives in `external/`: Godot and godot-cpp as submodules,
+  everything else as pinned downloads.
 - **Programs are composition roots, not modules.** A package may also edit the Engine program that shows its result
-  (`Engine/Programs/`: RunicServer, RunicClient, the RunicEditor), and nothing else outside its module.
+  (`Engine/Programs/`: RunicServer, RunicClient, the RunicEditor), and nothing else outside its module. A program
+  joins the build when its folder has a `CMakeLists.txt`.
 - **Code visibility.** `Public/` headers, namespace `Runic::<Module>`: the module's API. Headers in
   `Source/<Subsystem>/`, namespace `Runic::<Module>::Detail` when several files of the module share them: private to
   the module. An unnamed namespace for helpers one `.cpp` uses.
@@ -89,8 +95,9 @@ cmake --preset headless && cmake --build --preset headless                     #
 
 The first `debug` build compiles libgodot from `external/godot` (editor and template targets, several minutes);
 later builds only check it. The contract of the build is `cmake/README.md`. Do not change a pin in
-`cmake/Dependencies.cmake` without its SHA-256 (third-party folders carry their version), and change the Godot
-pins only to release tags, after reviewing `scripts/godot/` with `scripts/godot/list_modules.py`.
+`cmake/Dependencies.cmake` without its SHA-256 (third-party folders carry their version; a library is fetched only
+when a configured module links it, and the package that first links one adds its recipe there), and change the
+Godot pins only to release tags, after reviewing `scripts/godot/` with `scripts/godot/list_modules.py`.
 
 ## Docs maintenance
 

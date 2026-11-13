@@ -17,4 +17,6 @@ compositions as RunicServer and RunicClient plus the game's modules (and, on the
 
 Programs are not modules, so the rule "one work package writes inside one module" would never let a package touch
 them. The rule for programs (decided 2026-11-12): a package may also edit the Engine program that shows its result.
-APP-1 creates RunicServer; GDB-1 creates RunicClient and moves the RunicEditor onto the entry point.
+APP-1 creates RunicServer; GDB-1 creates RunicClient and moves the RunicEditor onto the entry point. A program joins
+the build when its folder has a `CMakeLists.txt` ([`Engine/CMakeLists.txt`](../CMakeLists.txt) adds it: RunicServer
+and RunicBot with `RUNIC_ENGINE_BUILD_PROGRAMS`, RunicClient also with presentation, the RunicEditor with the tools).

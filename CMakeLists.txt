@@ -1,4 +1,4 @@
-# RunicEngine. Contract of this build skeleton: cmake/README.md (BUILD-1, slice 0).
+# RunicEngine. Contract of this build: cmake/README.md (BUILD-1 and BUILD-2, slice 0).
 cmake_minimum_required(VERSION 3.24)
 project(RunicEngine VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -10,6 +10,9 @@ option(RUNIC_ENGINE_BUNDLES "The transitional Runic::Runtime bundle (Flecs, GLM,
 option(RUNIC_ENGINE_ENABLE_PRESENTATION "Godot as a library: godot-cpp, libgodot, Runic::GodotBridge" ${PROJECT_IS_TOP_LEVEL})
 option(RUNIC_ENGINE_BUILD_TOOLS "The RunicEditor and Runic::GodotTools (never shipped)" ${PROJECT_IS_TOP_LEVEL})
 option(RUNIC_BUILD_SANDBOX "The disposable check that the bundle's third parties compile and link" ${PROJECT_IS_TOP_LEVEL})
+option(RUNIC_ENGINE_BUILD_PROGRAMS "The Engine's own RunicServer, RunicClient and RunicBot (never shipped)" ${PROJECT_IS_TOP_LEVEL})
+set(RUNIC_ENGINE_MODULES "ALL" CACHE STRING
+    "Engine modules to configure: ALL, or module and interface-target names (plus what their catalog rows allow)")
 if(RUNIC_ENGINE_BUILD_TOOLS AND NOT RUNIC_ENGINE_ENABLE_PRESENTATION)
     message(FATAL_ERROR "RUNIC: the RunicEditor needs Godot; enable RUNIC_ENGINE_ENABLE_PRESENTATION or disable RUNIC_ENGINE_BUILD_TOOLS.")
 endif()
@@ -31,9 +34,12 @@ if(RUNIC_ENGINE_BUILD_TESTS)
 endif()
 
 # ---- 3. Third parties ---------------------------------------------------------------------------------------
+# Recipes only (BUILD-2): a library is fetched when a configured module links it, or the bundle needs it.
+include(Dependencies)
 if(RUNIC_ENGINE_BUNDLES)
-    include(Dependencies)
-    runic_engine_dependencies()
+    # Transitional bundle (OQ-8): RunicGame's executables link it until they link per-module targets.
+    runic_require_third_party(flecs glm jolt)
+    target_link_libraries(runic_runtime INTERFACE flecs::flecs_static glm::glm Jolt)
 endif()
 if(RUNIC_ENGINE_ENABLE_PRESENTATION)
     include(RunicGodot)
