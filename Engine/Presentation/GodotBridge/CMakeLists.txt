@@ -1,7 +1,9 @@
 # Runic::GodotBridge (Presentation): the only Engine module that talks to Godot at runtime.
-# Contract: ARCHITECTURE.md. Slice 0 holds the LibGodot host; GDB-1 (slice 1) adds the GodotLayer.
+# Contract: ARCHITECTURE.md. Slice 0 wrote the LibGodot host; GDB-1 (slice 1) added the GodotLayer and the input sink
+# (Runic::Application is public: GodotLayer derives from its Layer).
 runic_add_module(GodotBridge
     GROUP Presentation
+    PUBLIC_DEPS Runic::Application
     PRIVATE_DEPS godot::cpp runic_system_dl)
 
 if(TARGET RunicGodotBridgeTests)
