@@ -6,8 +6,7 @@
 #
 # A recipe names a library ID, the targets the library provides and the function that brings it into the build.
 # Declaring a recipe fetches nothing. runic_add_module requires the recipe behind every dependency that names a recipe
-# ID (glm) or one of its targets (glm::glm), when the module's catalog row lists it; RunicEngine's transitional
-# Runic::Runtime bundle requires Flecs, GLM and Jolt. A recipe runs once per build tree, whichever repository asks
+# ID (glm) or one of its targets (glm::glm), when the module's catalog row lists it. A recipe runs once per build tree, whichever repository asks
 # first; its targets are then registered with runic_third_party (the catalog checks) and marked SYSTEM (warnings in
 # third-party headers never fail a Runic build). A third party that no configured target needs is never downloaded.
 include_guard(GLOBAL)
