@@ -1,7 +1,7 @@
 # Runic::Core
 
 Foundation · Headless: yes · Packages: CORE-1, CORE-2, CORE-3, CORE-4, CORE-5, CORE-6, CORE-7, CORE-8 · Status:
-CORE-1 contract (slice 1); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
+CORE-1 implemented (slice 1); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 
 **Holds** (RunicDocs › Repositories, build targets and processes › Engine modules): Plain ID types, time types, math (GLM), world-space types (WorldPosition, WorldDelta), memory, logging, config, worker pool, metrics registry, debug-stream registry; RenderData (plain render structs shared by the Client, GodotBridge and debug tools, including DebugGeometry and the debug-draw API)
 
@@ -33,7 +33,7 @@ CORE-1 contract (slice 1); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## How the folders fill
 
-CORE-1 (slice 1) has written the contract: `ARCHITECTURE.md`, `CMakeLists.txt`, nine public headers (`PlainIds.hpp`, `Result.hpp`, `Assert.hpp`, `Log.hpp`, `Time.hpp`, `Math.hpp`, `WorldSpace.hpp`, `FixedRingBuffer.hpp`, `FixedVector.hpp`) and the acceptance tests in `Tests/`, which fail until the implementation. Its implementation session fills `Source/Errors`, `Source/Logging`, `Source/Time` and `Source/Math`, and the container members in their headers; `Source/Ids` and `Source/Memory` stay empty, because those subsystems are header-only (ARCHITECTURE.md › Where the code lives). A folder whose package has not started holds only its README. Every folder exists from the start (decided 2026-11-12) so the layout never moves; a package writes inside this module's folder only, and reports any change another module needs instead of making it.
+CORE-1 (slice 1) wrote `ARCHITECTURE.md`, `CMakeLists.txt`, nine public headers (`PlainIds.hpp`, `Result.hpp`, `Assert.hpp`, `Log.hpp`, `Time.hpp`, `Math.hpp`, `WorldSpace.hpp`, `FixedRingBuffer.hpp`, `FixedVector.hpp`), `Source/Errors`, `Source/Logging`, `Source/Time`, `Source/Math` and the tests in `Tests/`. `Source/Ids` and `Source/Memory` stay empty: those subsystems are header-only (ARCHITECTURE.md › Where the code lives). The later Core packages fill the other folders. A folder whose package has not started holds only its README. Every folder exists from the start (decided 2026-11-12) so the layout never moves; a package writes inside this module's folder only, and reports any change another module needs instead of making it.
 
 ## Sources
 

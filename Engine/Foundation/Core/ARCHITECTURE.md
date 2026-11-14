@@ -4,8 +4,8 @@ Group: Foundation · Headless: **yes** · Target: `Runic::Core` (`runic_core`) �
 
 Source: RunicDocs › Architecture › Repositories, build targets and processes (Engine modules); Modules, work packages
 and the implementation contract (CORE-1); World space coordinates, cells and activation (Which values are 64-bit);
-Application and LayerStack (Implementation rules); Simulation core clock and threads. Status: **CORE-1 contract**
-(slice 1): the public headers and the acceptance tests, which fail until the implementation. The folder map is
+Application and LayerStack (Implementation rules); Simulation core clock and threads. Status: **CORE-1 implemented**
+(slice 1): the public headers, `Source/` and the acceptance tests, which pass with GCC and Clang. The folder map is
 [README.md](README.md); the slice brief is [RunicEngine#144](https://github.com/PedroVicente98/RunicEngine/issues/144)
 and the approved plan [RunicEngine#9](https://github.com/PedroVicente98/RunicEngine/issues/9).
 
@@ -112,7 +112,7 @@ assert handler. Everything else is a value owned by whoever holds it.
 
 | ID | Package | Done when | Status |
 | --- | --- | --- | --- |
-| CORE-1 | Plain ID types, Result, asserts, logging hooks, time types, GLM math, the world-space types, fixed-capacity containers | Unit tests cover IDs, Result, time conversions and world-space arithmetic; adding two WorldPositions or converting one to a float vector does not compile; fixed-capacity containers never allocate after construction | **Contract** (slice 1): headers and `RunicCoreTests`; the compile-time checks hold, and the tests fail to link until the implementation |
+| CORE-1 | Plain ID types, Result, asserts, logging hooks, time types, GLM math, the world-space types, fixed-capacity containers | Unit tests cover IDs, Result, time conversions and world-space arithmetic; adding two WorldPositions or converting one to a float vector does not compile; fixed-capacity containers never allocate after construction | **Implemented** (slice 1): `RunicCoreTests` passes, 39 tests in Debug, 31 in Release (where asserts are compiled out); awaiting the verify step |
 | CORE-2 | Worker pool, metrics registry, debug-stream registry, per-tick arenas and per-worker buffers | Jobs run on the pool; metrics are recorded per tick domain; a per-tick arena resets without returning memory to the system | Not started (slice 3) |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | Not started (slice 2) |
 | CORE-4 to CORE-7 | RenderData kinds: scene, world state, water and fields, effects | See RunicDocs › Modules, work packages | Not started (slices 22, 25a, 42a, 44+) |
