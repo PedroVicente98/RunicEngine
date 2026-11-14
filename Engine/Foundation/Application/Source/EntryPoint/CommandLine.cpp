@@ -8,8 +8,9 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <shellapi.h>
 #include <windows.h>
+
+#include <shellapi.h> // after windows.h, which it needs
 #endif
 
 namespace Runic::Application {
