@@ -1,7 +1,7 @@
 # Runic::Core
 
 Foundation · Headless: yes · Packages: CORE-1, CORE-2, CORE-3, CORE-4, CORE-5, CORE-6, CORE-7, CORE-8 · Status:
-empty until CORE-1 (slice 1) starts the module
+CORE-1 contract (slice 1); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 
 **Holds** (RunicDocs › Repositories, build targets and processes › Engine modules): Plain ID types, time types, math (GLM), world-space types (WorldPosition, WorldDelta), memory, logging, config, worker pool, metrics registry, debug-stream registry; RenderData (plain render structs shared by the Client, GodotBridge and debug tools, including DebugGeometry and the debug-draw API)
 
@@ -25,15 +25,15 @@ empty until CORE-1 (slice 1) starts the module
 | [`Source/DebugStreams/`](Source/DebugStreams/README.md) | The debug-stream registry where modules publish traces; the Diagnostics layer streams them to the RunicEditor's live attach. | CORE-2 (slice 3) |
 | [`Source/RenderData/`](Source/RenderData/README.md) | The code behind `Public/RenderData/` (namespace `Runic::RenderData`): the double-buffered RenderFrame, DebugGeometry and the debug-draw API that turns shapes into lines and triangles, then each render-data kind as the package that first needs it adds it (mesh, skinned, anchors; lights, environment, volumes; water and field grids; effects). | CORE-3 (slice 2), CORE-4 (slice 22), CORE-5 (slice 25a), CORE-6 (slice 42a), CORE-7 (slice 44+) |
 | `Tests/` | GoogleTest tests, registered with CTest; one test executable per module. | every package |
-| `ARCHITECTURE.md` | The module contract: purpose, public API, ownership, allowed and forbidden dependencies, threading, work packages and their status. | the first package's contract session |
-| `CMakeLists.txt` | One `runic_add_module(...)` call. | the first package |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | The module contract: purpose, public API, ownership, allowed and forbidden dependencies, threading, work packages and their status. | exists (CORE-1 contract) |
+| [`CMakeLists.txt`](CMakeLists.txt) | One `runic_add_module(...)` call, plus the public `GLM_FORCE_EXPLICIT_CTOR` definition. | exists (CORE-1 contract) |
 
 - `Public/RenderData/` is the one public subfolder the architecture defines: RenderData is a separate folder and namespace (`Runic::RenderData`) inside Core, included as `#include "RenderData/RenderFrame.hpp"`. Everything else in `Public/` is flat.
 - `Public/WorldSpace.hpp` (WorldPosition, WorldDelta, ToLocal) lives in Core so every module can use 64-bit positions without linking World; CORE-1 adds it (decided 2026-11-12).
 
 ## How the folders fill
 
-Nothing here is code yet. CORE-1 (slice 1) starts the module: its contract session writes `ARCHITECTURE.md`, `CMakeLists.txt`, the public headers and the failing acceptance tests; its implementation session fills the `Source/` folders the package needs. A folder whose package has not started holds only its README. Every folder exists from the start (decided 2026-11-12) so the layout never moves; a package writes inside this module's folder only, and reports any change another module needs instead of making it.
+CORE-1 (slice 1) has written the contract: `ARCHITECTURE.md`, `CMakeLists.txt`, nine public headers (`PlainIds.hpp`, `Result.hpp`, `Assert.hpp`, `Log.hpp`, `Time.hpp`, `Math.hpp`, `WorldSpace.hpp`, `FixedRingBuffer.hpp`, `FixedVector.hpp`) and the acceptance tests in `Tests/`, which fail until the implementation. Its implementation session fills `Source/Errors`, `Source/Logging`, `Source/Time` and `Source/Math`, and the container members in their headers; `Source/Ids` and `Source/Memory` stay empty, because those subsystems are header-only (ARCHITECTURE.md › Where the code lives). A folder whose package has not started holds only its README. Every folder exists from the start (decided 2026-11-12) so the layout never moves; a package writes inside this module's folder only, and reports any change another module needs instead of making it.
 
 ## Sources
 
