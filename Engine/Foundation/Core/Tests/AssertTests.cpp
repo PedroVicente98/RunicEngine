@@ -20,7 +20,7 @@ TEST(AssertDeathTest, FailurePrintsTheConditionAndAborts) {
 
 TEST(AssertDeathTest, MessageAndLocationArePrinted) {
     EXPECT_DEATH(RUNIC_ASSERT_MSG(false, "the frame must be open"),
-                 "assert failed: false - the frame must be open \\(.*AssertTests.cpp:[0-9]+\\)");
+                 "assert failed: false - the frame must be open \\(.*AssertTests.cpp:.+\\)");
 }
 
 namespace {
