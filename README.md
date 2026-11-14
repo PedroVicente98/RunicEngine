@@ -1,5 +1,7 @@
 # RunicEngine
 
+> **This is the `layout` branch: the planned folder layout.** Every group, module, subsystem and program folder of the Engine, each with the README that says what it will hold and which package fills it, as planned at the end of slice 1 (2026-11-14). `main` keeps only the folders in use: a package that needs a folder takes its README from here (`git checkout origin/layout -- <folder>/README.md`) and updates it. This branch is never merged; it changes only when RunicDocs changes the planned layout.
+
 RunicEngine is an open-source (MIT) C++20 engine of generic mechanisms for a server-authoritative MMORPG: a headless multi-rate simulation on Flecs and Jolt, 64-bit world space, gameplay and combat toolkits, AI, water and environment, realtime replication and distributed simulation, client presentation, and the RunicEditor (the Godot editor through LibGodot) and the Cooker.
 
 It is one of three repositories. RunicGame (proprietary) builds its game on it; RunicPlatform (MIT) supplies the realtime transport, services and infrastructure and implements the Engine's interfaces. The Engine contains no game rules or content and depends on neither.
