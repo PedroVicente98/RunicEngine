@@ -20,8 +20,9 @@ umbrella target); it has no code of its own.
 | [Tools](Tools/README.md) | GodotTools 0 · Cooker 9 |
 | [Programs](Programs/README.md) | RunicEditor 0 · RunicServer 1 · RunicClient 1 · RunicBot 38 — executables, not modules |
 
-Slice 0 left code in two modules: GodotBridge (the LibGodot host) and GodotTools (the GDT-1 test plugin), plus the
-RunicEditor program. Everything else holds only READMEs.
+Modules with code: Core (CORE-1) and Application (APP-1), from slice 1; GodotBridge (the slice 0 LibGodot host and
+GDB-1's GodotLayer) and GodotTools (the GDT-1 test plugin). Programs with code: RunicEditor (slice 0, on the entry
+point since GDB-1), RunicServer (APP-1) and RunicClient (GDB-1). Everything else holds only READMEs.
 
 ## The shape of a module
 
