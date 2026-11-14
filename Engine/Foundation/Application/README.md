@@ -25,7 +25,7 @@ APP-1 implemented (slice 1); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## How the folders fill
 
-APP-1 (slice 1) wrote the module: `ARCHITECTURE.md`, `CMakeLists.txt`, nine public headers, the five `Source/` folders and `Tests/`. A folder whose package has not started holds only its README. Every folder exists from the start (decided 2026-11-12) so the layout never moves; a package writes inside this module's folder only, and reports any change another module needs instead of making it.
+APP-1 (slice 1) wrote the module: `ARCHITECTURE.md`, `CMakeLists.txt`, nine public headers, the five `Source/` folders and `Tests/`. Every folder the architecture plans for this module exists; a later package that needs a new one takes its README from the `layout` branch, so the planned layout never moves (decided 2026-11-14); a package writes inside this module's folder only, and reports any change another module needs instead of making it.
 
 ## Sources
 

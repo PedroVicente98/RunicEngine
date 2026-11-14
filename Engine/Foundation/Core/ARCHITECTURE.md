@@ -101,8 +101,8 @@ assert handler. Everything else is a value owned by whoever holds it.
   implementation writes below each class.
 - Everything else is defined in `Source/<Subsystem>/`: `Errors/` (`FailAssert`, `SetAssertHandler`), `Logging/` (the
   sink, the level, `WriteLog`, `Detail::WriteFormattedLog`), `Time/` (`MonotonicNow`, `ToSeconds`, `FromSeconds`,
-  `TickRate::TimeOfTick`, `TickRate::TicksIn`) and `Math/` (`ToLocal`). `Ids/` and `Memory/` stay empty: those
-  subsystems are header-only.
+  `TickRate::TimeOfTick`, `TickRate::TicksIn`) and `Math/` (`ToLocal`). `Ids/` and `Memory/` have no folder yet:
+  those subsystems are header-only so far.
 - Formats the tests rely on: the default sink writes `<Level>: <message>` and a newline to stderr; `FailAssert` logs
   `assert failed: <condition>[ - <message>] (<file>:<line>)` at Fatal.
 - `TickRate`: `TimeOfTick(k)` = ⌈k × 10⁹ / rate⌉ ns and `TicksIn(t)` = ⌊t × rate / 10⁹⌋, computed without overflow by

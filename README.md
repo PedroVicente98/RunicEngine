@@ -8,9 +8,11 @@ It is one of three repositories. RunicGame (proprietary) builds its game on it; 
 
 Slice 0 (Build skeleton) is done: the module helpers and their checks, the v4 module catalog, GoogleTest, presets,
 CI, the x86-64-v3 baseline, Godot 4.7.2 and godot-cpp 10.0.0 pinned, libgodot built from source in the editor and
-template targets, and the RunicEditor opening the Godot editor through LibGodot with a test plugin (GDT-1). Every
-module and subsystem folder exists with a README saying what it will hold ([Engine/README.md](Engine/README.md)).
-Slice 1 (Application and layers) is next. The build skeleton is described in [cmake/README.md](cmake/README.md); the
+template targets, and the RunicEditor opening the Godot editor through LibGodot with a test plugin (GDT-1). Slice 1
+(Application and layers) adds Runic::Core's first types (CORE-1), the entry point and the layer stack
+(Runic::Application, APP-1), the GodotLayer (GDB-1) and the Engine's own RunicServer and RunicClient. Only the folders
+in use are on `main`; the planned layout, every folder with its README, is on the `layout` branch
+([Engine/README.md](Engine/README.md)). The build skeleton is described in [cmake/README.md](cmake/README.md); the
 plan and the status of every slice and package are in RunicDocs (Development).
 
 ## Build
@@ -57,8 +59,8 @@ The architecture, the roadmap and the status of every package live in one place,
 ([pedrovicente98.github.io/RunicDocs](https://pedrovicente98.github.io/RunicDocs/)): this repository keeps no copy.
 Next to the code:
 
-- [Engine/README.md](Engine/README.md) — every group, module and subsystem folder, and the package that fills it;
-  each module's own `README.md` and `ARCHITECTURE.md`
+- [Engine/README.md](Engine/README.md) — the groups, modules and programs, which of them have folders, and the
+  `layout` branch that holds every planned folder; each module's own `README.md` and `ARCHITECTURE.md`
 - [cmake/README.md](cmake/README.md) — the build helpers, the checks, the presets and CI
 - [CLAUDE.md](CLAUDE.md) — rules for Claude Code sessions in this repository
 - `docs/` will hold the generated API documentation (Doxygen, later)

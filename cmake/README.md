@@ -32,7 +32,7 @@ Approving this contract approves these choices. The v3 draft of this contract (b
 | 6 | CI is **GitHub Actions**. Required jobs run on Linux (Ubuntu 24.04, GCC and Clang); a Windows MSVC 2022 job is non-blocking until a module needs Windows | Proposal |
 | 7 | CPU baseline option `RUNIC_CPU_BASELINE`, default `x86-64-v3` (`-march=x86-64-v3`, `/arch:AVX2`); `none` leaves the compiler's default target. Jolt's SIMD options follow it | Proposal (the baseline itself is decided) |
 | 8 | Warnings: `-Wall -Wextra -Wpedantic` (or `/W4 /permissive-`) on every Runic target, **`-Werror=float-conversion`** always (the Decisions log type rule), all warnings as errors with `RUNIC_WARNINGS_AS_ERRORS=ON` in CI | Proposal |
-| 9 | The pre-v3 scaffold (`include/RunicEngine/*`, `src/*`, `tests/.gitkeep`) is removed; every `Engine/<Group>/<Module>/` folder and its subsystem folders exist from the start with a README (decided by the owner on 2026-11-12); a module's first package adds its `CMakeLists.txt` and `ARCHITECTURE.md` | Done |
+| 9 | The pre-v3 scaffold (`include/RunicEngine/*`, `src/*`, `tests/.gitkeep`) is removed; every `Engine/<Group>/<Module>/` folder and its subsystem folders exist from the start with a README (decided by the owner on 2026-11-12; since 2026-11-14 `main` keeps only the folders in use and the full layout is on the `layout` branch); a module's first package adds its `CMakeLists.txt` and `ARCHITECTURE.md` | Done |
 | 10 | **Godot 4.7.2-stable** and **godot-cpp 10.0.0-stable** pinned as shallow submodules (`external/godot`, `external/godot-cpp`); godot-cpp targets API 4.7 | Proposal |
 | 11 | libgodot is built by `scripts/godot/build_libgodot.py` (SCons with `scripts/godot/runic_editor.py` and `runic_template.py`, the build profile `runic_client.gdbuild`, the SCons cache in CI) and **loaded at runtime** by the host, staged next to the executables. One client binary runs the editor library in development and the template library when shipping | Proposal |
 | 12 | The LibGodot host (`GodotRuntime`) is GodotBridge's first code, written in slice 0 because the client and the RunicEditor spike both need it; GDB-1 builds the GodotLayer on it | Proposal |
@@ -320,11 +320,11 @@ Result on the reference machine (Linux, GCC 16, Clang 23): `debug` 51 of 51, `he
 
 ## Submodule pins
 
-RunicPlatform pins this repository at `2013e9b` (BUILD-2), and RunicGame pins it at `2013e9b` and RunicPlatform at
-`74e87e3`. A pin moves in its own commit. During a slice, the Platform's and the Game's slice branches may pin commits
-of this repository's slice branch; the slice check merges the branches into `main` in Needs order (RunicEngine,
-RunicPlatform, RunicGame), by fast-forward or a merge commit, never squashed or rebased (a squash or a rebase would
-leave the pins naming commits that are not on `main`). Local builds use the sibling checkouts through the
+RunicPlatform pins this repository, and RunicGame pins it and RunicPlatform (`git submodule status` in each shows the
+pinned commits). A pin moves in its own commit. During a slice, the Platform's and the Game's slice branches may pin
+commits of this repository's slice branch; the slice check merges the branches into `main` in Needs order
+(RunicEngine, RunicPlatform, RunicGame), by fast-forward or a merge commit, never squashed or rebased (a squash or a
+rebase would leave the pins naming commits that are not on `main`). Local builds use the sibling checkouts through the
 `*-siblings` presets.
 
 ## BUILD-2

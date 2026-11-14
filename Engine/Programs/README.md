@@ -9,7 +9,15 @@ APP-1 (slice 1) on it defines `CreateApplication` for the Engine's entry point a
 | [RunicEditor](RunicEditor/README.md) | The Godot editor run through LibGodot (editor target), with the Runic tools (Runic::GodotTools) and later the Cooker; never shipped | Slice 0 (GDT-1) |
 | [RunicServer](RunicServer/README.md) | The Engine's own game-agnostic server: the Engine's server layers on the fixed 60 Hz loop, neutral test content, no Platform layers; where Engine slices show their server results | APP-1 (slice 1) |
 | [RunicClient](RunicClient/README.md) | The Engine's own game-agnostic client: the Engine's client layers with the GodotLayer on top, neutral test content; where Engine slices show their client results | GDB-1 (slice 1) |
-| [RunicBot](RunicBot/README.md) | The client runtime without presentation, many bot sessions per process, for scale tests; never shipped | CLI-9 (slice 38) |
+
+## Planned programs
+
+No folder yet: a program's folder appears with the package that creates it, which takes its README from the `layout`
+branch (`git checkout origin/layout -- Engine/Programs/<Program>/README.md`; decided 2026-11-14).
+
+| Program | What | Since |
+| --- | --- | --- |
+| RunicBot | The client runtime without presentation, many bot sessions per process, for scale tests; never shipped | CLI-9 (slice 38) |
 
 The Cooker is not a program: it runs inside the RunicEditor, or as the RunicEditor run headless on build machines.
 The game's executables (GameClient and GameServer) are not here: they belong to RunicGame, and they are the same
