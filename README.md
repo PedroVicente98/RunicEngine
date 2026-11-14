@@ -51,7 +51,8 @@ cmake --preset headless && cmake --build --preset headless && ctest --preset hea
 
 Third-party archives are downloaded on configure into versioned folders in `external/` (git-ignored) with SHA-256
 checks and reused afterwards. Editors: open `Runic.code-workspace` for the Engine, Platform, Game and Docs folders;
-`.vscode/` has build and test tasks and launch configurations for the RunicEditor and the tests.
+`.vscode/` has build and test tasks and launch configurations for RunicClient, RunicServer, the RunicEditor and
+the GodotBridge tests, each named after the program and what it shows.
 
 ## Documentation
 

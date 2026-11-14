@@ -1,8 +1,45 @@
 {
+  // Each configuration first runs the task "Engine: build (debug)" and starts a program from build/debug/bin
+  // under gdb. Names: the program, then what you get.
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "RunicEditor: spike project with the test plugin",
+      // The Engine's client: a Godot window with one button (slice 1 check 7). A key prints "AppEvent Key reached
+      // the stack", a click beside the button prints "AppEvent MouseButton ...", a click on the button prints
+      // nothing (Godot's UI keeps it). Close the window to stop.
+      "name": "RunicClient: window with the test button",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/RunicClient",
+      "args": [],
+      "cwd": "${workspaceFolder}/build/debug/bin",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Engine: build (debug)",
+      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
+    },
+    {
+      // The Engine's server, no window: 120 frames (2 s) of the fixed 60 Hz loop. Test layers are pushed, replaced
+      // and popped, and each prints the frame it attached or detached at (slice 1 check 2).
+      "name": "RunicServer: 2-second run (layer demo)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/RunicServer",
+      "args": ["--quit-after", "120", "--layer-demo"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Engine: build (debug)",
+      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
+    },
+    {
+      // The Godot editor (through LibGodot) on the Engine's test project, with the Runic test plugin: it adds
+      // Project > Tools > "Runic: About this editor".
+      "name": "RunicEditor: open the test project",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/debug/bin/RunicEditor",
@@ -19,7 +56,8 @@
       ]
     },
     {
-      "name": "RunicEditor: project manager (New / Open)",
+      // The editor with no project: Godot's Project Manager, to create or open a project.
+      "name": "RunicEditor: Project Manager (new or open)",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/debug/bin/RunicEditor",
@@ -36,7 +74,9 @@
       ]
     },
     {
-      "name": "RunicEditor: GDT-1 check (headless, quits after 120 frames)",
+      // The editor with no window on the test project; it quits after 120 frames. For debugging an editor that
+      // fails to start: ctest runs the same check (godot.editor_spike).
+      "name": "RunicEditor: startup check, no window",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/debug/bin/RunicEditor",
@@ -50,38 +90,11 @@
       "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
     },
     {
-      "name": "GodotBridge tests (GoogleTest)",
+      // RunicGodotBridgeTests (GoogleTest) under gdb, to step through a failing test; ctest runs them all anyway.
+      "name": "GodotBridge: unit tests in the debugger",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/debug/bin/RunicGodotBridgeTests",
-      "args": [],
-      "cwd": "${workspaceFolder}/build/debug/bin",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "/usr/bin/gdb",
-      "preLaunchTask": "Engine: build (debug)",
-      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
-    },
-    {
-      "name": "RunicServer: layer demo (120 frames)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/debug/bin/RunicServer",
-      "args": ["--quit-after", "120", "--layer-demo"],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "/usr/bin/gdb",
-      "preLaunchTask": "Engine: build (debug)",
-      "setupCommands": [{ "text": "-enable-pretty-printing", "ignoreFailures": true }]
-    },
-    {
-      "name": "RunicClient: a window with the test project (slice 1 check 7)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/debug/bin/RunicClient",
       "args": [],
       "cwd": "${workspaceFolder}/build/debug/bin",
       "stopAtEntry": false,
