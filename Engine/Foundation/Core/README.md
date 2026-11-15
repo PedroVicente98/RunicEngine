@@ -1,7 +1,7 @@
 # Runic::Core
 
 Foundation · Headless: yes · Packages: CORE-1, CORE-2, CORE-3, CORE-4, CORE-5, CORE-6, CORE-7, CORE-8 · Status:
-CORE-1 implemented (slice 1); CORE-3 contract (slice 2); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
+CORE-1 implemented (slice 1); CORE-3 implemented (slice 2); contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 
 **Holds** (RunicDocs › Repositories, build targets and processes › Engine modules): Plain ID types, time types, math (GLM), world-space types (WorldPosition, WorldDelta), memory, logging, config, worker pool, metrics registry, debug-stream registry; RenderData (plain render structs shared by the Client, GodotBridge and debug tools, including DebugGeometry and the debug-draw API)
 

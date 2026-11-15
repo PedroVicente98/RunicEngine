@@ -5,8 +5,9 @@ Group: Foundation · Headless: **yes** · Target: `Runic::Core` (`runic_core`) �
 Source: RunicDocs › Architecture › Repositories, build targets and processes (Engine modules); Modules, work packages
 and the implementation contract (CORE-1); World space coordinates, cells and activation (Which values are 64-bit);
 Application and LayerStack (Implementation rules); Simulation core clock and threads; Render data, extraction and world
-UI (RenderData in Core); Debug drawing (Engine). Status: **CORE-1 implemented** (slice 1); **CORE-3 contract** (slice 2):
-the RenderData headers and their acceptance tests, which fail to link until `Source/RenderData/` exists. The folder map
+UI (RenderData in Core); Debug drawing (Engine). Status: **CORE-1 implemented** (slice 1); **CORE-3 implemented** (slice 2):
+the RenderData headers, `Source/RenderData/` and their acceptance tests, which pass with GCC (and under
+ThreadSanitizer for the frame exchange); awaiting the verify step. The folder map
 is [README.md](README.md); the slice briefs are [RunicEngine#144](https://github.com/PedroVicente98/RunicEngine/issues/144)
 (slice 1) and [RunicEngine#145](https://github.com/PedroVicente98/RunicEngine/issues/145) (slice 2), the plans
 [RunicEngine#9](https://github.com/PedroVicente98/RunicEngine/issues/9) (CORE-1) and
@@ -149,7 +150,7 @@ until its next call.
 | --- | --- | --- | --- |
 | CORE-1 | Plain ID types, Result, asserts, logging hooks, time types, GLM math, the world-space types, fixed-capacity containers | Unit tests cover IDs, Result, time conversions and world-space arithmetic; adding two WorldPositions or converting one to a float vector does not compile; fixed-capacity containers never allocate after construction | **Implemented** (slice 1): `RunicCoreTests` passes, 39 tests in Debug, 31 in Release (where asserts are compiled out); awaiting the verify step |
 | CORE-2 | Worker pool, metrics registry, debug-stream registry, per-tick arenas and per-worker buffers | Jobs run on the pool; metrics are recorded per tick domain; a per-tick arena resets without returning memory to the system | Not started (slice 3) |
-| CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | **Contract** (slice 2): the RenderData headers and the tests below; decisions D1–D3, D5 and D6 in RunicEngine#145 |
+| CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | **Implemented** (slice 2): `RunicCoreTests` passes with the 23 CORE-3 tests below; decisions D1–D3, D5 and D6 in RunicEngine#145; awaiting the verify step |
 | CORE-4 to CORE-7 | RenderData kinds: scene, world state, water and fields, effects | See RunicDocs › Modules, work packages | Not started (slices 22, 25a, 42a, 44+) |
 | CORE-8 | Process configuration | A setting resolves from each source in precedence order; an unknown key or a bad value is reported with its source | Not started (slice 3) |
 
