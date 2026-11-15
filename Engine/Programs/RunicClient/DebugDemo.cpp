@@ -129,7 +129,8 @@ void DebugDemoLayer::OnUpdate(const Application::FrameTime &time) {
     depth.DrawGridXZ(kGridHalfSizeM, kGridSpacingM, RenderData::kDebugInactive);
 
     const float walk = kTwoPi * seconds / kWalkPeriodS;
-    const Vec3 feet(std::cos(walk) * kWalkRadiusM, 0.0f, std::sin(walk) * kWalkRadiusM);
+    const Vec3 feet(std::cos(walk) * kWalkRadiusM, RenderData::kGridHeightM,
+                    std::sin(walk) * kWalkRadiusM);           // on the grid
     const Vec3 facing(-std::sin(walk), 0.0f, std::cos(walk)); // along the circle
     const Vec3 chest = Above(feet, kChestHeightM);
     const Vec3 top = Above(feet, kCapsuleHeightM);
@@ -145,8 +146,9 @@ void DebugDemoLayer::OnUpdate(const Application::FrameTime &time) {
                        RenderData::kDebugAuthoritative);
     depth.DrawCone(kConeApex, kConeDirection, kConeLengthM, kConeHalfAngleRadians,
                    RenderData::kDebugHarmful);
-    depth.DrawArcVolume(kVolumeOrigin, kVolumeForward, kUp, 0.0f, kVolumeOuterRadiusM,
-                        kVolumeAngleRadians, kVolumeHeightM, RenderData::kDebugHarmful);
+    depth.DrawArcVolume(kVolumeOrigin, kVolumeForward, kUp, RenderData::kNoInnerRadius,
+                        kVolumeOuterRadiusM, kVolumeAngleRadians, kVolumeHeightM,
+                        RenderData::kDebugHarmful);
     depth.DrawOBB(kTiltedBoxCenter, kTiltedBoxAxisX, kTiltedBoxAxisY, kTiltedBoxAxisZ,
                   kTiltedBoxHalfExtent, RenderData::kDebugPhysics);
     FillSquareXZ(depth, kRedSquareMin, kRedSquareMax,
