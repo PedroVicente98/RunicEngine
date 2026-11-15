@@ -2,10 +2,14 @@
 
 #include "GodotLayer.hpp"
 
+#include "Debug/DebugLayers.hpp"
+#include "Debug/DevelopmentOverlay.hpp"
 #include "Input/InputSink.hpp"
 #include "Log.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <utility>
 
 namespace Runic::GodotBridge {
@@ -15,6 +19,9 @@ struct GodotLayer::Impl {
     GodotRuntime runtime;
     Application::LayerContext *context = nullptr;
     Detail::RunicInputSink *sink = nullptr; // a node of Godot's scene tree, freed with it
+    // Created once Godot runs (its RIDs need Godot's bindings), when the spec has frames.
+    std::unique_ptr<Detail::DebugLayers> debug;
+    std::array<bool, kDebugLayerCount> debugVisible{true, true, true}; // until debug exists
     bool headless = false;
 };
 
@@ -30,6 +37,15 @@ GodotLayer::GodotLayer(GodotLayerSpec spec)
                 Detail::RegisterInputSink();
             }
         });
+    }
+    if (impl.spec.frames != nullptr) {
+        if (impl.spec.developmentOverlay) {
+            impl.runtime.AddInitializeHook([](GodotInitLevel level) {
+                if (level == GodotInitLevel::Scene) {
+                    Detail::RegisterDebugClasses();
+                }
+            });
+        }
     }
 }
 
@@ -50,10 +66,28 @@ Core::Result<void> GodotLayer::OnAttach(Application::LayerContext &context) {
     if (impl.spec.forwardInput) {
         impl.sink = Detail::AttachInputSink(context);
     }
+    if (impl.spec.frames != nullptr) {
+        impl.debug = std::make_unique<Detail::DebugLayers>();
+        for (std::size_t i = 0; i < impl.debugVisible.size(); ++i) {
+            impl.debug->SetLayerVisible(static_cast<DebugLayer>(i), impl.debugVisible[i]);
+        }
+        impl.debug->Create(impl.spec.developmentOverlay);
+    }
     RUNIC_LOG_INFO("RUNIC: Godot started {} ({} library)",
                    impl.headless ? "headless" : "with a window",
                    impl.spec.target == GodotTarget::Editor ? "editor" : "template");
     return {};
+}
+
+void GodotLayer::OnUpdate(const Application::FrameTime &) {
+    Impl &impl = *m_Impl;
+    if (impl.debug == nullptr || !impl.debug->IsCreated()) {
+        return;
+    }
+    const RenderData::RenderFrame *frame = impl.spec.frames->ReadNewest();
+    if (frame != nullptr && frame->number != impl.debug->Stats().frame) {
+        impl.debug->Apply(*frame);
+    }
 }
 
 void GodotLayer::OnRender() {
@@ -80,6 +114,10 @@ void GodotLayer::OnRender() {
 void GodotLayer::OnDetach() {
     Impl &impl = *m_Impl;
     impl.sink = nullptr; // freed with the scene tree
+    if (impl.debug != nullptr) {
+        impl.debug->Destroy(); // its RenderingServer resources go while Godot still runs
+        impl.debug.reset();
+    }
     const std::uint64_t frames = impl.runtime.FrameCount();
     impl.runtime.Destroy();
     RUNIC_LOG_INFO("RUNIC: Godot stopped after {} frames", frames);
@@ -88,5 +126,31 @@ void GodotLayer::OnDetach() {
 GodotRuntime &GodotLayer::Runtime() noexcept { return m_Impl->runtime; }
 bool GodotLayer::IsHeadless() const noexcept { return m_Impl->headless; }
 std::uint64_t GodotLayer::GodotFrames() const noexcept { return m_Impl->runtime.FrameCount(); }
+
+void GodotLayer::SetDebugLayerVisible(DebugLayer layer, bool visible) {
+    m_Impl->debugVisible[static_cast<std::size_t>(layer)] = visible;
+    if (m_Impl->debug != nullptr) {
+        m_Impl->debug->SetLayerVisible(layer, visible);
+    }
+}
+
+bool GodotLayer::IsDebugLayerVisible(DebugLayer layer) const noexcept {
+    // The debug layers hold the state once they exist: the overlay's checkboxes change it there.
+    return m_Impl->debug != nullptr ? m_Impl->debug->IsLayerVisible(layer)
+                                    : m_Impl->debugVisible[static_cast<std::size_t>(layer)];
+}
+
+DebugViewStats GodotLayer::DebugStats() const noexcept {
+    return m_Impl->debug != nullptr ? m_Impl->debug->Stats() : DebugViewStats{};
+}
+
+bool GodotLayer::ReadBackDebugSurface(RenderData::DebugBatch batch,
+                                      RenderData::DebugPrimitive primitive,
+                                      std::vector<Core::Vec3> &positions,
+                                      std::vector<RenderData::PackedColor> &colors) const {
+    positions.clear();
+    colors.clear();
+    return m_Impl->debug != nullptr && m_Impl->debug->ReadBack(batch, primitive, positions, colors);
+}
 
 } // namespace Runic::GodotBridge

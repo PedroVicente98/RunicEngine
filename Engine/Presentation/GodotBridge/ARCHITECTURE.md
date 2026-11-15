@@ -5,8 +5,8 @@ Group: Presentation · Headless: **no** · Target: `Runic::GodotBridge` (`runic_
 Source: RunicDocs › Architecture › Godot integration (Engine), Repositories, build targets and processes
 (Engine modules), Render data, extraction and world UI, Debug drawing (Engine). Status: **GDB-1 implemented** (slice 1)
 on the slice 0 LibGodot host (RunicDocs › Architecture › Godot integration (Engine) › Slice 0 spike results (GDT-1));
-**GDB-2 contract** (slice 2): the debug view's public API and its acceptance tests, which fail to link until
-`Source/Debug/` exists. The folder map is [README.md](README.md); the slice 2 brief is
+**GDB-2 implemented** (slice 2): the debug view, the development overlay and their acceptance tests; awaiting the
+verify step. The folder map is [README.md](README.md); the slice 2 brief is
 [RunicEngine#145](https://github.com/PedroVicente98/RunicEngine/issues/145) and the plan
 [RunicEngine#11](https://github.com/PedroVicente98/RunicEngine/issues/11).
 
@@ -103,7 +103,7 @@ handlers and thread-locals inside it. godot-cpp's bindings are invalid after `De
 | --- | --- | --- | --- |
 | (slice 0) | LibGodot host for the slice 0 spike: `GodotRuntime` | The client and the RunicEditor start Godot through it; `GodotRuntime.StartsGodotHeadlessAndExits` passes when libgodot is built | Done in slice 0 |
 | GDB-1 | GodotLayer: the LibGodot instance at the top of the client LayerStack; window from the DisplayServer; input forwarded as AppEvents after Godot's UI; headless mode; the Engine's RunicClient program, and the RunicEditor on the entry point | RunicClient starts Godot windowed and headless and exits cleanly; the RunicEditor still opens and exits cleanly; UI clicks never reach the stack | **Implemented** (slice 1): `GodotLayer.*` unit tests, `godot.runic_client_headless`, `godot.runic_client_input`, `godot.editor_spike`, `godot.editor_project_manager`; the windowed run is the owner's (slice 1 check 7) |
-| GDB-2 | Debug drawing on Godot: Core's DebugGeometry uploaded as immediate meshes with depth-tested and overlay materials; toggled layers; development overlay panel | Every debug shape and text renders batched in one frame; layers toggle | **Contract** (slice 2): `DebugView.hpp`, the GodotLayer additions and `DebugViewTests`; decisions D4, D5 and D7 in RunicEngine#145 |
+| GDB-2 | Debug drawing on Godot: Core's DebugGeometry uploaded as immediate meshes with depth-tested and overlay materials; toggled layers; development overlay panel | Every debug shape and text renders batched in one frame; layers toggle | **Implemented** (slice 2): `DebugViewTests` (6, headless: Godot's layout, the read-back, one frame batched, the toggles, the camera, no frames); `godot.runic_client_headless` expects the debug view's line; decisions D4, D5 and D7 in RunicEngine#145; the windowed run is the owner's (check 7) |
 | GDB-3 to GDB-13 | Presenter, render data, world UI, binder, audio backend, production look | See RunicDocs › Modules, work packages | Not started |
 
 ## Future extensions

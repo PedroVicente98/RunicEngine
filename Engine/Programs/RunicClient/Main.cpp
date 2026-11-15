@@ -14,9 +14,11 @@
 // every argument reaches Godot unchanged, with --path added when it is missing.
 
 #include "Application.hpp"
+#include "DebugDemo.hpp"
 #include "EntryPoint.hpp"
 #include "GodotLayer.hpp"
 #include "Log.hpp"
+#include "RenderData/RenderFrameExchange.hpp"
 
 #include <memory>
 #include <string>
@@ -64,6 +66,11 @@ class RunicClientApplication final : public Application {
             RUNIC_LOG_INFO("RUNIC: RunicClient exited cleanly after {} frames", frames);
         }
     }
+    // The frames the debug demo writes and the GodotLayer shows (GDB-2); they outlive both layers.
+    Runic::RenderData::RenderFrameExchange &Frames() noexcept { return m_Frames; }
+
+  private:
+    Runic::RenderData::RenderFrameExchange m_Frames;
 };
 
 } // namespace
@@ -85,7 +92,11 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
 
     auto application = std::make_unique<RunicClientApplication>(ApplicationSpec{
         "RunicClient", LoopPolicy::PacedByTopLayer(), 0}); // Godot reads --quit-after itself
+    spec.frames = &application->Frames();
+    spec.developmentOverlay = true;
     application->PushLayer(std::make_unique<InputTraceLayer>());
+    application->PushLayer(
+        std::make_unique<Runic::Programs::DebugDemoLayer>(application->Frames()));
     application->PushLayer(
         std::make_unique<GodotBridge::GodotLayer>(std::move(spec))); // the top layer
     return application;
