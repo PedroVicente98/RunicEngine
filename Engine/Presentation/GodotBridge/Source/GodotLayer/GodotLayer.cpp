@@ -19,11 +19,11 @@ struct GodotLayer::Impl {
 };
 
 GodotLayer::GodotLayer(GodotLayerSpec spec)
-    : Layer("GodotLayer"), m_Impl(std::make_unique<Impl>()) {
+    : Layer(kGodotLayerName), m_Impl(std::make_unique<Impl>()) {
     Impl &impl = *m_Impl;
     impl.spec = std::move(spec);
     impl.headless = std::find(impl.spec.arguments.begin(), impl.spec.arguments.end(),
-                              "--headless") != impl.spec.arguments.end();
+                              kHeadlessFlag) != impl.spec.arguments.end();
     if (impl.spec.forwardInput) {
         impl.runtime.AddInitializeHook([](GodotInitLevel level) {
             if (level == GodotInitLevel::Scene) {
@@ -63,17 +63,20 @@ void GodotLayer::OnRender() {
     }
     const std::uint64_t frame = impl.runtime.FrameCount();
     for (const ScriptedClick &click : impl.spec.scriptedClicks) {
-        if (click.frame == frame || click.frame + 1 == frame) {
-            Detail::PushClick(click.x, click.y, click.frame == frame);
+        const bool press = click.frame == frame;
+        if (press || click.frame + kReleaseAfterFrames == frame) {
+            Detail::PushClick(click.x, click.y, press);
         }
     }
     for (const ScriptedKey &key : impl.spec.scriptedKeys) {
-        if (key.frame == frame || key.frame + 1 == frame) {
-            Detail::PushKey(key.key, key.frame == frame);
+        const bool press = key.frame == frame;
+        if (press || key.frame + kReleaseAfterFrames == frame) {
+            Detail::PushKey(key.key, press);
         }
     }
     if (impl.runtime.Iterate()) {
-        impl.context->RequestStop(0); // Godot quit: its window closed, or --quit-after
+        // Godot quit: its window closed, or the frame limit (kQuitAfterFlag) was reached.
+        impl.context->RequestStop(Application::kCleanExit);
     }
 }
 

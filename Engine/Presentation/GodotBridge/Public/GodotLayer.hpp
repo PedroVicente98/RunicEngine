@@ -5,14 +5,21 @@
 #include <string>
 #include <vector>
 
+#include "GodotArguments.hpp"
 #include "GodotRuntime.hpp"
 #include "Layer.hpp"
 
 namespace Runic::GodotBridge {
 
-// A synthetic left click (press, then the release one frame later) that the GodotLayer pushes into
-// Godot's root viewport before a Godot frame, so automated checks can prove what Godot's UI
-// consumes. Development and tests only.
+// The GodotLayer's name in the LayerStack.
+inline constexpr const char *kGodotLayerName = "GodotLayer";
+
+// How many Godot frames after its press a scripted click or key is released.
+inline constexpr std::uint64_t kReleaseAfterFrames = 1;
+
+// A synthetic left click (the press, then the release kReleaseAfterFrames later) that the
+// GodotLayer pushes into Godot's root viewport before a Godot frame, so automated checks can prove
+// what Godot's UI consumes. Development and tests only.
 struct ScriptedClick {
     std::uint64_t frame = 0; // the Godot frame before which the press is pushed
     float x = 0.0f;

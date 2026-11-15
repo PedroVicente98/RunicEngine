@@ -18,7 +18,8 @@ AudioServer. The RenderFrame is the only door from the Runic client into Godot.
 | Header | Types | Since |
 | --- | --- | --- |
 | `GodotRuntime.hpp` | `GodotRuntime` (load, create, start, iterate, destroy one LibGodot instance), `GodotTarget` (editor or template library), `GodotInitLevel` and level hooks for class registration | slice 0 |
-| `GodotLayer.hpp` | `GodotLayer` (a `Runic::Application::Layer`: starts Godot in `OnAttach`, runs one Godot frame in `OnRender`, posts unconsumed input as AppEvents, asks the host to stop when Godot quits), `GodotLayerSpec` (library target, arguments, input forwarding), `ScriptedClick` and `ScriptedKey` (synthetic input for automated checks) | GDB-1 |
+| `GodotLayer.hpp` | `GodotLayer` (a `Runic::Application::Layer`: starts Godot in `OnAttach`, runs one Godot frame in `OnRender`, posts unconsumed input as AppEvents, asks the host to stop when Godot quits), `GodotLayerSpec` (library target, arguments, input forwarding), `ScriptedClick` and `ScriptedKey` (synthetic input for automated checks, released `kReleaseAfterFrames` after the press), `kGodotLayerName` | GDB-1 |
+| `GodotArguments.hpp` | The Godot flags Runic programs read or add (`kPathFlag`, `kHeadlessFlag`, `kEditorFlag`, `kEditorShortFlag`, `kEditorPidFlag`) and `InsertProjectPath` | GDB-1 |
 
 No Godot or godot-cpp type appears in a public header: the catalog row has no public exception, and
 registration hooks use Runic types (`GodotInitLevel`). GodotTools, whose public headers may carry godot-cpp
