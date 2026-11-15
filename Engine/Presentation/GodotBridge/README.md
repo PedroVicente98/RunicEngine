@@ -15,6 +15,7 @@ has code; contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 | [`Source/LibGodot/`](Source/LibGodot/README.md) | The LibGodot host: `GodotRuntime` (load libgodot, create the one instance with the command line, start, iterate, destroy; class-registration hooks by initialization level) and `SharedLibrary`, the loader that opens libgodot itself (not GDExtensions). | slice 0 (code) |
 | [`Source/GodotLayer/`](Source/GodotLayer/README.md) | The GodotLayer: the LibGodot instance inside the LayerStack, at the top of the client's stack; the window from the DisplayServer; headless mode; Godot's `iteration()` as the last step of each frame. | GDB-1 (slice 1) |
 | [`Source/Input/`](Source/Input/README.md) | The input sink: a node at the scene-tree root that receives only the input Godot's UI did not consume and turns it into AppEvents for the stack. | GDB-1 (slice 1) |
+| [`Source/Debug/`](Source/Debug/README.md) | Debug drawing on Godot: Core's DebugGeometry (CORE-3, slice 2) uploaded as immediate meshes with depth-tested and overlay materials, toggled debug layers, the development overlay panel, and the physics geometry layer. | GDB-2 (slice 2), GDB-4 (slice 8) |
 | `Tests/` | GoogleTest tests, registered with CTest; one test executable per module. | every package |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | The module contract: purpose, public API, ownership, allowed and forbidden dependencies, threading, work packages and their status. | exists (slice 0) |
 | [`CMakeLists.txt`](CMakeLists.txt) | One `runic_add_module(...)` call. | exists (slice 0) |
@@ -25,7 +26,6 @@ Not created yet: each folder appears with the package that fills it, which takes
 
 | Folder | Holds | Packages |
 | --- | --- | --- |
-| `Source/Debug/` | Debug drawing on Godot: Core's DebugGeometry (CORE-3, slice 2) uploaded as immediate meshes with depth-tested and overlay materials, toggled debug layers, the development overlay panel, and the physics geometry layer. | GDB-2 (slice 2), GDB-4 (slice 8) |
 | `Source/Presenter/` | The presenter: RenderFrame instances created, moved and freed in the RenderingServer by RenderInstanceId, the presenter origin rebased about every 4 km, then meshes and MultiMesh, skinned instances, lights and fog, water and field grids. | GDB-3 (slice 5), GDB-5 (slice 22), GDB-6 (slice 23), GDB-7 (slice 25a), GDB-8 (slice 42a) |
 | `Source/UIBridge/` | The UI bridge: one Godot UI scene per client state and the view-model binder that writes only changed fields to controls. | GDB-9 (slice 19) |
 | `Source/WorldUI/` | World UI: anchored Label3D and Sprite3D, diegetic panels in SubViewports, batched MultiMesh nameplates and the mode fallbacks by distance, count and battle budget. | GDB-10 (slice 23a), GDB-11 (slice 38) |
