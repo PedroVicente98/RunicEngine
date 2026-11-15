@@ -19,13 +19,19 @@ namespace {
 
 using namespace Runic::Application;
 
+// The sink's node name in Godot's scene tree, and the root window's signal it listens to.
+constexpr const char *kInputSinkNodeName = "RunicInputSink";
+constexpr const char *kRootResizedSignal = "size_changed";
+// The wheel step when Godot reports no amount (its factor is 0 on platforms without one).
+constexpr float kDefaultWheelStep = 1.0f;
+
 godot::Window *Root() { return SceneRoot(); }
 
 std::uint32_t Modifiers(const godot::InputEventWithModifiers &event) {
-    return (event.is_shift_pressed() ? kModifierShift : 0u) |
-           (event.is_ctrl_pressed() ? kModifierControl : 0u) |
-           (event.is_alt_pressed() ? kModifierAlt : 0u) |
-           (event.is_meta_pressed() ? kModifierMeta : 0u);
+    return (event.is_shift_pressed() ? kModifierShift : kNoModifiers) |
+           (event.is_ctrl_pressed() ? kModifierControl : kNoModifiers) |
+           (event.is_alt_pressed() ? kModifierAlt : kNoModifiers) |
+           (event.is_meta_pressed() ? kModifierMeta : kNoModifiers);
 }
 
 std::optional<MouseButton> ToButton(godot::MouseButton button) {
@@ -68,8 +74,9 @@ std::optional<AppEvent> ToAppEvent(const godot::Ref<godot::InputEvent> &event) {
                 return std::nullopt; // a wheel step arrives as a press and a release; one event is
                                      // enough
             }
-            const float step = mouse->get_factor() > 0.0f ? mouse->get_factor() : 1.0f;
-            MouseWheelEvent wheel{0.0f, 0.0f, position.x, position.y};
+            const float factor = mouse->get_factor();
+            const float step = factor > 0.0f ? factor : kDefaultWheelStep;
+            MouseWheelEvent wheel{.x = position.x, .y = position.y};
             if (index == godot::MOUSE_BUTTON_WHEEL_UP || index == godot::MOUSE_BUTTON_WHEEL_DOWN) {
                 wheel.deltaY = index == godot::MOUSE_BUTTON_WHEEL_UP ? step : -step;
             } else {
@@ -126,11 +133,11 @@ RunicInputSink *AttachInputSink(LayerContext &context) {
         return nullptr;
     }
     auto *sink = memnew(RunicInputSink);
-    sink->set_name("RunicInputSink");
+    sink->set_name(kInputSinkNodeName);
     sink->SetContext(&context);
     sink->set_process_unhandled_input(true);
     root->add_child(sink);
-    root->connect("size_changed", callable_mp(sink, &RunicInputSink::OnRootResized));
+    root->connect(kRootResizedSignal, callable_mp(sink, &RunicInputSink::OnRootResized));
     return sink;
 }
 

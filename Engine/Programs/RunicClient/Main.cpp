@@ -2,13 +2,13 @@
 // processes › Processes): the Engine's client layers with the GodotLayer on top, on a neutral test
 // project. Engine slices show their client results here; it is never shipped.
 //
-//   RunicClient                               a window with the test project; keys and clicks that
-//   reach the stack
-//                                             are printed, and a click on the test button is not
-//                                             (Godot's UI keeps it)
-//   RunicClient --headless --quit-after 60    Godot starts headless and the client exits cleanly
-//   (CTest) RunicClient --input-check ...             scripted clicks on and beside the test button
-//   and a key (CTest)
+//   RunicClient
+//       a window with the test project; keys and clicks that reach the stack are printed, and a
+//       click on the test button is not (Godot's UI keeps it)
+//   RunicClient --headless --quit-after 60
+//       Godot starts headless and the client exits cleanly (the CTest godot.runic_client_headless)
+//   RunicClient --headless --quit-after 30 --input-check
+//       scripted clicks on and beside the test button, and a key (godot.runic_client_input)
 //
 // Development builds run Godot's editor library on the project folder, as Godot's play button does;
 // every argument reaches Godot unchanged, with --path added when it is missing.
@@ -20,10 +20,10 @@
 #include "Log.hpp"
 #include "RenderData/RenderFrameExchange.hpp"
 
+#include <cstdint>
 #include <memory>
-#include <string>
+#include <string_view>
 #include <utility>
-#include <vector>
 
 #ifndef RUNIC_CLIENT_PROJECT_DIR
 #define RUNIC_CLIENT_PROJECT_DIR "."
@@ -35,24 +35,43 @@ using Runic::Application::AppEvent;
 using Runic::Application::Application;
 using Runic::Application::ApplicationSpec;
 using Runic::Application::CommandLine;
+using Runic::Application::kCleanExit;
 using Runic::Application::KeyEvent;
 using Runic::Application::Layer;
 using Runic::Application::LoopPolicy;
 using Runic::Application::MouseButtonEvent;
 
+constexpr const char *kProgramName = "RunicClient";
+constexpr const char *kInputTraceLayerName = "engine:input_trace";
+// RunicClient's own flag: the scripted input below.
+constexpr std::string_view kInputCheckFlag = "--input-check";
+
+// kInputCheckFlag's input, by Godot frame. The test button in Project/Main.tscn spans (20, 20) to
+// (220, 80): a click at its center stays in Godot's UI, one beside it reaches the stack, and so
+// does the key A.
+constexpr std::uint64_t kClickOnButtonFrame = 5;
+constexpr float kButtonCenterX = 120.0f;
+constexpr float kButtonCenterY = 50.0f;
+constexpr std::uint64_t kClickBesideButtonFrame = 8;
+constexpr float kBesideButtonX = 600.0f;
+constexpr float kBesideButtonY = 400.0f;
+constexpr std::uint64_t kKeyFrame = 11;
+constexpr std::uint32_t kKeyA = 65; // Godot's KEY_A
+
 // Below the GodotLayer: prints the key presses and mouse-button presses that reach the stack. It
 // handles nothing.
 class InputTraceLayer final : public Layer {
   public:
-    InputTraceLayer() : Layer("engine:input_trace") {}
+    InputTraceLayer() : Layer(kInputTraceLayerName) {}
 
     void OnEvent(AppEvent &event) override {
         if (const auto *key = event.As<KeyEvent>(); key != nullptr && key->pressed) {
-            RUNIC_LOG_INFO("RUNIC: AppEvent Key reached the stack (key {})", key->key);
+            RUNIC_LOG_INFO("RUNIC: AppEvent {} reached the stack (key {})", KeyEvent::kName,
+                           key->key);
         } else if (const auto *button = event.As<MouseButtonEvent>();
                    button != nullptr && button->pressed) {
-            RUNIC_LOG_INFO("RUNIC: AppEvent MouseButton reached the stack at ({:.0f}, {:.0f})",
-                           button->x, button->y);
+            RUNIC_LOG_INFO("RUNIC: AppEvent {} reached the stack at ({:.0f}, {:.0f})",
+                           MouseButtonEvent::kName, button->x, button->y);
         }
     }
 };
@@ -62,8 +81,8 @@ class RunicClientApplication final : public Application {
     using Application::Application;
 
     void OnStopped(int exitCode, std::uint64_t frames) override {
-        if (exitCode == 0) {
-            RUNIC_LOG_INFO("RUNIC: RunicClient exited cleanly after {} frames", frames);
+        if (exitCode == kCleanExit) {
+            RUNIC_LOG_INFO("RUNIC: {} exited cleanly after {} frames", Spec().name, frames);
         }
     }
     // The frames the debug demo writes and the GodotLayer shows (GDB-2); they outlive both layers.
@@ -77,21 +96,21 @@ class RunicClientApplication final : public Application {
 
 std::unique_ptr<Application> Runic::Application::CreateApplication(const CommandLine &command) {
     GodotBridge::GodotLayerSpec spec;
-    spec.target = GodotBridge::GodotTarget::Editor; // the template library runs only an exported
-                                                    // .pck (COOK-4)
+    // The template library runs only an exported .pck (COOK-4).
+    spec.target = GodotBridge::GodotTarget::Editor;
     spec.arguments = command.Arguments();
-    if (!command.Has("--path")) {
-        spec.arguments.insert(spec.arguments.begin() + 1, {"--path", RUNIC_CLIENT_PROJECT_DIR});
+    if (!command.Has(GodotBridge::kPathFlag)) {
+        GodotBridge::InsertProjectPath(spec.arguments, RUNIC_CLIENT_PROJECT_DIR);
     }
-    if (command.Has("--input-check")) {
-        // The test button spans (20, 20) to (220, 80): a click at its center stays in Godot's UI,
-        // one beside it reaches the stack, and so does the key A (65).
-        spec.scriptedClicks = {{5, 120.0f, 50.0f}, {8, 600.0f, 400.0f}};
-        spec.scriptedKeys = {{11, 65}};
+    if (command.Has(kInputCheckFlag)) {
+        spec.scriptedClicks = {{kClickOnButtonFrame, kButtonCenterX, kButtonCenterY},
+                               {kClickBesideButtonFrame, kBesideButtonX, kBesideButtonY}};
+        spec.scriptedKeys = {{kKeyFrame, kKeyA}};
     }
 
+    // Godot paces the frames and reads the frame limit (kQuitAfterFlag) itself.
     auto application = std::make_unique<RunicClientApplication>(ApplicationSpec{
-        "RunicClient", LoopPolicy::PacedByTopLayer(), 0}); // Godot reads --quit-after itself
+        kProgramName, LoopPolicy::PacedByTopLayer(), ApplicationSpec::kRunUntilStopped});
     spec.frames = &application->Frames();
     spec.developmentOverlay = true;
     application->PushLayer(std::make_unique<InputTraceLayer>());

@@ -15,27 +15,29 @@
 
 namespace Runic::Core {
 
-// An opaque ID: a distinct type per kind (Tag), built only explicitly from its integer, and 0 is
-// invalid. IDs compare and hash by value, and never convert into another kind, or back to an
-// integer, implicitly.
+// An opaque ID: a distinct type per kind (Tag), built only explicitly from its integer, and 0
+// (kInvalidValue) is invalid. IDs compare and hash by value, and never convert into another kind,
+// or back to an integer, implicitly.
 template <class Tag, class Rep> class Id {
     static_assert(std::is_unsigned_v<Rep>, "an ID's representation is an unsigned integer");
 
   public:
     using ValueType = Rep;
+    // The value of the invalid ID; every other value is valid.
+    static constexpr Rep kInvalidValue = 0;
 
     constexpr Id() noexcept = default; // the invalid ID
     constexpr explicit Id(Rep value) noexcept : m_Value(value) {}
 
     static constexpr Id Invalid() noexcept { return Id(); }
     constexpr Rep Value() const noexcept { return m_Value; }
-    constexpr bool IsValid() const noexcept { return m_Value != 0; }
+    constexpr bool IsValid() const noexcept { return m_Value != kInvalidValue; }
 
     friend constexpr bool operator==(const Id &, const Id &) noexcept = default;
     friend constexpr auto operator<=>(const Id &, const Id &) noexcept = default;
 
   private:
-    Rep m_Value = 0;
+    Rep m_Value = kInvalidValue;
 };
 
 // One tag per kind; tags are never defined.
@@ -72,7 +74,10 @@ using WidgetId = Id<WidgetIdTag, std::uint32_t>;
 // ticks count and only move forward.
 class TickId {
   public:
-    constexpr TickId() noexcept = default; // tick 0
+    // The first tick of a simulation, at time zero.
+    static constexpr std::uint64_t kFirstTick = 0;
+
+    constexpr TickId() noexcept = default; // kFirstTick
     constexpr explicit TickId(std::uint64_t value) noexcept : m_Value(value) {}
 
     constexpr std::uint64_t Value() const noexcept { return m_Value; }
@@ -91,7 +96,7 @@ class TickId {
     friend constexpr auto operator<=>(const TickId &, const TickId &) noexcept = default;
 
   private:
-    std::uint64_t m_Value = 0;
+    std::uint64_t m_Value = kFirstTick;
 };
 
 // An authority epoch: it rises each time the owner of a region or an entity changes, so a message
@@ -99,7 +104,10 @@ class TickId {
 // meaning, DSIM-1).
 class AuthorityEpoch {
   public:
-    constexpr AuthorityEpoch() noexcept = default; // the first epoch, 0
+    // The epoch before any change of owner.
+    static constexpr std::uint32_t kFirstEpoch = 0;
+
+    constexpr AuthorityEpoch() noexcept = default; // kFirstEpoch
     constexpr explicit AuthorityEpoch(std::uint32_t value) noexcept : m_Value(value) {}
 
     constexpr std::uint32_t Value() const noexcept { return m_Value; }
@@ -114,7 +122,7 @@ class AuthorityEpoch {
                                       const AuthorityEpoch &) noexcept = default;
 
   private:
-    std::uint32_t m_Value = 0;
+    std::uint32_t m_Value = kFirstEpoch;
 };
 
 } // namespace Runic::Core

@@ -13,6 +13,11 @@ namespace Runic::Application {
 class CommandLine;
 class Layer;
 
+// The exit codes the Engine stops with: a clean stop, and a layer that failed to attach or to
+// change at a safe point. A program may add its own.
+inline constexpr int kCleanExit = 0;
+inline constexpr int kLayerFailedExit = 1;
+
 // What a layer may ask of the host that runs it. It is handed to OnAttach and lives as long as the
 // host, so a layer may keep it; there is no global application to reach instead (RunicDocs ›
 // Application and LayerStack › Implementation rules).

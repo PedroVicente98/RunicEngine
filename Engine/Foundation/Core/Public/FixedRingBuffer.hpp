@@ -38,6 +38,16 @@ template <class T, std::size_t N> class FixedRingBuffer {
     bool IsFull() const noexcept;
 
   private:
+    static constexpr std::size_t kNoElements = 0;
+    static constexpr std::size_t kFirstSlot = 0;
+    static constexpr const char *kFrontOfEmptyMessage =
+        "FixedRingBuffer::Front() on an empty buffer";
+
+    // The slot after slot, wrapping at the end of the storage.
+    static constexpr std::size_t NextSlot(std::size_t slot) noexcept { return (slot + 1) % N; }
+    // The first free slot, just after the back element.
+    std::size_t EndSlot() const noexcept { return (m_Head + m_Size) % N; }
+
     T *Slot(std::size_t index) noexcept {
         return std::launder(reinterpret_cast<T *>(m_Storage + index * sizeof(T)));
     }
@@ -46,8 +56,8 @@ template <class T, std::size_t N> class FixedRingBuffer {
     }
 
     alignas(T) std::byte m_Storage[sizeof(T) * N];
-    std::size_t m_Head = 0; // the slot of the front element
-    std::size_t m_Size = 0;
+    std::size_t m_Head = kFirstSlot; // the slot of the front element
+    std::size_t m_Size = kNoElements;
 };
 
 template <class T, std::size_t N> FixedRingBuffer<T, N>::~FixedRingBuffer() { Clear(); }
@@ -56,7 +66,7 @@ template <class T, std::size_t N> bool FixedRingBuffer<T, N>::TryPush(const T &v
     if (IsFull()) {
         return false;
     }
-    ::new (static_cast<void *>(m_Storage + ((m_Head + m_Size) % N) * sizeof(T))) T(value);
+    ::new (static_cast<void *>(m_Storage + EndSlot() * sizeof(T))) T(value);
     ++m_Size;
     return true;
 }
@@ -65,8 +75,7 @@ template <class T, std::size_t N> bool FixedRingBuffer<T, N>::TryPush(T &&value)
     if (IsFull()) {
         return false;
     }
-    ::new (static_cast<void *>(m_Storage + ((m_Head + m_Size) % N) * sizeof(T)))
-        T(std::move(value));
+    ::new (static_cast<void *>(m_Storage + EndSlot() * sizeof(T))) T(std::move(value));
     ++m_Size;
     return true;
 }
@@ -81,36 +90,36 @@ template <class T, std::size_t N> bool FixedRingBuffer<T, N>::TryPop(T &out) {
 }
 
 template <class T, std::size_t N> T &FixedRingBuffer<T, N>::Front() {
-    RUNIC_ASSERT_MSG(!IsEmpty(), "FixedRingBuffer::Front() on an empty buffer");
+    RUNIC_ASSERT_MSG(!IsEmpty(), kFrontOfEmptyMessage);
     return *Slot(m_Head);
 }
 
 template <class T, std::size_t N> const T &FixedRingBuffer<T, N>::Front() const {
-    RUNIC_ASSERT_MSG(!IsEmpty(), "FixedRingBuffer::Front() on an empty buffer");
+    RUNIC_ASSERT_MSG(!IsEmpty(), kFrontOfEmptyMessage);
     return *Slot(m_Head);
 }
 
 template <class T, std::size_t N> void FixedRingBuffer<T, N>::Pop() {
     RUNIC_ASSERT_MSG(!IsEmpty(), "FixedRingBuffer::Pop() on an empty buffer");
     Slot(m_Head)->~T();
-    m_Head = (m_Head + 1) % N;
+    m_Head = NextSlot(m_Head);
     --m_Size;
 }
 
 template <class T, std::size_t N> void FixedRingBuffer<T, N>::Clear() noexcept {
-    while (m_Size > 0) {
+    while (!IsEmpty()) {
         Slot(m_Head)->~T();
-        m_Head = (m_Head + 1) % N;
+        m_Head = NextSlot(m_Head);
         --m_Size;
     }
-    m_Head = 0;
+    m_Head = kFirstSlot;
 }
 
 template <class T, std::size_t N> std::size_t FixedRingBuffer<T, N>::Size() const noexcept {
     return m_Size;
 }
 template <class T, std::size_t N> bool FixedRingBuffer<T, N>::IsEmpty() const noexcept {
-    return m_Size == 0;
+    return m_Size == kNoElements;
 }
 template <class T, std::size_t N> bool FixedRingBuffer<T, N>::IsFull() const noexcept {
     return m_Size == N;

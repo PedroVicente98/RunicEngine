@@ -42,11 +42,14 @@ template <class T, std::size_t N> class FixedVector {
     bool IsFull() const noexcept;
 
   private:
+    static constexpr std::size_t kNoElements = 0;
+    static constexpr const char *kIndexPastTheEndMessage = "FixedVector: index past the end";
+
     T *Data() noexcept { return std::launder(reinterpret_cast<T *>(m_Storage)); }
     const T *Data() const noexcept { return std::launder(reinterpret_cast<const T *>(m_Storage)); }
 
     alignas(T) std::byte m_Storage[sizeof(T) * N];
-    std::size_t m_Size = 0;
+    std::size_t m_Size = kNoElements;
 };
 
 template <class T, std::size_t N> FixedVector<T, N>::~FixedVector() { Clear(); }
@@ -76,19 +79,19 @@ template <class T, std::size_t N> void FixedVector<T, N>::PopBack() {
 }
 
 template <class T, std::size_t N> void FixedVector<T, N>::Clear() noexcept {
-    while (m_Size > 0) {
+    while (!IsEmpty()) {
         --m_Size;
         Data()[m_Size].~T();
     }
 }
 
 template <class T, std::size_t N> T &FixedVector<T, N>::operator[](std::size_t index) {
-    RUNIC_ASSERT_MSG(index < m_Size, "FixedVector: index past the end");
+    RUNIC_ASSERT_MSG(index < m_Size, kIndexPastTheEndMessage);
     return Data()[index];
 }
 
 template <class T, std::size_t N> const T &FixedVector<T, N>::operator[](std::size_t index) const {
-    RUNIC_ASSERT_MSG(index < m_Size, "FixedVector: index past the end");
+    RUNIC_ASSERT_MSG(index < m_Size, kIndexPastTheEndMessage);
     return Data()[index];
 }
 
@@ -104,7 +107,7 @@ template <class T, std::size_t N> std::size_t FixedVector<T, N>::Size() const no
     return m_Size;
 }
 template <class T, std::size_t N> bool FixedVector<T, N>::IsEmpty() const noexcept {
-    return m_Size == 0;
+    return m_Size == kNoElements;
 }
 template <class T, std::size_t N> bool FixedVector<T, N>::IsFull() const noexcept {
     return m_Size == N;

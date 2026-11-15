@@ -18,7 +18,12 @@ class ApplicationHost::HostContext final : public LayerContext {
     std::uint64_t FramesRun() const override { return m_Host.m_Frames; }
 
     void PostEvent(const AppEvent &event) override {
-        if (!m_Host.m_Events.TryPush(event) && m_Host.m_DroppedEvents++ == 0) {
+        if (m_Host.m_Events.TryPush(event)) {
+            return;
+        }
+        const bool firstDrop = m_Host.m_DroppedEvents == 0;
+        ++m_Host.m_DroppedEvents;
+        if (firstDrop) {
             RUNIC_LOG_WARNING("{}: the event queue is full ({} events), so events are dropped",
                               m_Host.m_Application->Spec().name, kEventQueueCapacity);
         }
@@ -62,23 +67,28 @@ int ApplicationHost::Run() {
     const Core::TimePoint start = m_Clock->Now();
     Core::TimePoint previous = start;
     while (!StopRequested()) {
-        FrameTime time;
+        FrameTime time; // the first frame keeps a zero delta
         time.frame = m_Frames;
+        const bool firstFrame = m_Frames == 0;
         if (spec.loop.IsFixed()) {
             const Core::TickRate rate = spec.loop.Rate();
             const Core::Duration due = rate.TimeOfTick(m_Frames);
             m_Clock->SleepUntil(start + due);
             time.sinceStart = due;
-            time.delta = m_Frames == 0 ? Core::Duration(0) : due - rate.TimeOfTick(m_Frames - 1);
+            if (!firstFrame) {
+                time.delta = due - rate.TimeOfTick(m_Frames - 1);
+            }
         } else {
             const Core::TimePoint now = m_Clock->Now();
             time.sinceStart = now - start;
-            time.delta = m_Frames == 0 ? Core::Duration(0) : now - previous;
+            if (!firstFrame) {
+                time.delta = now - previous;
+            }
             previous = now;
         }
         RunFrame(time);
-        if (spec.maxFrames != 0 && m_Frames >= spec.maxFrames) {
-            RequestStop(0);
+        if (spec.maxFrames != ApplicationSpec::kRunUntilStopped && m_Frames >= spec.maxFrames) {
+            RequestStop(kCleanExit);
         }
     }
     Shutdown();
@@ -92,7 +102,7 @@ Core::Result<void> ApplicationHost::Start() {
     m_Started = true;
     Core::Result<void> attached = m_Application->Layers().ApplyPendingChanges(*m_Context);
     if (!attached) {
-        RequestStop(1);
+        RequestStop(kLayerFailedExit);
     }
     return attached;
 }
@@ -105,7 +115,7 @@ void ApplicationHost::RunFrame(const FrameTime &time) {
         m_Events.TryPop(event);
         layers.DispatchEvent(event);
         if (!event.handled && event.Is<QuitRequestEvent>()) {
-            RequestStop(0);
+            RequestStop(kCleanExit);
         }
     }
     layers.UpdateBottomUp(time);
@@ -115,7 +125,7 @@ void ApplicationHost::RunFrame(const FrameTime &time) {
     if (layers.HasPendingChanges()) {
         if (Core::Result<void> applied = layers.ApplyPendingChanges(*m_Context); !applied) {
             RUNIC_LOG_ERROR("{}: {}", m_Application->Spec().name, applied.GetError().message);
-            RequestStop(1);
+            RequestStop(kLayerFailedExit);
         }
     }
 }
@@ -130,8 +140,8 @@ void ApplicationHost::Shutdown() {
 }
 
 void ApplicationHost::RequestStop(int exitCode) noexcept {
-    bool expected = false;
-    if (m_StopRequested.compare_exchange_strong(expected, true)) {
+    const bool alreadyRequested = m_StopRequested.exchange(true);
+    if (!alreadyRequested) {
         m_ExitCode.store(exitCode);
     }
 }

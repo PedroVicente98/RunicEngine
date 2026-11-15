@@ -16,6 +16,20 @@ namespace Runic::Core {
 
 enum class LogLevel : std::uint8_t { Trace, Debug, Info, Warning, Error, Fatal };
 
+// The levels' names, as LogLevelName gives them to sinks.
+namespace LogLevelNames {
+inline constexpr std::string_view kTrace = "Trace";
+inline constexpr std::string_view kDebug = "Debug";
+inline constexpr std::string_view kInfo = "Info";
+inline constexpr std::string_view kWarning = "Warning";
+inline constexpr std::string_view kError = "Error";
+inline constexpr std::string_view kFatal = "Fatal";
+inline constexpr std::string_view kUnknown = "Log"; // a value outside LogLevel
+} // namespace LogLevelNames
+
+// The level's name, for the lines a sink writes ("Warning: ...").
+std::string_view LogLevelName(LogLevel level) noexcept;
+
 // One line as the sink receives it; message is valid only during the call.
 struct LogRecord {
     LogLevel level;

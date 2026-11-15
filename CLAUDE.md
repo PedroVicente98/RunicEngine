@@ -73,6 +73,14 @@ RunicDocs wins: report the difference. This repository's own documents sit next 
 - **Code visibility.** `Public/` headers, namespace `Runic::<Module>`: the module's API. Headers in
   `Source/<Subsystem>/`, namespace `Runic::<Module>::Detail` when several files of the module share them: private to
   the module. An unnamed namespace for helpers one `.cpp` uses.
+- **Named values** (decided by the owner on 2026-11-15; RunicDocs › Module contract). Production code (modules and
+  programs) writes no bare string or number: every value with a meaning (a name, flag, key, path, size, rate, time,
+  count, threshold, coordinate, exit code) is a named constant (`constexpr`, `k` prefix), defined once in the
+  narrowest scope its users share, and every use refers to it. 0 and 1, true and false included: the name says what
+  the choice affects (`RequestStop(kCleanExit)`, `maxFrames = kRunUntilStopped`); a field or setter named for the
+  value counts as its name (`bool pressed = false`), and loop counters and a formula's own arithmetic stay bare
+  (`i = 0`, `n + 1`). A log or error message used once keeps its wording where it is used, with its values from the
+  constants; tests may write their values directly.
 - **No game content.** No RunicGame rules, names, numbers or content anywhere in this repository,
   tests and docs included. Tests use neutral IDs such as `engine:test_ability`.
 - **No Agones, Kubernetes, database, gRPC or NATS** dependency anywhere in the Engine.

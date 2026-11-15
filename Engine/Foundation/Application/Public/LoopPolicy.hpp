@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "Time.hpp"
 
@@ -22,10 +23,9 @@ class LoopPolicy {
     Core::TickRate Rate() const noexcept; // the fixed rate; asserts IsFixed()
 
   private:
-    LoopPolicy(bool fixed, Core::TickRate rate) noexcept;
+    explicit LoopPolicy(std::optional<Core::TickRate> rate) noexcept;
 
-    bool m_Fixed;
-    Core::TickRate m_Rate;
+    std::optional<Core::TickRate> m_Rate; // empty when the top layer paces the loop
 };
 
 // The clock the host paces frames with. Tests replace it to run a fixed loop without waiting.

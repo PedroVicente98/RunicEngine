@@ -18,21 +18,19 @@ class SystemClock final : public LoopClock {
 
 } // namespace
 
-LoopPolicy::LoopPolicy(bool fixed, Core::TickRate rate) noexcept : m_Fixed(fixed), m_Rate(rate) {}
+LoopPolicy::LoopPolicy(std::optional<Core::TickRate> rate) noexcept : m_Rate(rate) {}
 
 LoopPolicy LoopPolicy::Fixed(std::uint32_t framesPerSecond) noexcept {
-    return LoopPolicy(true, Core::TickRate::Hz(framesPerSecond));
+    return LoopPolicy(Core::TickRate::Hz(framesPerSecond));
 }
 
-LoopPolicy LoopPolicy::PacedByTopLayer() noexcept {
-    return LoopPolicy(false, Core::TickRate::Hz(1));
-}
+LoopPolicy LoopPolicy::PacedByTopLayer() noexcept { return LoopPolicy(std::nullopt); }
 
-bool LoopPolicy::IsFixed() const noexcept { return m_Fixed; }
+bool LoopPolicy::IsFixed() const noexcept { return m_Rate.has_value(); }
 
 Core::TickRate LoopPolicy::Rate() const noexcept {
-    RUNIC_ASSERT_MSG(m_Fixed, "LoopPolicy::Rate() on a loop paced by the top layer");
-    return m_Rate;
+    RUNIC_ASSERT_MSG(IsFixed(), "LoopPolicy::Rate() on a loop paced by the top layer");
+    return *m_Rate;
 }
 
 std::unique_ptr<LoopClock> MakeSystemClock() { return std::make_unique<SystemClock>(); }

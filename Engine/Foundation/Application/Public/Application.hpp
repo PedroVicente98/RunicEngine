@@ -11,9 +11,13 @@
 namespace Runic::Application {
 
 struct ApplicationSpec {
-    std::string name;                        // for logs, such as "RunicServer"
-    LoopPolicy loop = LoopPolicy::Fixed(60); // how frames are paced
-    std::uint64_t maxFrames = 0; // stop after this many frames; 0 runs until a stop request
+    // The maxFrames of a loop that runs until a stop request.
+    static constexpr std::uint64_t kRunUntilStopped = 0;
+
+    std::string name; // for logs, such as "RunicServer"
+    // How frames are paced.
+    LoopPolicy loop = LoopPolicy::Fixed(Core::kMasterTicksPerSecond);
+    std::uint64_t maxFrames = kRunUntilStopped; // stop after this many frames
 };
 
 // One executable's composition: its spec and its layers. CreateApplication builds it and the
