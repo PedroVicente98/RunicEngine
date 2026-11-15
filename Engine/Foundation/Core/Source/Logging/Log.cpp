@@ -15,29 +15,12 @@ LogSink g_Sink = nullptr;
 void *g_SinkUser = nullptr;
 std::atomic<LogLevel> g_MinimumLevel{LogLevel::Info};
 
-constexpr const char *kEllipsis = "...";
-constexpr std::size_t kEllipsisBytes = 3;
-
-const char *LevelName(LogLevel level) noexcept {
-    switch (level) {
-    case LogLevel::Trace:
-        return "Trace";
-    case LogLevel::Debug:
-        return "Debug";
-    case LogLevel::Info:
-        return "Info";
-    case LogLevel::Warning:
-        return "Warning";
-    case LogLevel::Error:
-        return "Error";
-    case LogLevel::Fatal:
-        return "Fatal";
-    }
-    return "Log";
-}
+// What ends a line cut at kMaxLogLineBytes.
+constexpr std::string_view kEllipsis = "...";
 
 void DefaultSink(const LogRecord &record, void *) {
-    std::fprintf(stderr, "%s: %.*s\n", LevelName(record.level),
+    const std::string_view level = LogLevelName(record.level);
+    std::fprintf(stderr, "%.*s: %.*s\n", static_cast<int>(level.size()), level.data(),
                  static_cast<int>(record.message.size()), record.message.data());
 }
 
@@ -51,6 +34,24 @@ void Dispatch(LogLevel level, std::string_view message, const char *file, int li
 }
 
 } // namespace
+
+std::string_view LogLevelName(LogLevel level) noexcept {
+    switch (level) {
+    case LogLevel::Trace:
+        return LogLevelNames::kTrace;
+    case LogLevel::Debug:
+        return LogLevelNames::kDebug;
+    case LogLevel::Info:
+        return LogLevelNames::kInfo;
+    case LogLevel::Warning:
+        return LogLevelNames::kWarning;
+    case LogLevel::Error:
+        return LogLevelNames::kError;
+    case LogLevel::Fatal:
+        return LogLevelNames::kFatal;
+    }
+    return LogLevelNames::kUnknown;
+}
 
 void SetLogSink(LogSink sink, void *user) noexcept {
     g_Sink = sink;
@@ -74,8 +75,8 @@ void WriteLog(LogLevel level, std::string_view message, const char *file, int li
         return;
     }
     char buffer[kMaxLogLineBytes];
-    std::memcpy(buffer, message.data(), kMaxLogLineBytes - kEllipsisBytes);
-    std::memcpy(buffer + kMaxLogLineBytes - kEllipsisBytes, kEllipsis, kEllipsisBytes);
+    std::memcpy(buffer, message.data(), kMaxLogLineBytes - kEllipsis.size());
+    std::memcpy(buffer + kMaxLogLineBytes - kEllipsis.size(), kEllipsis.data(), kEllipsis.size());
     Dispatch(level, std::string_view(buffer, kMaxLogLineBytes), file, line);
 }
 
@@ -85,7 +86,8 @@ void WriteFormattedLog(LogLevel level, char *buffer, std::size_t formattedSize, 
                        int line) noexcept {
     std::size_t size = formattedSize;
     if (size > kMaxLogLineBytes) {
-        std::memcpy(buffer + kMaxLogLineBytes - kEllipsisBytes, kEllipsis, kEllipsisBytes);
+        std::memcpy(buffer + kMaxLogLineBytes - kEllipsis.size(), kEllipsis.data(),
+                    kEllipsis.size());
         size = kMaxLogLineBytes;
     }
     Dispatch(level, std::string_view(buffer, size), file, line);

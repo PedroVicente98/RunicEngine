@@ -24,11 +24,11 @@ Headers are included by their path under `Public/` (`#include "WorldSpace.hpp"`)
 
 | Header | Holds | Since |
 | --- | --- | --- |
-| `PlainIds.hpp` | `Id<Tag, Rep>` (a distinct type per kind, explicit from its integer, 0 invalid, ordered, hashable); 64-bit `GlobalEntityId`, `GlobalPlayerId`, `AssetId`; 32-bit `SimulationId`, `WorldId`, `InstanceId`, `WaterBodyId`, `FieldId`, `WidgetId`; the counters `TickId` (64-bit) and `AuthorityEpoch` (32-bit) | CORE-1 |
+| `PlainIds.hpp` | `Id<Tag, Rep>` (a distinct type per kind, explicit from its integer, `kInvalidValue` (0) invalid, ordered, hashable); 64-bit `GlobalEntityId`, `GlobalPlayerId`, `AssetId`; 32-bit `SimulationId`, `WorldId`, `InstanceId`, `WaterBodyId`, `FieldId`, `WidgetId`; the counters `TickId` (64-bit, from `kFirstTick`) and `AuthorityEpoch` (32-bit, from `kFirstEpoch`) | CORE-1 |
 | `Result.hpp` | `Error` (a message), `Fail`, `Result<T>`, `Result<void>` | CORE-1 |
 | `Assert.hpp` | `RUNIC_ASSERT`, `RUNIC_ASSERT_MSG`, `RUNIC_ASSERTS_ENABLED`; `AssertFailure`, `AssertHandler`, `SetAssertHandler`, `FailAssert` | CORE-1 |
-| `Log.hpp` | `LogLevel`, `LogRecord`, `LogSink`, `SetLogSink`, `SetMinimumLogLevel`, `MinimumLogLevel`, `IsLogLevelEnabled`, `WriteLog`, `Log`, `kMaxLogLineBytes`, the `RUNIC_LOG_*` macros | CORE-1 |
-| `Time.hpp` | `Duration` (`std::chrono::nanoseconds`), `MonotonicClock`, `TimePoint`, `MonotonicNow`, `ToSeconds`, `FromSeconds`, `TickRate` | CORE-1 |
+| `Log.hpp` | `LogLevel`, `LogRecord`, `LogSink`, `SetLogSink`, `SetMinimumLogLevel`, `MinimumLogLevel`, `IsLogLevelEnabled`, `WriteLog`, `Log`, `kMaxLogLineBytes`, `LogLevelName` and the names in `LogLevelNames`, the `RUNIC_LOG_*` macros | CORE-1 |
+| `Time.hpp` | `Duration` (`std::chrono::nanoseconds`), `MonotonicClock`, `TimePoint`, `MonotonicNow`, `ToSeconds`, `FromSeconds`, `TickRate`, `kMasterTicksPerSecond` (60) | CORE-1 |
 | `Math.hpp` | `Vec2`, `Vec3`, `Vec4`, `Quat`, `Mat3`, `Mat4` (GLM) | CORE-1 |
 | `WorldSpace.hpp` | `WorldPosition`, `WorldDelta`, their operators, `DistanceSq`, `ToLocal`, `kMaxLocalOffsetM` | CORE-1 |
 | `FixedRingBuffer.hpp` | `FixedRingBuffer<T, N>` | CORE-1 |
@@ -100,7 +100,7 @@ assert handler. Everything else is a value owned by whoever holds it.
   `Result`, the world-space operators, `TickRate::Hz`, and the members of `FixedRingBuffer` and `FixedVector`, which the
   implementation writes below each class.
 - Everything else is defined in `Source/<Subsystem>/`: `Errors/` (`FailAssert`, `SetAssertHandler`), `Logging/` (the
-  sink, the level, `WriteLog`, `Detail::WriteFormattedLog`), `Time/` (`MonotonicNow`, `ToSeconds`, `FromSeconds`,
+  sink, the level, `LogLevelName`, `WriteLog`, `Detail::WriteFormattedLog`), `Time/` (`MonotonicNow`, `ToSeconds`, `FromSeconds`,
   `TickRate::TimeOfTick`, `TickRate::TicksIn`) and `Math/` (`ToLocal`). `Ids/` and `Memory/` have no folder yet:
   those subsystems are header-only so far.
 - Formats the tests rely on: the default sink writes `<Level>: <message>` and a newline to stderr; `FailAssert` logs

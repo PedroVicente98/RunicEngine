@@ -36,11 +36,9 @@ void SetAssertHandler(AssertHandler handler) noexcept;
 
 #if RUNIC_ASSERTS_ENABLED
 #define RUNIC_ASSERT(condition)                                                                    \
-    ((condition) ? static_cast<void>(0)                                                            \
-                 : ::Runic::Core::FailAssert({#condition, nullptr, __FILE__, __LINE__}))
+    ((condition) ? void() : ::Runic::Core::FailAssert({#condition, nullptr, __FILE__, __LINE__}))
 #define RUNIC_ASSERT_MSG(condition, message)                                                       \
-    ((condition) ? static_cast<void>(0)                                                            \
-                 : ::Runic::Core::FailAssert({#condition, message, __FILE__, __LINE__}))
+    ((condition) ? void() : ::Runic::Core::FailAssert({#condition, message, __FILE__, __LINE__}))
 #else
 #define RUNIC_ASSERT(condition) static_cast<void>(sizeof(!(condition)))
 #define RUNIC_ASSERT_MSG(condition, message) static_cast<void>(sizeof(!(condition)))

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -22,40 +23,51 @@ struct Error {
 // The usual way to fail: return Fail("no layer named '" + name + "'");
 inline Error Fail(std::string message) { return Error{std::move(message)}; }
 
+namespace Detail {
+// The asserts of both Result forms.
+inline constexpr const char *kValueOfAnErrorMessage = "Result::Value() on an error";
+inline constexpr const char *kErrorOfASuccessMessage = "Result::GetError() on a success";
+} // namespace Detail
+
 // A value, or the Error that prevented it.
 template <class T> class [[nodiscard]] Result {
     static_assert(!std::is_same_v<std::remove_cv_t<T>, Error>, "Result<Error> would be ambiguous");
     static_assert(!std::is_reference_v<T>, "a Result holds a value");
 
   public:
-    Result(T value) : m_State(std::in_place_index<0>, std::move(value)) {} // return value;
-    Result(Error error)
-        : m_State(std::in_place_index<1>, std::move(error)) {} // return Fail("...");
+    // return value;
+    Result(T value) : m_State(std::in_place_index<kValueAlternative>, std::move(value)) {}
+    // return Fail("...");
+    Result(Error error) : m_State(std::in_place_index<kErrorAlternative>, std::move(error)) {}
 
-    bool HasValue() const noexcept { return m_State.index() == 0; }
+    bool HasValue() const noexcept { return m_State.index() == kValueAlternative; }
     explicit operator bool() const noexcept { return HasValue(); }
 
     // The value; asserts that there is one.
     T &Value() & {
-        RUNIC_ASSERT_MSG(HasValue(), "Result::Value() on an error");
-        return *std::get_if<0>(&m_State);
+        RUNIC_ASSERT_MSG(HasValue(), Detail::kValueOfAnErrorMessage);
+        return *std::get_if<kValueAlternative>(&m_State);
     }
     const T &Value() const & {
-        RUNIC_ASSERT_MSG(HasValue(), "Result::Value() on an error");
-        return *std::get_if<0>(&m_State);
+        RUNIC_ASSERT_MSG(HasValue(), Detail::kValueOfAnErrorMessage);
+        return *std::get_if<kValueAlternative>(&m_State);
     }
     T &&Value() && {
-        RUNIC_ASSERT_MSG(HasValue(), "Result::Value() on an error");
-        return std::move(*std::get_if<0>(&m_State));
+        RUNIC_ASSERT_MSG(HasValue(), Detail::kValueOfAnErrorMessage);
+        return std::move(*std::get_if<kValueAlternative>(&m_State));
     }
 
     // The error; asserts that there is one.
     const Error &GetError() const {
-        RUNIC_ASSERT_MSG(!HasValue(), "Result::GetError() on a value");
-        return *std::get_if<1>(&m_State);
+        RUNIC_ASSERT_MSG(!HasValue(), Detail::kErrorOfASuccessMessage);
+        return *std::get_if<kErrorAlternative>(&m_State);
     }
 
   private:
+    // Which alternative of m_State holds what.
+    static constexpr std::size_t kValueAlternative = 0;
+    static constexpr std::size_t kErrorAlternative = 1;
+
     std::variant<T, Error> m_State;
 };
 
@@ -70,7 +82,7 @@ template <> class [[nodiscard]] Result<void> {
 
     // The error; asserts that there is one.
     const Error &GetError() const {
-        RUNIC_ASSERT_MSG(m_Error.has_value(), "Result::GetError() on a success");
+        RUNIC_ASSERT_MSG(m_Error.has_value(), Detail::kErrorOfASuccessMessage);
         return *m_Error;
     }
 

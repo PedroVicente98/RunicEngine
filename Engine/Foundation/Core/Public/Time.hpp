@@ -55,4 +55,8 @@ class TickRate {
     std::uint32_t m_TicksPerSecond;
 };
 
+// The master clock's rate (RunicDocs › Principles and performance targets; Simulation core
+// clock and threads). The servers' fixed loops run at it.
+inline constexpr std::uint32_t kMasterTicksPerSecond = 60;
+
 } // namespace Runic::Core
