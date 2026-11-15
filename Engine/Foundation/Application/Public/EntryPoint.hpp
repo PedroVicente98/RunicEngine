@@ -5,11 +5,12 @@
 #include "Application.hpp"
 #include "CommandLine.hpp"
 
-// The Engine's entry point (RunicDocs › Application and LayerStack › Entry point). An executable
-// defines CreateApplication and includes this header in exactly one of its source files: the header
-// defines main(), which hands over to the Engine (Detail::RunMain). main() is defined here rather
-// than in Runic::Application's library so that a test executable can link the module without a
-// second main().
+// The Engine's entry point (RunicDocs › Application and LayerStack › Entry point): the Engine owns
+// main(), and each executable defines CreateApplication. This header only declares, so any source
+// file may include it. An executable expands RUNIC_ENTRY_POINT() once, in the source file where it
+// defines CreateApplication: that is where main() is defined, and it hands over to the Engine
+// (Detail::RunMain). A function defined in a header would be defined again in every source file
+// that includes it; main() defined twice in one executable stops the link.
 
 namespace Runic::Application {
 
@@ -26,6 +27,6 @@ int RunMain(int argc, char **argv);
 
 } // namespace Runic::Application
 
-#if !defined(RUNIC_APPLICATION_NO_MAIN)
-int main(int argc, char **argv) { return ::Runic::Application::Detail::RunMain(argc, argv); }
-#endif
+// Defines the executable's main(): expand it once, at namespace scope, with no semicolon after it.
+#define RUNIC_ENTRY_POINT()                                                                        \
+    int main(int argc, char **argv) { return ::Runic::Application::Detail::RunMain(argc, argv); }

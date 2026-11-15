@@ -22,7 +22,7 @@ Namespace `Runic::Application`, with no exception (slice 1 decision D2): the cla
 
 | Header | Holds |
 | --- | --- |
-| `EntryPoint.hpp` | `CreateApplication(const CommandLine&)`, which each executable defines; `Detail::RunMain`; and `main()` itself, defined in the header, which an executable includes in exactly one source file |
+| `EntryPoint.hpp` | `CreateApplication(const CommandLine&)`, which each executable defines; `Detail::RunMain`; `RUNIC_ENTRY_POINT()`, which defines `main()` where an executable expands it, once, next to its `CreateApplication` |
 | `Application.hpp` | `ApplicationSpec` (name, loop policy, frame limit) and `Application` (its layers, `OnStopped`) |
 | `ApplicationHost.hpp` | `ApplicationHost`: `Run`, `Start`, `RunFrame(const FrameTime&)`, `Shutdown`, `RequestStop` |
 | `Layer.hpp` | `Layer` (attach, detach, event, update, render) and `LayerContext` (what a layer may ask of the host) |
@@ -32,9 +32,11 @@ Namespace `Runic::Application`, with no exception (slice 1 decision D2): the cla
 | `LoopPolicy.hpp` | `LoopPolicy::Fixed(hz)` and `LoopPolicy::PacedByTopLayer()`; `LoopClock` and `MakeSystemClock` |
 | `CommandLine.hpp` | `CommandLine`: UTF-8 on every platform, argv[0] first, every argument unchanged; `QuitAfterFrames` |
 
-**Why `main()` is in a header.** A `main()` in the module's static library would also be linked into the module's own
-test executable, which already gets one from GoogleTest. The header keeps the body of `main()` in the Engine
-(`Detail::RunMain`) and costs the executable one include. This refines the slice brief's risk note on the entry point.
+**Where `main()` is defined.** Not in the module's static library: it would also be linked into the module's own test
+executable, which already gets one from GoogleTest. Not by including a header either (APP-1 until 2026-11-15): a
+function defined in a header is defined again in every source file that includes it, an ODR violation the linker
+reports as a second `main()`. The executable expands `RUNIC_ENTRY_POINT()` once, so `main()` is defined in its own
+source file, while its body stays the Engine's (`Detail::RunMain`) and `EntryPoint.hpp` only declares.
 
 ## Owns
 

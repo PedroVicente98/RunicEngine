@@ -74,3 +74,6 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     application->PushLayer(std::move(layer));
     return application;
 }
+
+// The Engine owns main(): it is defined here, once, and hands over to the Engine.
+RUNIC_ENTRY_POINT()

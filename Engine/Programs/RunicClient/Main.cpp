@@ -90,3 +90,6 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
         std::make_unique<GodotBridge::GodotLayer>(std::move(spec))); // the top layer
     return application;
 }
+
+// The Engine owns main(): it is defined here, once, and hands over to the Engine.
+RUNIC_ENTRY_POINT()
