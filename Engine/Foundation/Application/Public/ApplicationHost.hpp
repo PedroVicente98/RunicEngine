@@ -26,10 +26,12 @@ class ApplicationHost {
     ApplicationHost &operator=(const ApplicationHost &) = delete;
 
     // Start, then frames until a stop is requested (or ApplicationSpec::maxFrames), then Shutdown.
-    // Returns the exit code: 0 for a clean stop, 1 when a layer failed to attach.
+    // Returns the exit code: kCleanExit for a clean stop, kLayerFailedExit when a layer failed to
+    // attach.
     int Run();
     // Attaches the layers pushed before Run: the first safe point. On failure the layers that
-    // attached are kept for Shutdown, which detaches them, and the exit code becomes 1.
+    // attached are kept for Shutdown, which detaches them, and the exit code becomes
+    // kLayerFailedExit.
     Core::Result<void> Start();
     // One complete frame: the queued events top-down, updates bottom-up, renders bottom-up, then
     // the safe point.
@@ -55,7 +57,7 @@ class ApplicationHost {
     std::unique_ptr<HostContext> m_Context;
     Core::FixedRingBuffer<AppEvent, kEventQueueCapacity> m_Events;
     std::atomic<bool> m_StopRequested{false};
-    std::atomic<int> m_ExitCode{0};
+    std::atomic<int> m_ExitCode{kCleanExit};
     std::uint64_t m_Frames = 0;
     std::uint64_t m_DroppedEvents = 0;
     bool m_Started = false;

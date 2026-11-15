@@ -15,6 +15,24 @@
 
 namespace Runic::Application {
 
+namespace {
+
+// Arguments[0] is the executable's path; flags come after it.
+constexpr std::size_t kFirstArgument = 1;
+// What joins a flag to its value in one argument: --flag=value.
+constexpr std::string_view kValueSeparator = "=";
+
+#if defined(_WIN32)
+// WideCharToMultiByte's arguments: no flags, an input that ends at its null character, and an
+// output size that only asks for the size needed. That size counts the terminating null.
+constexpr DWORD kNoConversionFlags = 0;
+constexpr int kNullTerminated = -1;
+constexpr int kMeasureOnly = 0;
+constexpr int kTerminatorBytes = 1;
+#endif
+
+} // namespace
+
 CommandLine::CommandLine(std::vector<std::string> arguments) : m_Arguments(std::move(arguments)) {}
 
 CommandLine CommandLine::FromMain(int argc, char **argv) {
@@ -25,10 +43,15 @@ CommandLine CommandLine::FromMain(int argc, char **argv) {
     int count = 0;
     LPWSTR *wide = CommandLineToArgvW(GetCommandLineW(), &count);
     for (int i = 0; i < count; ++i) {
-        const int bytes =
-            WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
-        std::string utf8(static_cast<std::size_t>(bytes > 0 ? bytes - 1 : 0), '\0');
-        WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, utf8.data(), bytes, nullptr, nullptr);
+        const int bytes = WideCharToMultiByte(CP_UTF8, kNoConversionFlags, wide[i], kNullTerminated,
+                                              nullptr, kMeasureOnly, nullptr, nullptr);
+        std::string utf8;
+        if (bytes > kTerminatorBytes) {
+            // The null goes where std::string keeps its own.
+            utf8.resize(static_cast<std::size_t>(bytes - kTerminatorBytes));
+            WideCharToMultiByte(CP_UTF8, kNoConversionFlags, wide[i], kNullTerminated, utf8.data(),
+                                bytes, nullptr, nullptr);
+        }
         arguments.push_back(std::move(utf8));
     }
     LocalFree(wide);
@@ -43,7 +66,7 @@ CommandLine CommandLine::FromMain(int argc, char **argv) {
 const std::vector<std::string> &CommandLine::Arguments() const noexcept { return m_Arguments; }
 
 bool CommandLine::Has(std::string_view flag) const noexcept {
-    for (std::size_t i = 1; i < m_Arguments.size(); ++i) {
+    for (std::size_t i = kFirstArgument; i < m_Arguments.size(); ++i) {
         if (m_Arguments[i] == flag) {
             return true;
         }
@@ -52,24 +75,25 @@ bool CommandLine::Has(std::string_view flag) const noexcept {
 }
 
 std::optional<std::string_view> CommandLine::ValueOf(std::string_view flag) const noexcept {
-    for (std::size_t i = 1; i < m_Arguments.size(); ++i) {
+    for (std::size_t i = kFirstArgument; i < m_Arguments.size(); ++i) {
         const std::string_view argument = m_Arguments[i];
         if (argument == flag) {
-            if (i + 1 < m_Arguments.size()) {
-                return std::string_view(m_Arguments[i + 1]);
+            const std::size_t next = i + 1;
+            if (next < m_Arguments.size()) {
+                return std::string_view(m_Arguments[next]);
             }
             return std::nullopt;
         }
-        if (argument.size() > flag.size() && argument.substr(0, flag.size()) == flag &&
-            argument[flag.size()] == '=') {
-            return argument.substr(flag.size() + 1);
+        if (argument.starts_with(flag) &&
+            argument.substr(flag.size()).starts_with(kValueSeparator)) {
+            return argument.substr(flag.size() + kValueSeparator.size());
         }
     }
     return std::nullopt;
 }
 
 std::optional<std::uint64_t> CommandLine::QuitAfterFrames() const noexcept {
-    const std::optional<std::string_view> value = ValueOf("--quit-after");
+    const std::optional<std::string_view> value = ValueOf(kQuitAfterFlag);
     if (!value || value->empty()) {
         return std::nullopt;
     }

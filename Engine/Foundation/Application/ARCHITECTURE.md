@@ -23,14 +23,14 @@ Namespace `Runic::Application`, with no exception (slice 1 decision D2): the cla
 | Header | Holds |
 | --- | --- |
 | `EntryPoint.hpp` | `CreateApplication(const CommandLine&)`, which each executable defines; `Detail::RunMain`; `RUNIC_ENTRY_POINT()`, which defines `main()` where an executable expands it, once, next to its `CreateApplication` |
-| `Application.hpp` | `ApplicationSpec` (name, loop policy, frame limit) and `Application` (its layers, `OnStopped`) |
+| `Application.hpp` | `ApplicationSpec` (name, loop policy at `Core::kMasterTicksPerSecond` by default, frame limit or `kRunUntilStopped`) and `Application` (its layers, `OnStopped`) |
 | `ApplicationHost.hpp` | `ApplicationHost`: `Run`, `Start`, `RunFrame(const FrameTime&)`, `Shutdown`, `RequestStop` |
-| `Layer.hpp` | `Layer` (attach, detach, event, update, render) and `LayerContext` (what a layer may ask of the host) |
+| `Layer.hpp` | `Layer` (attach, detach, event, update, render), `LayerContext` (what a layer may ask of the host) and the exit codes `kCleanExit` and `kLayerFailedExit` |
 | `LayerStack.hpp` | `LayerStack`: layers and overlays as separate ranges, changes queued for the safe point |
-| `AppEvent.hpp` | `AppEvent` over key, mouse button, mouse motion, wheel, resize, focus and quit-request events |
+| `AppEvent.hpp` | `AppEvent` over key, mouse button, mouse motion, wheel, resize, focus and quit-request events, each type with its `kName`; `AppEventName`; `kNoKey`, `kNoModifiers` and the modifier bits |
 | `FrameTime.hpp` | `FrameTime`: the frame number, the delta and the time since the first frame, in `Core::Duration` |
 | `LoopPolicy.hpp` | `LoopPolicy::Fixed(hz)` and `LoopPolicy::PacedByTopLayer()`; `LoopClock` and `MakeSystemClock` |
-| `CommandLine.hpp` | `CommandLine`: UTF-8 on every platform, argv[0] first, every argument unchanged; `QuitAfterFrames` |
+| `CommandLine.hpp` | `CommandLine`: UTF-8 on every platform, argv[0] first, every argument unchanged; `QuitAfterFrames` and its flag `kQuitAfterFlag` |
 
 **Where `main()` is defined.** Not in the module's static library: it would also be linked into the module's own test
 executable, which already gets one from GoogleTest. Not by including a header either (APP-1 until 2026-11-15): a

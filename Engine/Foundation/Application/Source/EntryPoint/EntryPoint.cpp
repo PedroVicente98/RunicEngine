@@ -9,6 +9,7 @@
 #include <atomic>
 #include <csignal>
 #include <cstdio>
+#include <string_view>
 #include <utility>
 
 namespace Runic::Application::Detail {
@@ -20,28 +21,21 @@ std::atomic<ApplicationHost *> g_Host{nullptr};
 // SIGINT and SIGTERM ask for a stop at the next safe point; only atomics are touched here.
 void OnStopSignal(int) {
     if (ApplicationHost *host = g_Host.load()) {
-        host->RequestStop(0);
+        host->RequestStop(kCleanExit);
     }
 }
 
-// Info and below to stdout as they are; warnings and errors to stderr with their level.
+// Info and below to stdout as they are; warnings and errors to stderr with their level's name.
 void ConsoleSink(const Core::LogRecord &record, void *) {
     const int size = static_cast<int>(record.message.size());
-    switch (record.level) {
-    case Core::LogLevel::Warning:
-        std::fprintf(stderr, "Warning: %.*s\n", size, record.message.data());
-        break;
-    case Core::LogLevel::Error:
-        std::fprintf(stderr, "Error: %.*s\n", size, record.message.data());
-        break;
-    case Core::LogLevel::Fatal:
-        std::fprintf(stderr, "Fatal: %.*s\n", size, record.message.data());
-        break;
-    default:
+    if (record.level < Core::LogLevel::Warning) {
         std::fprintf(stdout, "%.*s\n", size, record.message.data());
         std::fflush(stdout);
-        break;
+        return;
     }
+    const std::string_view level = Core::LogLevelName(record.level);
+    std::fprintf(stderr, "%.*s: %.*s\n", static_cast<int>(level.size()), level.data(), size,
+                 record.message.data());
 }
 
 } // namespace
@@ -51,7 +45,7 @@ int RunMain(int argc, char **argv) {
     CommandLine command = CommandLine::FromMain(argc, argv);
     std::unique_ptr<Application> application = CreateApplication(command);
     if (application == nullptr) {
-        return 0;
+        return kCleanExit; // the program chose not to run, such as the RunicEditor refusing Play
     }
     ApplicationHost host(std::move(application), std::move(command));
     g_Host.store(&host);
