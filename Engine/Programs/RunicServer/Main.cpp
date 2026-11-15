@@ -105,3 +105,6 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     RUNIC_LOG_INFO("RUNIC: RunicServer started (fixed 60 Hz)");
     return application;
 }
+
+// The Engine owns main(): it is defined here, once, and hands over to the Engine.
+RUNIC_ENTRY_POINT()

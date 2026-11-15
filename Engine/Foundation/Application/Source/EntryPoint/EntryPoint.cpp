@@ -1,7 +1,6 @@
-// The body of the Engine's main() (EntryPoint.hpp): the console log sink, the stop signals and the
-// host.
+// The body of the Engine's main(), which RUNIC_ENTRY_POINT() defines (EntryPoint.hpp): the console
+// log sink, the stop signals and the host.
 
-#define RUNIC_APPLICATION_NO_MAIN
 #include "EntryPoint.hpp"
 
 #include "ApplicationHost.hpp"
