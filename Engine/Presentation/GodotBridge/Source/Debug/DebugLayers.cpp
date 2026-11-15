@@ -81,6 +81,8 @@ using RenderData::DebugPrimitive;
 constexpr std::uint64_t kSurfaceFormat = RenderingServer::ARRAY_FORMAT_VERTEX |
                                          RenderingServer::ARRAY_FORMAT_COLOR |
                                          RenderingServer::ARRAY_FLAG_FORMAT_CURRENT_VERSION;
+// Positions and colors each start their stream: nothing comes before them.
+constexpr uint32_t kStreamStart = 0;
 // The keys of RenderingServer::mesh_add_surface's dictionary.
 constexpr const char *kPrimitiveKey = "primitive";
 constexpr const char *kFormatKey = "format";
@@ -104,6 +106,8 @@ constexpr float kLabelPixelSize = 0.0015f;
 constexpr int kLabelOutlineSize = 8;
 const godot::Color kLabelOutlineColor(0.0f, 0.0f, 0.0f);
 constexpr float kChannelMax = std::numeric_limits<std::uint8_t>::max();
+// The labels shown while the Text layer is hidden.
+constexpr std::size_t kNoLabels = 0;
 // The overlay's stats line is rewritten every this many applied frames.
 constexpr std::uint64_t kOverlayRefreshFrames = 15;
 
@@ -164,8 +168,9 @@ bool LayoutMatches(RenderingServer &server) {
     const bool matches =
         vertexStride == sizeof(Core::Vec3) && attributeStride == sizeof(RenderData::PackedColor) &&
         server.mesh_surface_get_format_offset(format, vertices, RenderingServer::ARRAY_VERTEX) ==
-            0 &&
-        server.mesh_surface_get_format_offset(format, vertices, RenderingServer::ARRAY_COLOR) == 0;
+            kStreamStart &&
+        server.mesh_surface_get_format_offset(format, vertices, RenderingServer::ARRAY_COLOR) ==
+            kStreamStart;
     if (!matches) {
         RUNIC_LOG_WARNING(
             "RUNIC: debug view: Godot's vertex stride is {} and its attribute stride {}, "
@@ -311,7 +316,7 @@ void DebugLayers::ApplyCamera(const RenderData::Camera &camera) {
 
 void DebugLayers::ApplyTexts(const RenderData::DebugGeometry &geometry) {
     const auto texts = geometry.Texts();
-    const std::size_t shown = IsLayerVisible(DebugLayer::Text) ? texts.size() : 0;
+    const std::size_t shown = IsLayerVisible(DebugLayer::Text) ? texts.size() : kNoLabels;
     while (m_Labels.size() < shown) {
         m_Labels.push_back(NewLabel());
     }
