@@ -30,6 +30,10 @@ constexpr float kHalf = 0.5f;
 constexpr float kPi = glm::pi<float>();
 constexpr float kTwoPi = glm::two_pi<float>();
 
+// Angles in a plane are measured from its first axis.
+constexpr float kStartAngle = 0.0f;
+
+const Vec3 kOrigin(0.0f);
 const Vec3 kAxisX(1.0f, 0.0f, 0.0f);
 const Vec3 kAxisY(0.0f, 1.0f, 0.0f);
 const Vec3 kAxisZ(0.0f, 0.0f, 1.0f);
@@ -185,7 +189,7 @@ void DebugDraw::DrawCircle(Vec3 center, Vec3 normal, float radius, PackedColor c
     Vec3 tangent;
     Vec3 bitangent;
     MakeBasis(unit, tangent, bitangent);
-    DrawArcInPlane(*this, center, tangent, bitangent, radius, 0.0f, kTwoPi, color,
+    DrawArcInPlane(*this, center, tangent, bitangent, radius, kStartAngle, kTwoPi, color,
                    CircleLines(segments));
 }
 
@@ -209,7 +213,7 @@ void DebugDraw::DrawCylinder(Vec3 a, Vec3 b, float radius, PackedColor color,
     DrawCircle(b, axis, radius, color, ring);
     for (std::uint32_t i = 0; i < kCylinderSideLines; ++i) {
         const float angle = kTwoPi * static_cast<float>(i) / static_cast<float>(kCylinderSideLines);
-        const Vec3 radial = RingPoint(Vec3(0.0f), tangent, bitangent, radius, angle);
+        const Vec3 radial = RingPoint(kOrigin, tangent, bitangent, radius, angle);
         DrawLine(a + radial, b + radial, color);
     }
 }
@@ -239,8 +243,8 @@ void DebugDraw::DrawCapsule(Vec3 a, Vec3 b, float radius, PackedColor color,
 
     DrawArcInPlane(*this, a, tangent, axis, radius, kPi, kTwoPi, color, halfCircle); // bottom cap
     DrawArcInPlane(*this, a, bitangent, axis, radius, kPi, kTwoPi, color, halfCircle);
-    DrawArcInPlane(*this, b, tangent, axis, radius, 0.0f, kPi, color, halfCircle); // top cap
-    DrawArcInPlane(*this, b, bitangent, axis, radius, 0.0f, kPi, color, halfCircle);
+    DrawArcInPlane(*this, b, tangent, axis, radius, kStartAngle, kPi, color, halfCircle); // top cap
+    DrawArcInPlane(*this, b, bitangent, axis, radius, kStartAngle, kPi, color, halfCircle);
 }
 
 void DebugDraw::DrawCone(Vec3 apex, Vec3 direction, float length, float halfAngleRadians,
@@ -273,7 +277,7 @@ void DebugDraw::DrawArcSector(Vec3 origin, Vec3 forward, Vec3 up, float innerRad
     const Vec3 right = glm::normalize(glm::cross(normal, flatForward));
     const float halfAngle = angleRadians * kHalf;
     const std::uint32_t arc = std::max(segments, kMinArcSegments);
-    const bool hasInner = innerRadius > 0.0f;
+    const bool hasInner = innerRadius > kNoInnerRadius;
     const auto pointAt = [&](float radius, float angle) {
         return origin + (flatForward * std::cos(angle) + right * std::sin(angle)) * radius;
     };
@@ -327,7 +331,7 @@ void DebugDraw::DrawArcVolume(Vec3 origin, Vec3 forward, Vec3 up, float innerRad
     };
     for (const float angle : {-halfAngle, halfAngle}) {
         DrawLine(bottom + radial(outerRadius, angle), top + radial(outerRadius, angle), color);
-        if (innerRadius > 0.0f) {
+        if (innerRadius > kNoInnerRadius) {
             DrawLine(bottom + radial(innerRadius, angle), top + radial(innerRadius, angle), color);
         }
     }
@@ -338,8 +342,8 @@ void DebugDraw::DrawGridXZ(float halfSize, float spacing, PackedColor color) {
     const std::uint32_t linesPerDirection = GridLines(halfSize, spacing) / kGridDirections;
     for (std::uint32_t i = 0; i < linesPerDirection; ++i) {
         const float at = -halfSize + spacing * static_cast<float>(i);
-        DrawLine(Vec3(at, 0.0f, -halfSize), Vec3(at, 0.0f, halfSize), color);
-        DrawLine(Vec3(-halfSize, 0.0f, at), Vec3(halfSize, 0.0f, at), color);
+        DrawLine(Vec3(at, kGridHeightM, -halfSize), Vec3(at, kGridHeightM, halfSize), color);
+        DrawLine(Vec3(-halfSize, kGridHeightM, at), Vec3(halfSize, kGridHeightM, at), color);
     }
 }
 

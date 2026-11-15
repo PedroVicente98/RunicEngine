@@ -26,7 +26,13 @@ inline constexpr std::uint32_t kMinCapsuleSegments = 8;
 inline constexpr std::uint32_t kMinConeSegments = 4;
 inline constexpr std::uint32_t kMinArcSegments = 2;
 
-// The parts each shape is made of.
+// The innerRadius of an arc sector or volume without a hole: a pie slice.
+inline constexpr float kNoInnerRadius = 0.0f;
+// The height of DrawGridXZ's plane, in the frame's local space.
+inline constexpr float kGridHeightM = 0.0f;
+
+// The parts each shape is made of. A shape with no size draws kNoLines.
+inline constexpr std::uint32_t kNoLines = 0;
 inline constexpr std::uint32_t kArrowLines = 5;    // the shaft and four head lines
 inline constexpr std::uint32_t kBoxLines = 12;     // AABB and OBB edges
 inline constexpr std::uint32_t kSphereCircles = 3; // three great circles
@@ -66,7 +72,7 @@ constexpr std::uint32_t ArcSectorLines(std::uint32_t segments, bool hasInnerRadi
 // Both sectors, and a vertical line at each outer corner (and at each inner corner).
 constexpr std::uint32_t ArcVolumeLines(std::uint32_t segments, bool hasInnerRadius) noexcept {
     return kArcVolumeLayers * ArcSectorLines(segments, hasInnerRadius) + kArcEdgeLines +
-           (hasInnerRadius ? kArcEdgeLines : 0);
+           (hasInnerRadius ? kArcEdgeLines : kNoLines);
 }
 // The XZ grid's lines run along X and along Z, one of each every spacing metres from -halfSize to
 // +halfSize.
@@ -75,7 +81,7 @@ inline constexpr std::uint32_t kGridDirections = 2;
 inline constexpr float kGridRoundingSlack = 1.0e-4f;
 inline std::uint32_t GridLines(float halfSize, float spacing) noexcept {
     if (halfSize <= 0.0f || spacing <= 0.0f) {
-        return 0;
+        return kNoLines;
     }
     const auto steps = static_cast<std::uint32_t>(
         std::floor((halfSize + halfSize) / spacing + kGridRoundingSlack));
@@ -109,8 +115,8 @@ class DebugDraw {
                      std::uint32_t segments = kDefaultRoundSegments);
     void DrawCone(Core::Vec3 apex, Core::Vec3 direction, float length, float halfAngleRadians,
                   PackedColor color, std::uint32_t segments = kDefaultRoundSegments);
-    // A melee swing: the annular sector between innerRadius (0 for a pie slice) and outerRadius,
-    // centered on forward in the plane whose normal is up, spanning angleRadians.
+    // A melee swing: the annular sector between innerRadius (kNoInnerRadius for a pie slice) and
+    // outerRadius, centered on forward in the plane whose normal is up, spanning angleRadians.
     void DrawArcSector(Core::Vec3 origin, Core::Vec3 forward, Core::Vec3 up, float innerRadius,
                        float outerRadius, float angleRadians, PackedColor color,
                        std::uint32_t segments = kDefaultRoundSegments);
@@ -119,7 +125,7 @@ class DebugDraw {
     void DrawArcVolume(Core::Vec3 origin, Core::Vec3 forward, Core::Vec3 up, float innerRadius,
                        float outerRadius, float angleRadians, float height, PackedColor color,
                        std::uint32_t segments = kDefaultRoundSegments);
-    // Lines along X and Z every spacing metres, from -halfSize to +halfSize, at height 0.
+    // Lines along X and Z every spacing metres, from -halfSize to +halfSize, at kGridHeightM.
     void DrawGridXZ(float halfSize, float spacing, PackedColor color);
     void DrawText(Core::Vec3 position, std::string_view text, PackedColor color);
     // A filled triangle; its opacity is the color's alpha.

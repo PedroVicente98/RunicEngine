@@ -48,7 +48,7 @@ camera-relative floats under one 64-bit origin per frame.
 | `RenderData/Color.hpp` | `PackedColor` (a 32-bit color whose bytes in memory are R, G, B, A), `PackABGR`, `RedOf`, `GreenOf`, `BlueOf`, `AlphaOf`, `WithAlpha`, `kOpaqueAlpha`, `kHalfAlpha`, and the debug palette `kDebugPredicted`, `kDebugAuthoritative`, `kDebugHarmful`, `kDebugBeneficial`, `kDebugPhysics`, `kDebugQuery`, `kDebugInactive`, `kDebugText` | CORE-3 |
 | `RenderData/Camera.hpp` | `Camera` (position relative to the frame's origin, rotation, vertical field of view, near and far planes; Godot's defaults), `LookAt` | CORE-3 |
 | `RenderData/DebugGeometry.hpp` | `DebugBatch` (`WorldDepth`, `Overlay`), `DebugPrimitive` (`Lines`, `Triangles`), `DebugGeometryCapacity`, `DebugText`, `DebugGeometry` (per batch and primitive a positions array and a colors array, texts and their bytes; a fixed capacity, adds past it dropped and counted) | CORE-3 |
-| `RenderData/DebugDraw.hpp` | `DebugDraw` (line, ray, arrow, AABB, OBB, circle, sphere, cylinder, capsule, cone, arc sector, arc volume, XZ grid, text, filled triangle) and each shape's cost: the `kMin*Segments`, the part counts and the `*Lines` functions | CORE-3 |
+| `RenderData/DebugDraw.hpp` | `DebugDraw` (line, ray, arrow, AABB, OBB, circle, sphere, cylinder, capsule, cone, arc sector, arc volume, XZ grid, text, filled triangle) and each shape's cost: the `kMin*Segments`, the part counts (`kNoLines` for a shape with no size) and the `*Lines` functions; `kNoInnerRadius` and `kGridHeightM` | CORE-3 |
 | `RenderData/RenderFrame.hpp` | `RenderFrame` (number, 64-bit origin, camera, debug geometry) | CORE-3 |
 | `RenderData/RenderFrameExchange.hpp` | `RenderFrameExchange` (`WriteFrame`, `Publish`, `ReadNewest`, `PublishedFrames`) | CORE-3 |
 
