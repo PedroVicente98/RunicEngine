@@ -15,3 +15,8 @@ else()
     target_compile_definitions(runic_core PUBLIC GLM_FORCE_EXPLICIT_CTOR)
 endif()
 unset(_runic_core_type)
+
+# The worker pool's threads (CORE-2). A system library, not a third party: PUBLIC, so every target that links Core
+# links the platform's thread library where it is a separate one.
+find_package(Threads REQUIRED)
+target_link_libraries(runic_core PUBLIC Threads::Threads)

@@ -7,11 +7,14 @@ and the implementation contract (CORE-1); World space coordinates, cells and act
 Application and LayerStack (Implementation rules); Simulation core clock and threads; Render data, extraction and world
 UI (RenderData in Core); Debug drawing (Engine). Status: **CORE-1 implemented** (slice 1); **CORE-3 implemented** (slice 2):
 the RenderData headers, `Source/RenderData/` and their acceptance tests, which pass with GCC (and under
-ThreadSanitizer for the frame exchange); awaiting the verify step. The folder map
+ThreadSanitizer for the frame exchange); awaiting the verify step. **CORE-2 implemented** (slice 3, on the preview
+branch `preview/slices-3-11`): the worker pool, the metrics and debug-stream registries, the per-tick arena and the
+per-worker buffers, with their acceptance tests. The folder map
 is [README.md](README.md); the slice briefs are [RunicEngine#144](https://github.com/PedroVicente98/RunicEngine/issues/144)
 (slice 1) and [RunicEngine#145](https://github.com/PedroVicente98/RunicEngine/issues/145) (slice 2), the plans
 [RunicEngine#9](https://github.com/PedroVicente98/RunicEngine/issues/9) (CORE-1) and
-[RunicEngine#18](https://github.com/PedroVicente98/RunicEngine/issues/18) (CORE-3).
+[RunicEngine#18](https://github.com/PedroVicente98/RunicEngine/issues/18) (CORE-3). Slice 3's brief and walkthrough
+are [preview/slice-03-fixed-step-clock.md](../../../preview/slice-03-fixed-step-clock.md).
 
 ## Purpose
 
@@ -19,8 +22,10 @@ The Engine's vocabulary: the types every module and every process shares. Plain 
 and asserts for failure, logging hooks a host plugs into, one monotonic clock with exact tick arithmetic, the 32-bit
 math types on GLM, the 64-bit world-space types and their type rule, fixed-capacity containers for paths that must
 not allocate, and RenderData: the plain frame the client extracts and only GodotBridge reads, starting with debug
-geometry and the debug-draw API (CORE-3). Later packages add the worker pool, metrics and debug streams (CORE-2), more
-RenderData kinds (CORE-4 to CORE-7) and process configuration (CORE-8).
+geometry and the debug-draw API (CORE-3). CORE-2 adds what a simulation runs on: the worker pool that owns every
+simulation thread, the metrics registry and the debug-stream registry a process records into, and the per-tick arenas
+and per-worker buffers its phases write into. Later packages add more RenderData kinds (CORE-4 to CORE-7) and process
+configuration (CORE-8).
 
 ## Public API
 
@@ -39,6 +44,11 @@ included by their path under `Public/` (`#include "WorldSpace.hpp"`, `#include "
 | `WorldSpace.hpp` | `WorldPosition`, `WorldDelta`, their operators, `DistanceSq`, `ToLocal`, `kMaxLocalOffsetM` | CORE-1 |
 | `FixedRingBuffer.hpp` | `FixedRingBuffer<T, N>` | CORE-1 |
 | `FixedVector.hpp` | `FixedVector<T, N>` | CORE-1 |
+| `WorkerPool.hpp` | `WorkerIndex`, `kDrivingWorker`, `kSingleWorker`, `kMaxWorkers`, `kDefaultJobQueueCapacity`, `kMaxParallelChunks`, `Job`, `JobGroup` (the barrier's counter), `WorkerPoolSpec`, `ChunkRange`, `WorkerPool` (`Submit`, `Wait`, `ParallelFor`, `CurrentWorker`, `WorkerCount`, `JobsRunBy`, `JobsRunInline`) | CORE-2 |
+| `PerWorker.hpp` | `PerWorker<T>` (one `T` per worker slot, each on its own cache lines), `kCacheLineBytes` | CORE-2 |
+| `TickArena.hpp` | `TickArena` (`Allocate`, `AllocateArray`, `Create`, `Reset`, `UsedBytes`, `ReservedBytes`, `BlockCount`), `kDefaultArenaBlockBytes` | CORE-2 |
+| `MetricsRegistry.hpp` | `MetricKind`, `MetricDescription` (name, clock-domain label, help), `kNoMetricDomain`, `CounterId`, `GaugeId`, `TimingId`, `TimingSnapshot` (`Mean`, `Percentile`), `MetricSnapshot`, `MetricsRegistry` (`AddCounter`, `AddGauge`, `AddTiming`, `Increment`, `Add`, `Set`, `Record`, `Count`, `Capacity`, `Read`), `ScopedTiming`, `kDefaultMetricCapacity`, `kTimingBuckets`, `kFirstTimingBucket`, `TimingBucketLimit` | CORE-2 |
+| `DebugStreamRegistry.hpp` | `DebugStreamSpec`, `DebugStreamId`, `DebugRecordRead`, `DebugStreamInfo`, `DebugStreamRegistry` (`Add`, `SetEnabled`, `IsEnabled`, `Publish`, `Read`, `Count`, `IdAt`, `Find`, `Describe`), `kFirstDebugRecord`, `kDefaultDebugStreamCapacity`, `kDefaultDebugStreamBytes` | CORE-2 |
 
 RenderData (`Public/RenderData/`, namespace `Runic::RenderData`): plain data, no Flecs, Jolt or Godot types, and
 camera-relative floats under one 64-bit origin per frame.
@@ -73,6 +83,11 @@ under `kMaxLocalOffsetM` (10 km, where the float step is about 1 mm).
   the layout Godot uploads (3 floats per position, colors as the bytes R, G, B, A), and the hand-over of frames from
   one thread to another without a lock.
 - The debug-draw API: how each shape becomes lines and triangles, and what it costs.
+- The worker pool: the only threads the Engine creates for simulation work, the worker slots (two jobs that run at the
+  same time never share one) and the barrier. A pool of one worker creates no thread.
+- The form of a metric (a counter, a gauge or a timing with a histogram, labelled with a clock domain) and of a debug
+  stream (records of bytes with a sequence number, kept in a ring), and that recording never allocates.
+- The per-tick arena's promise: `Reset` returns nothing to the system.
 
 ## Does not own
 
@@ -85,12 +100,19 @@ under `kMaxLocalOffsetM` (10 km, where the float step is about 1 mm).
   (Runic::Client, CLI-1).
 - Drawing render data: uploads, materials, toggles and the development overlay are Runic::GodotBridge (GDB-2); which
   system draws what, beyond the palette's meanings, is each system's.
-- Everything of the later Core packages: the worker pool, metrics, debug streams and per-tick arenas (CORE-2), the
-  RenderData kinds of CORE-4 to CORE-7 and cached debug meshes (slice 8), process configuration (CORE-8).
+- Which metrics and streams exist and what they mean: each module registers its own (the Simulation its clock
+  domains, SIM-1). The clock-domain labels are the Simulation's; Core only stores them.
+- Publishing metrics (the Platform's exporter, PBND-3) and sending debug streams to the RunicEditor (the Diagnostics
+  layer, NET-7): Core only keeps what was recorded and lets them read it.
+- What runs on the pool and in which order: phases and their merges are Runic::Simulation (SIM-2, SIM-3); Jolt's job
+  system is adapted in Runic::Physics (PHYS-4). The worker count is a setting the program reads (CORE-8, SIM-1).
+- Everything of the later Core packages: the RenderData kinds of CORE-4 to CORE-7 and cached debug meshes (slice 8),
+  process configuration (CORE-8).
 
 ## Allowed dependencies
 
-Catalog row: no Runic module. Third parties: GLM (PUBLIC, the approved exception) and the C++ standard library.
+Catalog row: no Runic module. Third parties: GLM (PUBLIC, the approved exception) and the C++ standard library, with
+the platform's thread library where it is a separate one (`Threads::Threads`, PUBLIC, for the worker pool).
 
 ## Forbidden dependencies
 
@@ -107,16 +129,31 @@ I/O except the default log sink's writes to stderr.
 - `RenderFrameExchange`: one writer thread (`WriteFrame`, `Publish`) and one reader thread (`ReadNewest`), which may
   be the same thread; each call is one lock-free atomic exchange, so neither side waits. `PublishedFrames` is
   thread-safe. `DebugGeometry` and `DebugDraw` are not thread-safe: one writer per geometry.
-- Nothing in Core blocks, and nothing allocates on a hot path: a log line is formatted into a stack buffer of
-  `kMaxLogLineBytes`, the fixed containers store their elements inline, and `DebugGeometry` allocates its arrays once,
-  at construction.
+- `WorkerPool`: one thread at a time drives a pool from outside (the simulation thread: `Submit`, `Wait`,
+  `ParallelFor`), and running jobs may submit and wait too. The driving thread is worker 0 and runs jobs while it
+  waits; the pool's threads are workers 1 to N − 1. `Wait` is the barrier: it returns when the group's last job has
+  finished. A job never blocks on anything but a nested `Wait`. `Submit` and `Wait` never allocate; a full queue runs
+  the job on the submitting thread.
+- `PerWorker<T>` gives each worker slot its own `T`, so a parallel phase writes without a lock; the owner reads the
+  slots in order after the barrier. `TickArena` is not thread-safe: one user at a time, one arena per worker in a
+  parallel phase.
+- `MetricsRegistry` and `DebugStreamRegistry`: registration is thread-safe and happens at start (it allocates).
+  Recording a metric is lock-free from any thread. Publishing to a debug stream takes that stream's short lock, and
+  only when the stream is enabled: a disabled stream costs one atomic load. Reading is thread-safe.
+- Nothing in Core blocks outside a barrier, and nothing allocates on a hot path: a log line is formatted into a stack
+  buffer of `kMaxLogLineBytes`, the fixed containers store their elements inline, `DebugGeometry` allocates its arrays
+  once, at construction, the pool's queue and the registries' slots are allocated at construction, and an arena keeps
+  its blocks across ticks.
 
 ## Data ownership
 
 Core keeps three pieces of process-wide state: the log sink with its user pointer, the minimum log level, and the
 assert handler. Everything else is a value owned by whoever holds it. A `RenderFrameExchange` owns its three frames;
 the writer owns the frame `WriteFrame` returned until it publishes it, and the reader the frame `ReadNewest` returned
-until its next call.
+until its next call. A `WorkerPool` owns its threads and its queue; a job's `user` data and its `JobGroup` belong to
+whoever submitted it, and stay alive until the group has been waited for. A registry owns its slots and a copy of
+every name and help text; the program owns the registries and hands them to what records into them (they are objects,
+not globals). An arena owns its blocks; what it hands out is valid until its next `Reset`, and no destructor runs.
 
 ## Integration points
 
@@ -125,6 +162,11 @@ until its next call.
 - Lines from another system (Godot's output, from GDB-1) enter through `WriteLog`.
 - The client writes frames and GodotBridge reads them through one `RenderFrameExchange` the program owns (in slice 2
   the RunicClient program writes and GDB-2 reads); GodotBridge uploads `DebugGeometry`'s arrays as they are.
+- A simulation builds one `WorkerPool` (SIM-1) and runs its phases on it; Physics adapts Jolt's job system onto the
+  same pool (PHYS-4), so no library owns threads.
+- Modules register their metrics and debug streams in the registries the program gives them. The Platform's exporter
+  walks `MetricsRegistry::Count` and `Read` (PBND-3); the Diagnostics layer enables streams and reads them with a
+  cursor per reader (NET-7).
 - Every other module uses the types directly.
 
 ## Where the code lives
@@ -138,6 +180,15 @@ until its next call.
   construction and adds, `DebugDraw`'s shapes, `RenderFrameExchange`). `Ids/` and `Memory/` have no folder yet: those
   subsystems are header-only so far. In RenderData, `Color`, `Camera`, `RenderFrame` and the line-count functions are
   header-only.
+- CORE-2's code: `Source/WorkerPool/` (the pool), `Source/Memory/` (`TickArena`), `Source/Metrics/` and
+  `Source/DebugStreams/` (the registries). `PerWorker` and the template part of `ParallelFor` are header-only.
+- The pool: one fixed ring of jobs under one mutex and one condition variable, signalled when a job is queued, when a
+  group finishes and when the pool stops. `ParallelFor` submits one runner per worker (at most one per chunk); the
+  runners claim chunk numbers from one atomic counter, so the chunks depend on the count and the chunk size only.
+- A timing's histogram has `kTimingBuckets` (20) buckets whose limits double from `kFirstTimingBucket` (16 µs) to about
+  8.4 s; `Percentile` returns the limit of the bucket that holds the rank asked for, never above the maximum.
+- A debug stream stores each record as a 32-bit size and its bytes in a ring; a full ring drops its oldest records,
+  and a reader whose cursor is older learns how many it missed.
 - The frame exchange: three slots; the writer's and the reader's are their own, and one atomic byte holds the third
   slot's index and whether it holds a frame the reader has not taken.
 - Formats the tests rely on: the default sink writes `<Level>: <message>` and a newline to stderr; `FailAssert` logs
@@ -150,7 +201,7 @@ until its next call.
 | ID | Package | Done when | Status |
 | --- | --- | --- | --- |
 | CORE-1 | Plain ID types, Result, asserts, logging hooks, time types, GLM math, the world-space types, fixed-capacity containers | Unit tests cover IDs, Result, time conversions and world-space arithmetic; adding two WorldPositions or converting one to a float vector does not compile; fixed-capacity containers never allocate after construction | **Implemented** (slice 1): `RunicCoreTests` passes, 39 tests in Debug, 31 in Release (where asserts are compiled out); awaiting the verify step |
-| CORE-2 | Worker pool, metrics registry, debug-stream registry, per-tick arenas and per-worker buffers | Jobs run on the pool; metrics are recorded per tick domain; a per-tick arena resets without returning memory to the system | Not started (slice 3) |
+| CORE-2 | Worker pool, metrics registry, debug-stream registry, per-tick arenas and per-worker buffers | Jobs run on the pool; metrics are recorded per tick domain; a per-tick arena resets without returning memory to the system | **Implemented** (slice 3, preview branch): `RunicCoreTests` passes with the 40 CORE-2 tests below, with GCC, with clang and warnings as errors, and under ThreadSanitizer, AddressSanitizer and UBSan; awaiting the owner's review |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | **Implemented** (slice 2): `RunicCoreTests` passes with the 23 CORE-3 tests below; decisions D1–D3, D5 and D6 in RunicEngine#145; awaiting the verify step |
 | CORE-4 to CORE-7 | RenderData kinds: scene, world state, water and fields, effects | See RunicDocs › Modules, work packages | Not started (slices 22, 25a, 42a, 44+) |
 | CORE-8 | Process configuration | A setting resolves from each source in precedence order; an unknown key or a bad value is reported with its source | Not started (slice 3) |
@@ -164,7 +215,19 @@ lock-free atomic; no allocation), `DebugGeometry.*` and `Color.*` (the vertex la
 copied in), `DebugDraw.*` (every shape's lines against its line-count function; filled triangles keep their opacity;
 the batch; degenerate shapes; no allocation for a frame of every shape) and `Camera.*`.
 
+CORE-2's acceptance tests: `WorkerPool.*` (every job runs once; jobs run on the pool's threads at the same time and
+never share a slot; the barrier; nested submits and waits; a full queue; `ParallelFor` covers every index once with
+chunks that do not depend on the worker count; no allocation), `PerWorker.*`, `TickArena.*` (aligned, non-overlapping
+storage; a reset tick allocates nothing and returns nothing; an oversized request), `MetricsRegistry.*` (one metric per
+clock domain; percentiles; several threads; no allocation; a full registry) and `DebugStreamRegistry.*` (a disabled
+stream keeps nothing; two readers; a full ring; several publishing threads; no allocation).
+
 ## Future extensions
+
+- Changing a pool's worker count at a safe point between ticks (RunicDocs › Threading model), when a process resizes
+  its CPU allotment; today the count is fixed when the pool is built.
+- A lock-free or work-stealing queue, if the queue's mutex shows in a profile (slice 38, battle scale).
+- Worker-busy time per slot, for the worker-utilization metric, next to the job counts the pool keeps today.
 
 - A container whose capacity is chosen at construction and allocated once, when its first consumer needs one
   (Network, slice 12).
