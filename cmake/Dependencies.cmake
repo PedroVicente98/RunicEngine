@@ -34,15 +34,25 @@ function(_runic_recipe_glm)
 endfunction()
 runic_third_party_recipe(glm TARGETS glm::glm FETCH _runic_recipe_glm)
 
-# ---- Jolt 5.2.0: headless static library ----
-# The architecture pins Jolt v5.6.0 in double precision (PHYS-1, slice 7; the v5.6.0 archive's SHA-256 is
-# 6e069ee0172478cc78182047aac87e5310ba14a67a53348ae14cc37801fd3f8e). Until PHYS-1 the bootstrap pin stays v5.2.0.
-# Its SIMD paths follow RUNIC_CPU_BASELINE: AVX2 and FMA on for x86-64-v3.
+# ---- Jolt 5.6.0: headless static library in double precision (private to Runic::Physics) ----
+# The architecture's pin (RunicDocs › Simulation core › Jolt rules), from PHYS-1 (slice 7): v5.6.0 with
+# JPH_DOUBLE_PRECISION, so bodies sit at 64-bit world positions, and with RTTI. Jolt's asserts, floating-point
+# exceptions, object stream, profiler and debug renderer are off (PHYS-3 decides how development builds turn the debug renderer on).
+# Its SIMD paths follow RUNIC_CPU_BASELINE: AVX2 and FMA on for x86-64-v3. Jolt creates no threads: Physics runs it
+# on a single-threaded job system until PHYS-4 puts it on the Core worker pool.
 function(_runic_recipe_jolt)
+    set(DOUBLE_PRECISION ON)
+    set(USE_ASSERTS OFF)
+    set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF)
+    set(ENABLE_OBJECT_STREAM OFF)
+    # RTTI on, as in the Runic code that derives from Jolt's classes: one setting on both sides, and UBSan's vptr
+    # check finds Jolt's type information.
+    set(CPP_RTTI_ENABLED ON)
     set(OVERRIDE_CXX_FLAGS OFF)
     set(INTERPROCEDURAL_OPTIMIZATION OFF)
     set(ENABLE_ALL_WARNINGS OFF)
     set(ENABLE_INSTALL OFF)
+    set(JPH_BUILD_SHARED_LIBS OFF)
     set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF)
     set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF)
     set(DEBUG_RENDERER_IN_DISTRIBUTION OFF)
@@ -53,9 +63,9 @@ function(_runic_recipe_jolt)
         set(USE_${feature} ${baseline})
     endforeach()
     set(USE_AVX512 OFF)
-    runic_fetch_archive(jolt FOLDER JoltPhysics-5.2.0
-        URL https://codeload.github.com/jrouwe/JoltPhysics/tar.gz/refs/tags/v5.2.0
-        SHA256 f478afe3050c885e21403748e10ab18e3e8df8b0982c540e75f1e078ef8b2c88
+    runic_fetch_archive(jolt FOLDER JoltPhysics-5.6.0
+        URL https://codeload.github.com/jrouwe/JoltPhysics/tar.gz/refs/tags/v5.6.0
+        SHA256 6e069ee0172478cc78182047aac87e5310ba14a67a53348ae14cc37801fd3f8e
         SOURCE_SUBDIR Build)
 endfunction()
 runic_third_party_recipe(jolt TARGETS Jolt FETCH _runic_recipe_jolt)

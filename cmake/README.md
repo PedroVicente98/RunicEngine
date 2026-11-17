@@ -42,7 +42,7 @@ Approving this contract approves these choices. The v3 draft of this contract (b
 | 16 | Folder names: PascalCase for what the architecture defines (`Engine/<Group>/<Module>/` with `Public/`, `Source/`, `Tests/`; `Engine/Programs/` for the Engine's executables), lowercase for repository plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`); never two folders that differ only by case (Windows and macOS would merge them) | Decided by the owner, 2026-11-09 |
 | 17 | `external/` holds all third-party code: Godot and godot-cpp as the only submodules, every other library as a pinned, versioned download (ignored by git), plus the SCons environment. | Decided by the owner, 2026-11-09 |
 
-Not in BUILD-1: Jolt 5.6.0 in double precision (PHYS-1; the v5.6.0 archive's SHA-256 is `6e069ee0172478cc78182047aac87e5310ba14a67a53348ae14cc37801fd3f8e`; the pin stays 5.2.0), any module code beyond the slice 0 spike, the API dump of the Runic Godot build for godot-cpp (`RUNIC_GODOT_API_FILE` is ready for it), the canonical Go module path (RunicDocs › Architecture › Open questions).
+Not in BUILD-1: Jolt 5.6.0 in double precision (PHYS-1 moved the pin there in slice 7, with the archive's SHA-256 `6e069ee0172478cc78182047aac87e5310ba14a67a53348ae14cc37801fd3f8e`), any module code beyond the slice 0 spike, the API dump of the Runic Godot build for godot-cpp (`RUNIC_GODOT_API_FILE` is ready for it), the canonical Go module path (RunicDocs › Architecture › Open questions).
 
 ## Interface: CMake helpers
 
@@ -57,7 +57,7 @@ All helpers live in `cmake/` in this repository. A consumer gets them with `list
 | `cmake/RunicToolchain.cmake` | `runic_apply_toolchain`, `runic_apply_cpu_baseline`, `runic_enable_warnings`, `runic_fatal` |
 | `cmake/RunicModuleCatalog.cmake` | The Engine catalog: one `runic_catalog_module` call per row of RunicDocs › Repositories, build targets and processes › Engine modules (26 rows) |
 | `cmake/RunicGodot.cmake` | `runic_godot_setup` (godot-cpp, the `Runic::LibGodotEditor` and `Runic::LibGodotTemplate` targets that build and stage libgodot), `runic_godot_host_executable` |
-| `cmake/Dependencies.cmake` | The recipes of the Engine's pinned third parties (Flecs 4.2.0, GLM 1.0.1, Jolt 5.2.0), by library ID; nothing is fetched until a configured module links it (GLM since CORE-1, Flecs since ECS-1) |
+| `cmake/Dependencies.cmake` | The recipes of the Engine's pinned third parties (Flecs 4.2.0, GLM 1.0.1, Jolt 5.6.0 in double precision), by library ID; nothing is fetched until a configured module links it (GLM since CORE-1, Flecs since ECS-1, Jolt since PHYS-1) |
 | `cmake/checks/PublicHeaderScan.cmake` | Script: library types in `Public/`; Godot outside GodotBridge and GodotTools |
 | `cmake/checks/SourceIncludeScan.cmake` | Script: includes of another module's `Source/` |
 | `cmake/checks/CatalogSync.cmake` | Script: the catalog equals the module tables of RunicDocs › Repositories, build targets and processes |
