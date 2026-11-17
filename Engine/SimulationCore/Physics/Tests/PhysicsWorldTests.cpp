@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -232,6 +233,45 @@ TEST(PhysicsWorld, ContactsArriveAsFactsWithTheirOwners) {
     }
     ASSERT_EQ(facts.size(), 1u);
     EXPECT_EQ(facts[0].phase, ContactPhase::Ended);
+}
+
+TEST(PhysicsWorld, AContactLastsWhileItsBodiesSleep) {
+    // Jolt drops the contacts of a body that falls asleep; the crate still rests on the slab, so
+    // nothing ended. Waking it and lifting it away ends it; so does removing it while it sleeps.
+    PhysicsWorld world;
+    const Scene scene = DropACrate(world, kFarAway);
+    std::vector<ContactFact> facts;
+    constexpr int kUntilAsleep = 3 * kTwoSeconds;
+    for (int tick = 0; tick < kUntilAsleep; ++tick) {
+        world.Step(kTickSeconds);
+        world.TakeContacts(facts);
+    }
+    ASSERT_FALSE(world.IsActive(scene.crate)); // asleep
+    ASSERT_EQ(facts.size(), 1u);
+    EXPECT_EQ(facts[0].phase, ContactPhase::Began);
+
+    // A nudge wakes it on the slab: still touching, nothing new.
+    facts.clear();
+    world.SetLinearVelocity(scene.crate, Vec3(0.1f, 0.0f, 0.0f));
+    for (int tick = 0; tick < kTwoSeconds / 2; ++tick) {
+        world.Step(kTickSeconds);
+        world.TakeContacts(facts);
+    }
+    EXPECT_TRUE(facts.empty());
+
+    // Asleep again, then removed: the contact ends, with the owners it had.
+    for (int tick = 0; tick < kUntilAsleep; ++tick) {
+        world.Step(kTickSeconds);
+        world.TakeContacts(facts);
+    }
+    ASSERT_FALSE(world.IsActive(scene.crate));
+    EXPECT_TRUE(facts.empty());
+    world.RemoveBodies(std::span(&scene.crate, 1));
+    world.Step(kTickSeconds);
+    world.TakeContacts(facts);
+    ASSERT_EQ(facts.size(), 1u);
+    EXPECT_EQ(facts[0].phase, ContactPhase::Ended);
+    EXPECT_EQ(facts[0].ownerA + facts[0].ownerB, 3u); // the slab's 1 and the crate's 2
 }
 
 TEST(PhysicsWorld, JoltCreatesNoThread) {

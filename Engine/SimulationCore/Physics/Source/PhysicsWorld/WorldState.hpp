@@ -4,6 +4,8 @@
 
 #include <Jolt/Core/JobSystemSingleThreaded.h>
 #include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Body/BodyInterface.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -12,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -48,12 +51,25 @@ inline JPH::BodyID ToBodyId(BodyHandle handle) noexcept { return JPH::BodyID(han
 // Jolt calls this from inside the step, on whichever thread runs the collision job: it only
 // records, under a lock. A body pair's contact begins with its first sub-shape contact and ends
 // with its last.
-class ContactBuffer final : public JPH::ContactListener {
+//
+// Jolt also removes every contact of a body that falls asleep, though it still touches; a sleeping
+// pair is not a contact that ended. So a pair whose last sub-shape contact went is decided after
+// the step (Settle): when its moving bodies are all asleep it stays touching, dormant; otherwise
+// it ended. A dormant pair wakes silently when Jolt finds it again, and ends when one of its bodies
+// woke up a step ago and Jolt did not, or when one of its bodies is removed.
+class ContactBuffer final : public JPH::ContactListener, public JPH::BodyActivationListener {
   public:
     void OnContactAdded(const JPH::Body &a, const JPH::Body &b,
                         const JPH::ContactManifold &manifold,
                         JPH::ContactSettings &settings) override;
     void OnContactRemoved(const JPH::SubShapeIDPair &pair) override;
+    void OnBodyActivated(const JPH::BodyID &body, JPH::uint64 userData) override;
+    void OnBodyDeactivated(const JPH::BodyID &, JPH::uint64) override {}
+
+    // After the step, on the thread that stepped: decides the pairs whose contacts went.
+    void Settle(const JPH::BodyInterface &bodies);
+    // A body is being removed: its dormant pairs end now (Jolt reports only its awake contacts).
+    void BodyRemoved(JPH::BodyID body);
 
     void Take(std::vector<ContactFact> &out);
     // Owners of bodies, for the facts of contacts that end after a body is gone.
@@ -63,9 +79,17 @@ class ContactBuffer final : public JPH::ContactListener {
   private:
     using Pair = std::pair<std::uint32_t, std::uint32_t>;
 
+    void EndLocked(Pair pair);
+    void ForgetDormantLocked(Pair pair);
+
     std::mutex m_Mutex;
     std::vector<ContactFact> m_Facts;
     std::map<Pair, std::uint32_t> m_Touching; // body pair → sub-shape contacts
+    std::vector<Pair> m_Lost;                 // pairs whose last contact went in this step
+    std::set<Pair> m_Dormant;                 // touching while their moving bodies sleep
+    std::unordered_map<std::uint32_t, std::vector<Pair>> m_DormantByBody;
+    std::vector<std::uint32_t> m_Woken;     // bodies woken since the last Settle
+    std::vector<std::uint32_t> m_WokenLast; // bodies woken in the step before
     std::unordered_map<std::uint32_t, std::uint64_t> m_Owners;
 };
 

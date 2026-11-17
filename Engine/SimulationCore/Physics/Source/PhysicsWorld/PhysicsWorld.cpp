@@ -48,6 +48,14 @@ void ContactBuffer::OnContactAdded(const JPH::Body &a, const JPH::Body &b,
     if (m_Touching[pair]++ > 0) {
         return; // another sub-shape of a pair that already touches
     }
+    if (const auto lost = std::find(m_Lost.begin(), m_Lost.end(), pair); lost != m_Lost.end()) {
+        m_Lost.erase(lost); // it lost its last contact and found another in the same step
+        return;
+    }
+    if (m_Dormant.contains(pair)) {
+        ForgetDormantLocked(pair); // it woke up still touching: nothing began
+        return;
+    }
     ContactFact fact;
     fact.phase = ContactPhase::Began;
     fact.a = ToHandle(a.GetID());
@@ -61,22 +69,100 @@ void ContactBuffer::OnContactAdded(const JPH::Body &a, const JPH::Body &b,
 
 void ContactBuffer::OnContactRemoved(const JPH::SubShapeIDPair &pair) {
     const std::lock_guard lock(m_Mutex);
-    const std::uint32_t first = pair.GetBody1ID().GetIndexAndSequenceNumber();
-    const std::uint32_t second = pair.GetBody2ID().GetIndexAndSequenceNumber();
-    const auto touching = m_Touching.find({first, second});
+    const Pair bodies{pair.GetBody1ID().GetIndexAndSequenceNumber(),
+                      pair.GetBody2ID().GetIndexAndSequenceNumber()};
+    const auto touching = m_Touching.find(bodies);
     if (touching == m_Touching.end() || --touching->second > 0) {
         return;
     }
     m_Touching.erase(touching);
+    m_Lost.push_back(bodies); // ended, or asleep: Settle decides
+}
+
+void ContactBuffer::OnBodyActivated(const JPH::BodyID &body, JPH::uint64) {
+    const std::lock_guard lock(m_Mutex);
+    m_Woken.push_back(body.GetIndexAndSequenceNumber());
+}
+
+namespace {
+
+// Asleep for contacts: a static body never moves; another one sleeps when it is not active.
+bool Asleep(const JPH::BodyInterface &bodies, JPH::BodyID body) {
+    return bodies.GetMotionType(body) == JPH::EMotionType::Static || !bodies.IsActive(body);
+}
+
+} // namespace
+
+void ContactBuffer::Settle(const JPH::BodyInterface &bodies) {
+    const std::lock_guard lock(m_Mutex);
+    for (const Pair &pair : m_Lost) {
+        const JPH::BodyID a(pair.first);
+        const JPH::BodyID b(pair.second);
+        const bool dormant = bodies.IsAdded(a) && bodies.IsAdded(b) && Asleep(bodies, a) &&
+                             Asleep(bodies, b) && !m_Touching.contains(pair);
+        if (dormant) {
+            m_Dormant.insert(pair);
+            m_DormantByBody[pair.first].push_back(pair);
+            m_DormantByBody[pair.second].push_back(pair);
+        } else if (!m_Touching.contains(pair)) {
+            EndLocked(pair);
+        }
+    }
+    m_Lost.clear();
+    // Bodies woken a step ago have had a whole step for Jolt to find their contacts again: the
+    // dormant pairs it did not find ended.
+    for (const std::uint32_t body : m_WokenLast) {
+        const auto pairs = m_DormantByBody.find(body);
+        if (pairs == m_DormantByBody.end()) {
+            continue;
+        }
+        const std::vector<Pair> ending = pairs->second;
+        for (const Pair &pair : ending) {
+            ForgetDormantLocked(pair);
+            EndLocked(pair);
+        }
+    }
+    m_WokenLast.swap(m_Woken);
+    m_Woken.clear();
+}
+
+void ContactBuffer::BodyRemoved(JPH::BodyID body) {
+    const std::lock_guard lock(m_Mutex);
+    const auto pairs = m_DormantByBody.find(body.GetIndexAndSequenceNumber());
+    if (pairs == m_DormantByBody.end()) {
+        return;
+    }
+    const std::vector<Pair> ending = pairs->second;
+    for (const Pair &pair : ending) {
+        ForgetDormantLocked(pair);
+        EndLocked(pair);
+    }
+}
+
+void ContactBuffer::EndLocked(Pair pair) {
     ContactFact fact;
     fact.phase = ContactPhase::Ended;
-    fact.a = ToHandle(pair.GetBody1ID());
-    fact.b = ToHandle(pair.GetBody2ID());
-    const auto ownerA = m_Owners.find(first);
-    const auto ownerB = m_Owners.find(second);
+    fact.a = ToHandle(JPH::BodyID(pair.first));
+    fact.b = ToHandle(JPH::BodyID(pair.second));
+    const auto ownerA = m_Owners.find(pair.first);
+    const auto ownerB = m_Owners.find(pair.second);
     fact.ownerA = ownerA == m_Owners.end() ? 0 : ownerA->second;
     fact.ownerB = ownerB == m_Owners.end() ? 0 : ownerB->second;
     m_Facts.push_back(fact);
+}
+
+void ContactBuffer::ForgetDormantLocked(Pair pair) {
+    m_Dormant.erase(pair);
+    for (const std::uint32_t body : {pair.first, pair.second}) {
+        const auto pairs = m_DormantByBody.find(body);
+        if (pairs == m_DormantByBody.end()) {
+            continue;
+        }
+        std::erase(pairs->second, pair);
+        if (pairs->second.empty()) {
+            m_DormantByBody.erase(pairs);
+        }
+    }
 }
 
 void ContactBuffer::Take(std::vector<ContactFact> &out) {
@@ -102,6 +188,7 @@ WorldState::WorldState(const PhysicsWorldSpec &spec)
                 layers, layers, layers);
     system.SetGravity(ToJolt(spec.gravity));
     system.SetContactListener(&contacts);
+    system.SetBodyActivationListener(&contacts);
 }
 
 namespace {
@@ -276,6 +363,9 @@ void PhysicsWorld::RemoveBodies(std::span<const BodyHandle> bodies) {
     if (removed.empty()) {
         return;
     }
+    for (const JPH::BodyID body : removed) {
+        state.contacts.BodyRemoved(body); // its sleeping contacts end now
+    }
     const auto count = static_cast<int>(removed.size());
     interface.RemoveBodies(removed.data(), count);
     interface.DestroyBodies(removed.data(), count);
@@ -330,6 +420,7 @@ void PhysicsWorld::Step(float dtSeconds) {
     // velocity carries whoever stands on it before the platform moves.
     state.characters.Update(dtSeconds, state.system, state.scratch);
     state.system.Update(dtSeconds, collisionSteps, &state.scratch, &state.jobs);
+    state.contacts.Settle(state.system.GetBodyInterfaceNoLock());
     ++state.steps;
     for (const JPH::BodyID removed : state.removedSinceStep) {
         state.contacts.ForgetOwner(removed);

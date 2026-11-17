@@ -53,7 +53,11 @@ standing one along).
 **The contact rule:** Jolt reports contacts from inside the step, on whichever thread runs its collision job. Physics
 only records them, under a lock: one fact when a pair of bodies begins to touch (its first sub-shape contact, with a
 point and the normal from a to b) and one when it stops (its last), each with the owners the bodies were given.
-`TakeContacts` hands them over after the step. Nothing the caller owns is touched from a callback.
+`TakeContacts` hands them over after the step. Nothing the caller owns is touched from a callback. Jolt drops the
+contacts of a body that falls asleep though it still touches; Physics decides after the step: a pair whose moving
+bodies all sleep stays touching (dormant), wakes silently when Jolt finds it again, and ends when one of its bodies
+woke a step ago and Jolt did not find it, or when one of its bodies is removed. A crate asleep on a pressure plate
+never "ends" its contact.
 
 ## Owns
 
@@ -119,7 +123,7 @@ it destroys every character and removes and destroys every body first. Handles a
 
 | ID | Package | Done when | Status |
 | --- | --- | --- | --- |
-| PHYS-1 | PhysicsWorld, bodies, shapes and collision layers on Jolt v5.6 in double precision, kept private | Bodies collide without jitter far from the origin | **Implemented** (slice 7, preview branch): `RunicPhysicsTests` passes with the 11 tests below (9 where asserts are compiled out); awaiting the owner's review |
+| PHYS-1 | PhysicsWorld, bodies, shapes and collision layers on Jolt v5.6 in double precision, kept private | Bodies collide without jitter far from the origin | **Implemented** (slice 7, preview branch): `RunicPhysicsTests` passes with the 12 tests below (10 where asserts are compiled out); awaiting the owner's review |
 | PHYS-2 | CharacterVirtual integration and ground movement | A capsule walks, climbs steps and stops at walls | **Implemented** (slice 7, preview branch): `RunicPhysicsTests` passes with the 14 tests below added (13 where asserts are compiled out); awaiting the owner's review |
 | PHYS-3 to PHYS-5 | Debug-geometry extraction, Jolt on the worker pool, gameplay queries | See RunicDocs › Modules, work packages | Not started (slices 8, 10, 15) |
 
@@ -127,7 +131,8 @@ PHYS-1's acceptance tests (`RunicPhysicsTests`): `CollisionLayers.*` (the Engine
 own layer) and `CollisionLayersDeathTest.*`; `PhysicsShapes.*` (registered once by name; degenerate shapes refused);
 `PhysicsWorld.*` (a crate falls and rests; **the same drop 8,600 km from the origin rests at the same height, still to
 a tenth of a millimetre**; a batch of 1,000 bodies made and 400 removed; a kinematic body reaches its target; contacts
-arrive as one fact per pair with their owners, began and ended; Jolt creates no thread) and `PhysicsWorldDeathTest.*`.
+arrive as one fact per pair with their owners, began and ended; a contact lasts while its bodies sleep and ends when a
+sleeping body is removed; Jolt creates no thread) and `PhysicsWorldDeathTest.*`.
 
 PHYS-2's acceptance tests (`RunicPhysicsTests`): `Characters.*` (walk on flat ground and stand when nobody moves
 them; **climb a step lower than their step height; stop at a higher one; stop at walls and slide along them**; walk up
