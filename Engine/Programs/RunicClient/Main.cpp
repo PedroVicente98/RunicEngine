@@ -2,18 +2,26 @@
 // processes › Processes): the Engine's client layers with the GodotLayer on top, on a neutral test
 // project. Engine slices show their client results here; it is never shipped.
 //
-// The stack, bottom to top: the input trace, the Simulation layer (a local simulation), the moving
-// entities (slice 5: walkers steered by commands, and the camera's orbit), the Presentation layer
-// (the camera and the extractors: the walkers as debug shapes, and slice 2's debug scene) and the
-// GodotLayer, which draws only the frames the Presentation layer publishes.
+// The stack, bottom to top: the input trace, the Simulation layer (a local simulation), the Input
+// layer (slice 7: keys and clicks become actions, and command builders turn them into commands),
+// the scene, the Presentation layer (the camera and the extractors) and the GodotLayer, which
+// draws only the frames the Presentation layer publishes. Two scenes:
+//   - the walk (the default, slice 7): a capsule walks on static terrain 8,600 km from the origin
+//   under
+//     keyboard control (WalkScene.hpp has the keys), with the camera behind it;
+//   - the moving entities (slice 5, --moving-scene): walkers steered by commands around slice 2's
+//   debug scene, the camera
+//     circling them.
 //
-//   RunicClient
+//   RunicClient [--moving-scene]
 //       a window with the test project; keys and clicks that reach the stack are printed, and a
 //       click on the test button is not (Godot's UI keeps it)
 //   RunicClient --headless --quit-after 60
 //       Godot starts headless and the client exits cleanly (the CTest godot.runic_client_headless)
 //   RunicClient --headless --quit-after 30 --input-check
 //       scripted clicks on and beside the test button, and a key (godot.runic_client_input)
+//   RunicClient --headless --quit-after 600 --walk-check
+//       scripted keys: R (walk on its own), Space (jump), R again (godot.runic_client_walk)
 //
 // Development builds run Godot's editor library on the project folder, as Godot's play button does;
 // every argument reaches Godot unchanged, with --path added when it is missing.
@@ -23,12 +31,14 @@
 #include "DebugShapes.hpp"
 #include "EntryPoint.hpp"
 #include "GodotLayer.hpp"
+#include "InputLayer.hpp"
 #include "Log.hpp"
 #include "MovingEntities.hpp"
 #include "PresentationLayer.hpp"
 #include "RenderData/RenderFrameExchange.hpp"
 #include "SimulationLayer.hpp"
 #include "SimulationRuntime.hpp"
+#include "WalkScene.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -53,8 +63,11 @@ using Runic::Application::MouseButtonEvent;
 
 constexpr const char *kProgramName = "RunicClient";
 constexpr const char *kInputTraceLayerName = "engine:input_trace";
-// RunicClient's own flag: the scripted input below.
+// RunicClient's own flags: the scene, and the scripted input below.
+// Every argument also reaches Godot, which takes a bare word for a scene to open: flags only.
+constexpr std::string_view kMovingSceneFlag = "--moving-scene";
 constexpr std::string_view kInputCheckFlag = "--input-check";
+constexpr std::string_view kWalkCheckFlag = "--walk-check";
 
 // kInputCheckFlag's input, by Godot frame. The test button in Project/Main.tscn spans (20, 20) to
 // (220, 80): a click at its center stays in Godot's UI, one beside it reaches the stack, and so
@@ -67,6 +80,13 @@ constexpr float kBesideButtonX = 600.0f;
 constexpr float kBesideButtonY = 400.0f;
 constexpr std::uint64_t kKeyFrame = 11;
 constexpr std::uint32_t kKeyA = 65; // Godot's KEY_A
+
+// kWalkCheckFlag's keys, by Godot frame: R sets the capsule walking, Space jumps, R stops it.
+constexpr std::uint64_t kWalkOnFrame = 30;
+constexpr std::uint64_t kJumpFrame = 240;
+constexpr std::uint64_t kWalkOffFrame = 480;
+constexpr std::uint32_t kKeyR = 'R';
+constexpr std::uint32_t kKeySpace = ' ';
 
 // Below the GodotLayer: prints the key presses and mouse-button presses that reach the stack. It
 // handles nothing.
@@ -117,6 +137,11 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
                                {kClickBesideButtonFrame, kBesideButtonX, kBesideButtonY}};
         spec.scriptedKeys = {{kKeyFrame, kKeyA}};
     }
+    if (command.Has(kWalkCheckFlag)) {
+        spec.scriptedKeys = {
+            {kWalkOnFrame, kKeyR}, {kJumpFrame, kKeySpace}, {kWalkOffFrame, kKeyR}};
+    }
+    const bool movingScene = command.Has(kMovingSceneFlag);
 
     // Godot paces the frames and reads the frame limit (kQuitAfterFlag) itself.
     auto application = std::make_unique<RunicClientApplication>(ApplicationSpec{
@@ -129,17 +154,29 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     Simulation::SimulationRuntime &runtime = simulation->Runtime();
     auto presentation = std::make_unique<Client::PresentationLayer>(
         Client::PresentationLayerSpec{&application->Frames(), &runtime.Entities(), nullptr});
-    // The moving entities register their components and systems on the runtime, before the
-    // extractor makes its query.
-    auto moving = std::make_unique<Programs::MovingEntitiesLayer>(runtime, presentation->Camera());
+    auto input = std::make_unique<Client::InputLayer>();
+    // The scene registers its components and systems on the runtime, before the extractor makes
+    // its query.
+    std::unique_ptr<Layer> scene;
+    if (movingScene) {
+        scene = std::make_unique<Programs::MovingEntitiesLayer>(runtime, presentation->Camera());
+    } else {
+        auto walk =
+            std::make_unique<Programs::WalkSceneLayer>(runtime, presentation->Camera(), *input);
+        walk->RegisterExtractors(presentation->Extractors());
+        scene = std::move(walk);
+    }
     presentation->Extractors().Emplace<Client::DebugShapeExtractor>(
         Client::kDebugShapeExtractorName, runtime.Entities());
-    presentation->Extractors().Emplace<Programs::DebugDemoExtractor>(
-        Programs::kDebugDemoExtractorName);
+    if (movingScene) {
+        presentation->Extractors().Emplace<Programs::DebugDemoExtractor>(
+            Programs::kDebugDemoExtractorName);
+    }
 
     application->PushLayer(std::make_unique<InputTraceLayer>());
     application->PushLayer(std::move(simulation));
-    application->PushLayer(std::move(moving));
+    application->PushLayer(std::move(input));
+    application->PushLayer(std::move(scene));
     application->PushLayer(std::move(presentation));
     application->PushLayer(
         std::make_unique<GodotBridge::GodotLayer>(std::move(spec))); // the top layer
