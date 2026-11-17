@@ -193,7 +193,7 @@ WorldState::WorldState(const PhysicsWorldSpec &spec)
 
 namespace {
 
-Core::Result<JPH::RefConst<JPH::Shape>> MakeShape(const ShapeDesc &desc) {
+Core::Result<JPH::Ref<JPH::Shape>> MakeShape(const ShapeDesc &desc) {
     switch (desc.kind) {
     case ShapeKind::Box: {
         const Core::Vec3 half = desc.halfExtents;
@@ -202,18 +202,18 @@ Core::Result<JPH::RefConst<JPH::Shape>> MakeShape(const ShapeDesc &desc) {
             return Core::Fail("a box needs half extents of at least 1 mm");
         }
         const float convex = std::min(kBoxConvexRadiusM, smallest);
-        return JPH::RefConst<JPH::Shape>(new JPH::BoxShape(ToJolt(half), convex));
+        return JPH::Ref<JPH::Shape>(new JPH::BoxShape(ToJolt(half), convex));
     }
     case ShapeKind::Sphere:
         if (desc.radius < kMinShapeSizeM) {
             return Core::Fail("a sphere needs a radius of at least 1 mm");
         }
-        return JPH::RefConst<JPH::Shape>(new JPH::SphereShape(desc.radius));
+        return JPH::Ref<JPH::Shape>(new JPH::SphereShape(desc.radius));
     case ShapeKind::Capsule:
         if (desc.radius < kMinShapeSizeM || desc.halfHeight < kMinShapeSizeM) {
             return Core::Fail("a capsule needs a radius and a half height of at least 1 mm");
         }
-        return JPH::RefConst<JPH::Shape>(new JPH::CapsuleShape(desc.halfHeight, desc.radius));
+        return JPH::Ref<JPH::Shape>(new JPH::CapsuleShape(desc.halfHeight, desc.radius));
     case ShapeKind::Mesh: {
         if (desc.indices.empty() || desc.indices.size() % kIndicesPerTriangle != 0) {
             return Core::Fail("a mesh needs whole triangles, three indices each");
@@ -241,7 +241,7 @@ Core::Result<JPH::RefConst<JPH::Shape>> MakeShape(const ShapeDesc &desc) {
             return Core::Fail(
                 std::format("the mesh is not a valid shape: {}", result.GetError().c_str()));
         }
-        return JPH::RefConst<JPH::Shape>(result.Get());
+        return JPH::Ref<JPH::Shape>(result.Get());
     }
     }
     return Core::Fail("an unknown shape kind");
@@ -291,8 +291,11 @@ Core::Result<ShapeId> PhysicsWorld::AddShape(std::string_view name, const ShapeD
     if (!shape) {
         return Core::Fail(std::format("shape '{}': {}", name, shape.GetError().message));
     }
-    m_State->shapes.push_back({std::string(name), shape.Value()});
-    return ShapeId(static_cast<std::uint32_t>(m_State->shapes.size()));
+    const ShapeId id(static_cast<std::uint32_t>(m_State->shapes.size() + 1));
+    // The shape knows its ID, so a body's shape names its registry entry (the debug view, tools).
+    shape.Value()->SetUserData(id.Value());
+    m_State->shapes.push_back({std::string(name), desc.kind, shape.Value()});
+    return id;
 }
 
 ShapeId PhysicsWorld::FindShape(std::string_view name) const noexcept {

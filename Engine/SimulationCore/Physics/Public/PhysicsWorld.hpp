@@ -10,6 +10,8 @@
 #include "Math.hpp"
 #include "PhysicsHandles.hpp"
 #include "PhysicsShapes.hpp"
+#include "RenderData/DebugGeometry.hpp"
+#include "RenderData/DebugMeshes.hpp"
 #include "Result.hpp"
 #include "WorldSpace.hpp"
 
@@ -28,6 +30,12 @@
 // steps, stop at walls and slide along them, fall, and ride what they stand on. Every Step updates
 // every character, moved or not, before the bodies, so a moving platform carries whoever stands on
 // it (RunicDocs: "CharacterVirtuals update every 30 Hz tick even without input").
+//
+// The debug view and inspection (PHYS-3; RunicDocs › Debug drawing › Physics debug view, Path B):
+// Jolt's own debug interface, implemented inside Physics, draws the bodies and characters near a
+// point into a Core DebugGeometry as plain camera-relative lines and triangles; a shape too big to
+// redraw every frame becomes a cached debug mesh drawn by instances. Physics never sees Godot, and
+// GodotBridge never sees Jolt. Tools describe bodies and shapes through plain structs.
 
 namespace Runic::Physics {
 
@@ -137,6 +145,74 @@ struct ContactFact {
     Core::Vec3 normal{0.0f};
 };
 
+// ---- The debug view and inspection (PHYS-3) ----------------------------------------------------
+
+// What the debug view draws around its origin by default: a little more than a camera's view of a
+// fight.
+inline constexpr double kDefaultDebugRadiusM = 150.0;
+// A shape with at least this many triangles is drawn as a cached debug mesh (when a library is
+// given), not redrawn every frame.
+inline constexpr std::uint32_t kDefaultLargeShapeTriangles = 256;
+// A cached shape's mesh is DebugMeshId(meshIdBase + its ShapeId): the base keeps Physics' meshes
+// apart from other writers' in one library.
+inline constexpr std::uint64_t kDefaultPhysicsMeshIdBase = std::uint64_t{1} << 40;
+
+// The debug view's colors (RunicDocs › Debug drawing › What to visualize: physics bounds in blue).
+inline constexpr RenderData::PackedColor kStaticBodyColor = RenderData::kDebugInactive;
+inline constexpr RenderData::PackedColor kMovingBodyColor = RenderData::kDebugPhysics;
+inline constexpr RenderData::PackedColor kSleepingBodyColor = RenderData::PackABGR(50, 80, 150);
+inline constexpr RenderData::PackedColor kSensorBodyColor = RenderData::kDebugBeneficial;
+inline constexpr RenderData::PackedColor kCharacterColor = RenderData::kDebugPredicted;
+inline constexpr RenderData::PackedColor kVelocityColor = RenderData::kDebugText;
+// Faces drawn under the wireframe are this opaque, so what is behind them shows.
+inline constexpr std::uint8_t kDebugFaceAlpha = 64;
+
+struct PhysicsDebugSettings {
+    // Bodies and characters whose bounds come within this distance of the origin.
+    double radiusM = kDefaultDebugRadiusM;
+    bool bodies = true;
+    bool characters = true;
+    bool faces = false;         // translucent faces under the wireframe
+    bool boundingBoxes = false; // each shape's bounds, turned with its body
+    bool velocities = false;    // an arrow for each moving body, one second long
+    RenderData::DebugBatch batch = RenderData::DebugBatch::WorldDepth;
+    std::uint32_t largeShapeTriangles = kDefaultLargeShapeTriangles;
+    std::uint64_t meshIdBase = kDefaultPhysicsMeshIdBase;
+};
+
+struct PhysicsDebugStats {
+    // False when this build has no debug view (Jolt built without its debug renderer).
+    bool available = false;
+    std::uint32_t bodies = 0;        // drawn as lines and triangles
+    std::uint32_t meshInstances = 0; // drawn as instances of cached meshes
+    std::uint32_t meshesAdded = 0;   // cached meshes put in the library by this call
+    std::uint32_t characters = 0;
+};
+
+// A shape as tools see it.
+struct ShapeInfo {
+    ShapeId id;
+    std::string_view name; // valid while the world lives
+    ShapeKind kind = ShapeKind::Box;
+    std::uint32_t triangles = 0;  // a mesh's; 0 for the others
+    Core::Vec3 halfExtents{0.0f}; // half the size of its bounds, in its own space
+};
+
+// A body as tools see it.
+struct BodyInfo {
+    BodyHandle body;
+    ShapeId shape;
+    MotionType motion = MotionType::Static;
+    CollisionLayer layer;
+    Pose pose;
+    Core::Vec3 linearVelocity{0.0f};
+    float friction = kDefaultFriction;
+    float restitution = kDefaultRestitution;
+    bool active = false;
+    bool sensor = false;
+    std::uint64_t owner = 0;
+};
+
 struct PhysicsStats {
     std::uint32_t bodies = 0;
     std::uint32_t activeBodies = 0;
@@ -201,6 +277,20 @@ class PhysicsWorld {
     void TakeContacts(std::vector<ContactFact> &out);
 
     PhysicsStats Stats() const;
+
+    // ---- The debug view and inspection (PHYS-3) ------------------------------------------------
+    // Draws the bodies and characters near origin into out, relative to origin (a frame's origin).
+    // With a library, a shape of at least settings.largeShapeTriangles triangles is put in it once
+    // (its wireframe and translucent faces, in the shape's own space) and drawn as an instance.
+    // Between steps, on the thread that steps the world.
+    PhysicsDebugStats ExtractDebugGeometry(Core::WorldPosition origin,
+                                           const PhysicsDebugSettings &settings,
+                                           RenderData::DebugGeometry &out,
+                                           RenderData::DebugMeshLibrary *meshes = nullptr);
+    // The bodies whose bounds come within radiusM of center, in handle order.
+    void FindBodies(Core::WorldPosition center, double radiusM, std::vector<BodyHandle> &out) const;
+    BodyInfo DescribeBody(BodyHandle body) const;
+    ShapeInfo DescribeShape(ShapeId shape) const;
 
   private:
     struct State;

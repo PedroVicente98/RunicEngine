@@ -118,6 +118,8 @@ class CharacterSet {
     CharacterSlot *Find(CharacterHandle handle) noexcept;
     const CharacterSlot *Find(CharacterHandle handle) const noexcept;
     std::uint32_t Count() const noexcept { return m_Count; }
+    // Every slot, free ones included (their character is none), for the debug view.
+    const std::vector<CharacterSlot> &Slots() const noexcept { return m_Slots; }
 
     // After a character was put somewhere: it changes column in the grid.
     void Teleported(const CharacterSlot &slot);

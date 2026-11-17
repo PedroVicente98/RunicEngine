@@ -22,6 +22,7 @@
 
 #include "Characters/CharacterSet.hpp"
 #include "CollisionLayers/JoltLayers.hpp"
+#include "DebugExtraction/DebugCapture.hpp"
 #include "PhysicsWorld.hpp"
 #include "PhysicsWorld/JoltRuntime.hpp"
 
@@ -95,7 +96,8 @@ class ContactBuffer final : public JPH::ContactListener, public JPH::BodyActivat
 
 struct NamedShape {
     std::string name;
-    JPH::RefConst<JPH::Shape> shape;
+    ShapeKind kind = ShapeKind::Box;
+    JPH::RefConst<JPH::Shape> shape; // its user data is its ShapeId
 };
 
 struct WorldState {
@@ -113,6 +115,9 @@ struct WorldState {
     // next step.
     std::vector<JPH::BodyID> removedSinceStep;
     std::uint64_t steps = 0;
+    // The debug view (PHYS-3): Jolt's renderer, made at the first extraction, and its scratch.
+    DebugCapturePtr debug;
+    std::vector<JPH::BodyID> debugBodies;
 };
 
 } // namespace Runic::Physics::Detail

@@ -251,6 +251,7 @@ The scans skip `tests/build/fixtures/` (whose trees break the rules on purpose),
 | `RUNIC_ENGINE_ENABLE_PRESENTATION` | top-level project | Godot: godot-cpp, the libgodot targets, Runic::GodotBridge |
 | `RUNIC_ENGINE_BUILD_TOOLS` | top-level project | The RunicEditor and Runic::GodotTools; requires presentation |
 | `RUNIC_CPU_BASELINE` | `x86-64-v3` | Decision 7 |
+| `RUNIC_PHYSICS_DEBUG_VIEW` | `ON` | Jolt is built with its debug renderer, which Physics' debug view draws through (PHYS-3, slice 8); off, `PhysicsWorld::ExtractDebugGeometry` reports the view unavailable |
 | `RUNIC_WARNINGS_AS_ERRORS` | `OFF` | CI sets `ON` |
 
 | Configure preset | For |

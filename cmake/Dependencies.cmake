@@ -37,9 +37,11 @@ runic_third_party_recipe(glm TARGETS glm::glm FETCH _runic_recipe_glm)
 # ---- Jolt 5.6.0: headless static library in double precision (private to Runic::Physics) ----
 # The architecture's pin (RunicDocs › Simulation core › Jolt rules), from PHYS-1 (slice 7): v5.6.0 with
 # JPH_DOUBLE_PRECISION, so bodies sit at 64-bit world positions, and with RTTI. Jolt's asserts, floating-point
-# exceptions, object stream, profiler and debug renderer are off (PHYS-3 decides how development builds turn the debug renderer on).
+# exceptions, object stream and profiler are off. Its debug renderer, which Physics' debug view draws through (PHYS-3,
+# slice 8), follows RUNIC_PHYSICS_DEBUG_VIEW: on unless a build turns it off (a shipping server, say).
 # Its SIMD paths follow RUNIC_CPU_BASELINE: AVX2 and FMA on for x86-64-v3. Jolt creates no threads: Physics runs it
 # on a single-threaded job system until PHYS-4 puts it on the Core worker pool.
+option(RUNIC_PHYSICS_DEBUG_VIEW "Build Jolt with its debug renderer, for Physics' debug view (PHYS-3)" ON)
 function(_runic_recipe_jolt)
     set(DOUBLE_PRECISION ON)
     set(USE_ASSERTS OFF)
@@ -54,8 +56,9 @@ function(_runic_recipe_jolt)
     set(ENABLE_INSTALL OFF)
     set(JPH_BUILD_SHARED_LIBS OFF)
     set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF)
+    # Every configuration or none: Jolt's own switch for Debug and Release leaves RelWithDebInfo out.
     set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF)
-    set(DEBUG_RENDERER_IN_DISTRIBUTION OFF)
+    set(DEBUG_RENDERER_IN_DISTRIBUTION ${RUNIC_PHYSICS_DEBUG_VIEW})
     set(PROFILER_IN_DEBUG_AND_RELEASE OFF)
     set(PROFILER_IN_DISTRIBUTION OFF)
     _runic_cpu_baseline_applies(baseline)
