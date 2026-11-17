@@ -1,22 +1,19 @@
 #pragma once
 
-#include "Layer.hpp"
-#include "RenderData/RenderFrameExchange.hpp"
+#include "ExtractorRegistry.hpp"
 
-// RunicClient's debug demo (GDB-2, slice 2's runnable result): a grid, a camera, colored shapes
-// with opacity and text, written into each RenderFrame through the debug-draw API and drawn by
-// Godot. A neutral scene with no game content; the client's own extraction replaces it (CLI-1,
-// slice 5).
+// RunicClient's debug demo (GDB-2, slice 2's runnable result): a grid, colored shapes with opacity
+// and text around the world's origin, written into each RenderFrame through the debug-draw API and
+// drawn by Godot. From slice 5 it is one of the Presentation layer's extractors, so it draws
+// relative to the frame's origin like any other. A neutral scene with no game content.
 
 namespace Runic::Programs {
 
-class DebugDemoLayer final : public Application::Layer {
-  public:
-    explicit DebugDemoLayer(RenderData::RenderFrameExchange &frames);
-    void OnUpdate(const Application::FrameTime &time) override;
+inline constexpr std::string_view kDebugDemoExtractorName = "engine:debug_demo";
 
-  private:
-    RenderData::RenderFrameExchange &m_Frames;
+class DebugDemoExtractor final : public Client::Extractor {
+  public:
+    void Extract(const Client::ExtractionView &view, RenderData::RenderFrame &frame) override;
 };
 
 } // namespace Runic::Programs

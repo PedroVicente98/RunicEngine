@@ -2,9 +2,8 @@
 
 #include "DebugDemo.hpp"
 
-#include "RenderData/Camera.hpp"
 #include "RenderData/DebugDraw.hpp"
-#include "Time.hpp"
+#include "WorldSpace.hpp"
 
 #include <glm/ext/scalar_constants.hpp>
 
@@ -23,18 +22,14 @@ using Core::Vec3;
 using RenderData::DebugBatch;
 using RenderData::DebugDraw;
 
-constexpr std::string_view kLayerName = "engine:debug_demo";
 constexpr float kTwoPi = glm::two_pi<float>();
 const Vec3 kUp(0.0f, 1.0f, 0.0f);
 const Vec3 kOrigin(0.0f);
 
-// The camera circles the scene once every 40 s, looking at its center.
-constexpr float kCameraOrbitPeriodS = 40.0f;
-constexpr float kCameraOrbitRadiusM = 16.0f;
-constexpr float kCameraHeightM = 8.0f;
-const Vec3 kSceneCenter(0.0f, 1.0f, 0.0f);
+// The demo's animation follows the frame number at the rate Godot usually draws.
+constexpr float kFramesPerSecond = 60.0f;
 
-constexpr float kGridHalfSizeM = 10.0f;
+constexpr float kGridHalfSizeM = 20.0f;
 constexpr float kGridSpacingM = 1.0f;
 
 // A capsule the size of a person walks a 3 m circle every 12 s, with its facing ray and a melee
@@ -109,29 +104,36 @@ void FillSquareXZ(DebugDraw &draw, Vec3 min, Vec3 max, RenderData::PackedColor c
 
 Vec3 Above(Vec3 point, float height) { return point + kUp * height; }
 
+// DrawGridXZ draws around the frame's origin, at height kGridHeightM: its lines, moved by shift.
+void DrawGridAt(DebugDraw &draw, Vec3 shift) {
+    const auto lines = static_cast<int>(kGridHalfSizeM / kGridSpacingM);
+    for (int i = -lines; i <= lines; ++i) {
+        const float along = static_cast<float>(i) * kGridSpacingM;
+        draw.DrawLine(shift + Vec3(along, RenderData::kGridHeightM, -kGridHalfSizeM),
+                      shift + Vec3(along, RenderData::kGridHeightM, kGridHalfSizeM),
+                      RenderData::kDebugInactive);
+        draw.DrawLine(shift + Vec3(-kGridHalfSizeM, RenderData::kGridHeightM, along),
+                      shift + Vec3(kGridHalfSizeM, RenderData::kGridHeightM, along),
+                      RenderData::kDebugInactive);
+    }
+}
+
 } // namespace
 
-DebugDemoLayer::DebugDemoLayer(RenderData::RenderFrameExchange &frames)
-    : Layer(std::string(kLayerName)), m_Frames(frames) {}
-
-void DebugDemoLayer::OnUpdate(const Application::FrameTime &time) {
-    const auto seconds = static_cast<float>(Core::ToSeconds(time.sinceStart));
-    RenderData::RenderFrame &frame = m_Frames.WriteFrame();
-    frame.debug.Clear();
-    frame.origin = Core::WorldPosition{};
-
-    const float orbit = kTwoPi * seconds / kCameraOrbitPeriodS;
-    const Vec3 eye(std::cos(orbit) * kCameraOrbitRadiusM, kCameraHeightM,
-                   std::sin(orbit) * kCameraOrbitRadiusM);
-    frame.camera = RenderData::LookAt(eye, kSceneCenter, kUp);
+void DebugDemoExtractor::Extract(const Client::ExtractionView &view,
+                                 RenderData::RenderFrame &frame) {
+    // The scene sits around the world's origin; the frame is relative to the camera.
+    const Vec3 shift = Core::ToLocal(Core::WorldPosition{} - view.origin);
+    const auto seconds = static_cast<float>(view.frame) / kFramesPerSecond;
 
     DebugDraw depth(frame.debug);
-    depth.DrawGridXZ(kGridHalfSizeM, kGridSpacingM, RenderData::kDebugInactive);
+    // The grid is drawn around the origin of the frame: move it to the world's.
+    DrawGridAt(depth, shift);
 
     const float walk = kTwoPi * seconds / kWalkPeriodS;
-    const Vec3 feet(std::cos(walk) * kWalkRadiusM, RenderData::kGridHeightM,
-                    std::sin(walk) * kWalkRadiusM);           // on the grid
-    const Vec3 facing(-std::sin(walk), 0.0f, std::cos(walk)); // along the circle
+    const Vec3 feet = shift + Vec3(std::cos(walk) * kWalkRadiusM, RenderData::kGridHeightM,
+                                   std::sin(walk) * kWalkRadiusM); // on the grid
+    const Vec3 facing(-std::sin(walk), 0.0f, std::cos(walk));      // along the circle
     const Vec3 chest = Above(feet, kChestHeightM);
     const Vec3 top = Above(feet, kCapsuleHeightM);
     depth.DrawCapsule(Above(feet, kCapsuleRadiusM), Above(feet, kCapsuleHeightM - kCapsuleRadiusM),
@@ -140,45 +142,45 @@ void DebugDemoLayer::OnUpdate(const Application::FrameTime &time) {
     depth.DrawArcSector(chest, facing, kUp, kArcInnerRadiusM, kArcOuterRadiusM, kArcAngleRadians,
                         RenderData::kDebugHarmful);
 
-    depth.DrawSphere(kSphereCenter, kSphereRadiusM, RenderData::kDebugBeneficial);
-    depth.DrawAABB(kBoxMin, kBoxMax, RenderData::kDebugPhysics);
-    depth.DrawCylinder(kCylinderBase, kCylinderTop, kCylinderRadiusM,
+    depth.DrawSphere(shift + kSphereCenter, kSphereRadiusM, RenderData::kDebugBeneficial);
+    depth.DrawAABB(shift + kBoxMin, shift + kBoxMax, RenderData::kDebugPhysics);
+    depth.DrawCylinder(shift + kCylinderBase, shift + kCylinderTop, kCylinderRadiusM,
                        RenderData::kDebugAuthoritative);
-    depth.DrawCone(kConeApex, kConeDirection, kConeLengthM, kConeHalfAngleRadians,
+    depth.DrawCone(shift + kConeApex, kConeDirection, kConeLengthM, kConeHalfAngleRadians,
                    RenderData::kDebugHarmful);
-    depth.DrawArcVolume(kVolumeOrigin, kVolumeForward, kUp, RenderData::kNoInnerRadius,
+    depth.DrawArcVolume(shift + kVolumeOrigin, kVolumeForward, kUp, RenderData::kNoInnerRadius,
                         kVolumeOuterRadiusM, kVolumeAngleRadians, kVolumeHeightM,
                         RenderData::kDebugHarmful);
-    depth.DrawOBB(kTiltedBoxCenter, kTiltedBoxAxisX, kTiltedBoxAxisY, kTiltedBoxAxisZ,
+    depth.DrawOBB(shift + kTiltedBoxCenter, kTiltedBoxAxisX, kTiltedBoxAxisY, kTiltedBoxAxisZ,
                   kTiltedBoxHalfExtent, RenderData::kDebugPhysics);
-    FillSquareXZ(depth, kRedSquareMin, kRedSquareMax,
+    FillSquareXZ(depth, shift + kRedSquareMin, shift + kRedSquareMax,
                  RenderData::WithAlpha(RenderData::kDebugHarmful, RenderData::kHalfAlpha));
-    FillSquareXZ(depth, kCyanSquareMin, kCyanSquareMax,
+    FillSquareXZ(depth, shift + kCyanSquareMin, shift + kCyanSquareMax,
                  RenderData::WithAlpha(RenderData::kDebugBeneficial, kQuarterAlpha));
 
     depth.DrawText(Above(top, kLabelLiftM), kCapsuleLabel, RenderData::kDebugText);
-    depth.DrawText(Above(kSphereCenter, kSphereRadiusM + kLabelLiftM), kSphereLabel,
+    depth.DrawText(shift + Above(kSphereCenter, kSphereRadiusM + kLabelLiftM), kSphereLabel,
                    RenderData::kDebugText);
-    depth.DrawText(Above(kBoxMax, kLabelLiftM), kBoxLabel, RenderData::kDebugText);
-    depth.DrawText(Above(kCylinderTop, kLabelLiftM), kCylinderLabel, RenderData::kDebugText);
-    depth.DrawText(Above(kConeApex, kLabelLiftM), kConeLabel, RenderData::kDebugText);
-    depth.DrawText(Above(kVolumeOrigin, kVolumeHeightM), kVolumeLabel, RenderData::kDebugText);
-    depth.DrawText(Above(kTiltedBoxCenter, kTiltedBoxHalfExtent.y + kLabelLiftM), kTiltedBoxLabel,
+    depth.DrawText(shift + Above(kBoxMax, kLabelLiftM), kBoxLabel, RenderData::kDebugText);
+    depth.DrawText(shift + Above(kCylinderTop, kLabelLiftM), kCylinderLabel,
                    RenderData::kDebugText);
-    depth.DrawText(Above(kCyanSquareMax, kLabelLiftM), kFillsLabel, RenderData::kDebugText);
+    depth.DrawText(shift + Above(kConeApex, kLabelLiftM), kConeLabel, RenderData::kDebugText);
+    depth.DrawText(shift + Above(kVolumeOrigin, kVolumeHeightM), kVolumeLabel,
+                   RenderData::kDebugText);
+    depth.DrawText(shift + Above(kTiltedBoxCenter, kTiltedBoxHalfExtent.y + kLabelLiftM),
+                   kTiltedBoxLabel, RenderData::kDebugText);
+    depth.DrawText(shift + Above(kCyanSquareMax, kLabelLiftM), kFillsLabel, RenderData::kDebugText);
 
     DebugDraw overlay(frame.debug, DebugBatch::Overlay);
-    overlay.DrawArrow(kOrigin, kAxisX * kAxisLengthM, RenderData::kDebugHarmful);
-    overlay.DrawArrow(kOrigin, kAxisY * kAxisLengthM, RenderData::kDebugPredicted);
-    overlay.DrawArrow(kOrigin, kAxisZ * kAxisLengthM, RenderData::kDebugPhysics);
+    overlay.DrawArrow(shift + kOrigin, shift + kAxisX * kAxisLengthM, RenderData::kDebugHarmful);
+    overlay.DrawArrow(shift + kOrigin, shift + kAxisY * kAxisLengthM, RenderData::kDebugPredicted);
+    overlay.DrawArrow(shift + kOrigin, shift + kAxisZ * kAxisLengthM, RenderData::kDebugPhysics);
     char counter[kFrameLabelBytes];
     const auto written = std::format_to_n(counter, static_cast<std::ptrdiff_t>(kFrameLabelBytes),
-                                          kFrameLabelFormat, time.frame + 1);
+                                          kFrameLabelFormat, view.frame);
     const auto length = std::min(static_cast<std::size_t>(written.size), kFrameLabelBytes);
     overlay.DrawText(Above(top, kLabelLiftM + kLabelLiftM), std::string_view(counter, length),
                      RenderData::kDebugAuthoritative);
-
-    m_Frames.Publish();
 }
 
 } // namespace Runic::Programs

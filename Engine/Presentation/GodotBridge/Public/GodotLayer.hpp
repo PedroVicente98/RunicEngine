@@ -7,9 +7,11 @@
 
 #include "DebugView.hpp"
 #include "GodotArguments.hpp"
+#include "GodotPresenter.hpp"
 #include "GodotRuntime.hpp"
 #include "Layer.hpp"
 #include "Math.hpp"
+#include "PlainIds.hpp"
 #include "RenderData/Color.hpp"
 #include "RenderData/DebugGeometry.hpp"
 #include "RenderData/RenderFrameExchange.hpp"
@@ -46,7 +48,8 @@ struct GodotLayerSpec {
         true; // input Godot's UI did not consume becomes AppEvents (off in the RunicEditor)
     std::vector<ScriptedClick> scriptedClicks;
     std::vector<ScriptedKey> scriptedKeys;
-    // The frames this layer shows (GDB-2): their camera and debug geometry. The GodotLayer is the
+    // The frames this layer shows: their camera and debug geometry (GDB-2) and their instances
+    // (GDB-3). The GodotLayer is the
     // exchange's reader, and the exchange must outlive the layer. nullptr: the layer adds nothing
     // to the scene (the RunicEditor).
     RenderData::RenderFrameExchange *frames = nullptr;
@@ -78,6 +81,11 @@ class GodotLayer final : public Application::Layer {
     void SetDebugLayerVisible(DebugLayer layer, bool visible);
     bool IsDebugLayerVisible(DebugLayer layer) const noexcept;
     DebugViewStats DebugStats() const noexcept;
+
+    // The presenter (GDB-3): what it did with the last frame, and an instance as it gave it to
+    // Godot (false when Godot has no instance with that ID).
+    PresenterStats PresenterReport() const noexcept;
+    bool ReadBackInstance(Core::RenderInstanceId id, PresentedInstance &out) const;
     // What Godot holds for one batch and primitive of the last frame, decoded by Godot, for checks.
     // False when that surface is empty or there is no debug view.
     bool ReadBackDebugSurface(RenderData::DebugBatch batch, RenderData::DebugPrimitive primitive,

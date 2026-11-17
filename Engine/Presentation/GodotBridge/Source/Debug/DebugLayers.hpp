@@ -38,7 +38,10 @@ class DebugLayers {
     void Destroy();
     bool IsCreated() const noexcept;
 
-    void Apply(const RenderData::RenderFrame &frame);
+    // Draws the frame's debug geometry and places its camera. shift is where the frame's origin is
+    // in Godot's space (the presenter's, GDB-3): the camera, the labels and both batches move by
+    // it.
+    void Apply(const RenderData::RenderFrame &frame, Core::Vec3 shift);
 
     void SetLayerVisible(DebugLayer layer, bool visible);
     bool IsLayerVisible(DebugLayer layer) const noexcept;

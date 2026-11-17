@@ -6,6 +6,7 @@
 #include "Debug/DevelopmentOverlay.hpp"
 #include "Input/InputSink.hpp"
 #include "Log.hpp"
+#include "Presenter/Presenter.hpp"
 
 #include <algorithm>
 #include <array>
@@ -21,6 +22,7 @@ struct GodotLayer::Impl {
     Detail::RunicInputSink *sink = nullptr; // a node of Godot's scene tree, freed with it
     // Created once Godot runs (its RIDs need Godot's bindings), when the spec has frames.
     std::unique_ptr<Detail::DebugLayers> debug;
+    std::unique_ptr<Detail::Presenter> presenter;
     std::array<bool, kDebugLayerCount> debugVisible{true, true, true}; // until debug exists
     bool headless = false;
 };
@@ -72,6 +74,8 @@ Core::Result<void> GodotLayer::OnAttach(Application::LayerContext &context) {
             impl.debug->SetLayerVisible(static_cast<DebugLayer>(i), impl.debugVisible[i]);
         }
         impl.debug->Create(impl.spec.developmentOverlay);
+        impl.presenter = std::make_unique<Detail::Presenter>();
+        impl.presenter->Create();
     }
     RUNIC_LOG_INFO("RUNIC: Godot started {} ({} library)",
                    impl.headless ? "headless" : "with a window",
@@ -86,7 +90,9 @@ void GodotLayer::OnUpdate(const Application::FrameTime &) {
     }
     const RenderData::RenderFrame *frame = impl.spec.frames->ReadNewest();
     if (frame != nullptr && frame->number != impl.debug->Stats().frame) {
-        impl.debug->Apply(*frame);
+        // The presenter first: it decides where the frame's origin is in Godot's space.
+        const Core::Vec3 shift = impl.presenter->Apply(*frame);
+        impl.debug->Apply(*frame, shift);
     }
 }
 
@@ -117,6 +123,10 @@ void GodotLayer::OnRender() {
 void GodotLayer::OnDetach() {
     Impl &impl = *m_Impl;
     impl.sink = nullptr; // freed with the scene tree
+    if (impl.presenter != nullptr) {
+        impl.presenter->Destroy(); // its instances go while Godot still runs
+        impl.presenter.reset();
+    }
     if (impl.debug != nullptr) {
         impl.debug->Destroy(); // its RenderingServer resources go while Godot still runs
         impl.debug.reset();
@@ -145,6 +155,14 @@ bool GodotLayer::IsDebugLayerVisible(DebugLayer layer) const noexcept {
 
 DebugViewStats GodotLayer::DebugStats() const noexcept {
     return m_Impl->debug != nullptr ? m_Impl->debug->Stats() : DebugViewStats{};
+}
+
+PresenterStats GodotLayer::PresenterReport() const noexcept {
+    return m_Impl->presenter != nullptr ? m_Impl->presenter->Stats() : PresenterStats{};
+}
+
+bool GodotLayer::ReadBackInstance(Core::RenderInstanceId id, PresentedInstance &out) const {
+    return m_Impl->presenter != nullptr && m_Impl->presenter->ReadBack(id, out);
 }
 
 bool GodotLayer::ReadBackDebugSurface(RenderData::DebugBatch batch,

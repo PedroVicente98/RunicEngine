@@ -4,6 +4,7 @@ Debug drawing on Godot: Core's DebugGeometry (CORE-3, slice 2) uploaded as immed
 
 - **Filled by:** GDB-2 (slice 2), GDB-4 (slice 8)
 - **Status:** GDB-2 (slice 2): `DebugView` (the batch meshes, materials, camera and labels) and the development
-  overlay (`RunicDevelopmentOverlay`); GDB-4 (slice 8) adds the physics geometry layer
+  overlay (`RunicDevelopmentOverlay`); GDB-3 (slice 5) moves the view by the presenter's shift (the root node and the
+  batch instances, never a vertex); GDB-4 (slice 8) adds the physics geometry layer
 
 Private to `Runic::GodotBridge`: other modules reach this code only through the module's public headers. Files here use namespace `Runic::GodotBridge` (or `Runic::GodotBridge::Detail` for helpers several files of the module share); a helper used by one file sits in an unnamed namespace inside that file. Layout and rules: [the module's README](../../README.md).

@@ -2,6 +2,11 @@
 // processes › Processes): the Engine's client layers with the GodotLayer on top, on a neutral test
 // project. Engine slices show their client results here; it is never shipped.
 //
+// The stack, bottom to top: the input trace, the Simulation layer (a local simulation), the moving
+// entities (slice 5: walkers steered by commands, and the camera's orbit), the Presentation layer
+// (the camera and the extractors: the walkers as debug shapes, and slice 2's debug scene) and the
+// GodotLayer, which draws only the frames the Presentation layer publishes.
+//
 //   RunicClient
 //       a window with the test project; keys and clicks that reach the stack are printed, and a
 //       click on the test button is not (Godot's UI keeps it)
@@ -15,10 +20,15 @@
 
 #include "Application.hpp"
 #include "DebugDemo.hpp"
+#include "DebugShapes.hpp"
 #include "EntryPoint.hpp"
 #include "GodotLayer.hpp"
 #include "Log.hpp"
+#include "MovingEntities.hpp"
+#include "PresentationLayer.hpp"
 #include "RenderData/RenderFrameExchange.hpp"
+#include "SimulationLayer.hpp"
+#include "SimulationRuntime.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -85,7 +95,7 @@ class RunicClientApplication final : public Application {
             RUNIC_LOG_INFO("RUNIC: {} exited cleanly after {} frames", Spec().name, frames);
         }
     }
-    // The frames the debug demo writes and the GodotLayer shows (GDB-2); they outlive both layers.
+    // The frames the Presentation layer writes and the GodotLayer shows; they outlive both layers.
     Runic::RenderData::RenderFrameExchange &Frames() noexcept { return m_Frames; }
 
   private:
@@ -113,9 +123,24 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
         kProgramName, LoopPolicy::PacedByTopLayer(), ApplicationSpec::kRunUntilStopped});
     spec.frames = &application->Frames();
     spec.developmentOverlay = true;
+    // A local simulation: the client world the Presentation layer draws.
+    auto simulation = std::make_unique<Simulation::SimulationLayer>(
+        std::make_unique<Simulation::SimulationRuntime>());
+    Simulation::SimulationRuntime &runtime = simulation->Runtime();
+    auto presentation = std::make_unique<Client::PresentationLayer>(
+        Client::PresentationLayerSpec{&application->Frames(), &runtime.Entities(), nullptr});
+    // The moving entities register their components and systems on the runtime, before the
+    // extractor makes its query.
+    auto moving = std::make_unique<Programs::MovingEntitiesLayer>(runtime, presentation->Camera());
+    presentation->Extractors().Emplace<Client::DebugShapeExtractor>(
+        Client::kDebugShapeExtractorName, runtime.Entities());
+    presentation->Extractors().Emplace<Programs::DebugDemoExtractor>(
+        Programs::kDebugDemoExtractorName);
+
     application->PushLayer(std::make_unique<InputTraceLayer>());
-    application->PushLayer(
-        std::make_unique<Runic::Programs::DebugDemoLayer>(application->Frames()));
+    application->PushLayer(std::move(simulation));
+    application->PushLayer(std::move(moving));
+    application->PushLayer(std::move(presentation));
     application->PushLayer(
         std::make_unique<GodotBridge::GodotLayer>(std::move(spec))); // the top layer
     return application;

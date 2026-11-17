@@ -248,9 +248,17 @@ void DebugLayers::Destroy() {
 
 bool DebugLayers::IsCreated() const noexcept { return m_Created; }
 
-void DebugLayers::Apply(const RenderData::RenderFrame &frame) {
+void DebugLayers::Apply(const RenderData::RenderFrame &frame, Core::Vec3 shift) {
     if (!m_Created) {
         return;
+    }
+    // Everything below is relative to the frame's origin: the root node carries the camera and the
+    // labels there, and each batch's instance carries its mesh. No vertex is touched.
+    const godot::Vector3 offset(shift.x, shift.y, shift.z);
+    m_Root->set_position(offset);
+    RenderingServer *server = RenderingServer::get_singleton();
+    for (const Batch &batch : m_Batches) {
+        server->instance_set_transform(batch.instance, godot::Transform3D(godot::Basis(), offset));
     }
     m_Stats.frame = frame.number;
     m_Stats.lineVertices = 0;
