@@ -77,6 +77,14 @@ runic_fixture_test(wrong_direction FIXTURE "${F}/wrong_direction" EXPECT configu
     REGEX "RUNIC:[^\n]*Runic::Alpha[^\n]*RunicPlatform::Transport")
 runic_fixture_test(interface_target FIXTURE "${F}/interface_target" EXPECT configure-fail
     REGEX "RUNIC: interface target[^\n]*Port[^\n]*Runic::Core")
+# The opt-in native target (ECS-1: Runic::ECSNative): any module whose row allows the native target's module may
+# link it PRIVATE, and configure lists every module that does.
+runic_fixture_test(native_target FIXTURE "${F}/native_target" EXPECT pass
+    REGEX "RUNIC: native target Fixture::AlphaNative \\(fixturelib, discouraged\\) is linked by: Fixture::Beta\n")
+runic_fixture_test(native_target_public FIXTURE "${F}/native_target_public" EXPECT configure-fail
+    REGEX "RUNIC: module Fixture::Beta links the native target Fixture::AlphaNative PUBLIC")
+runic_fixture_test(native_target_not_allowed FIXTURE "${F}/native_target_not_allowed" EXPECT configure-fail
+    REGEX "RUNIC: module Fixture::Beta links the native target Fixture::AlphaNative, but its catalog row does not allow Fixture::Alpha")
 
 # ---- headless check ----
 runic_fixture_test(headless_module FIXTURE "${F}/headless_module" EXPECT configure-fail

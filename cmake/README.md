@@ -50,14 +50,14 @@ All helpers live in `cmake/` in this repository. A consumer gets them with `list
 
 | File | Provides |
 | --- | --- |
-| `cmake/RunicModule.cmake` | `runic_catalog_module`, `runic_catalog_interface`, `runic_third_party`, `runic_add_module`, `runic_add_interface_target`, `runic_add_group`, `runic_add_catalog_modules`; includes the four files below |
+| `cmake/RunicModule.cmake` | `runic_catalog_module`, `runic_catalog_interface`, `runic_third_party`, `runic_add_module`, `runic_add_interface_target`, `runic_add_native_target`, `runic_add_group`, `runic_add_catalog_modules`; includes the four files below |
 | `cmake/RunicChecks.cmake` | `runic_mark_presentation`, `runic_check_headless`, the deferred end-of-configure checks (unique public header paths, links) |
 | `cmake/RunicThirdParty.cmake` | `runic_third_party_recipe`, `runic_require_third_party`, `runic_fetch_archive` (third parties by need) |
 | `cmake/RunicTesting.cmake` | `runic_enable_tests` (GoogleTest pin, CTest discovery) |
 | `cmake/RunicToolchain.cmake` | `runic_apply_toolchain`, `runic_apply_cpu_baseline`, `runic_enable_warnings`, `runic_fatal` |
 | `cmake/RunicModuleCatalog.cmake` | The Engine catalog: one `runic_catalog_module` call per row of RunicDocs › Repositories, build targets and processes › Engine modules (26 rows) |
 | `cmake/RunicGodot.cmake` | `runic_godot_setup` (godot-cpp, the `Runic::LibGodotEditor` and `Runic::LibGodotTemplate` targets that build and stage libgodot), `runic_godot_host_executable` |
-| `cmake/Dependencies.cmake` | The recipes of the Engine's pinned third parties (Flecs 4.0.4, GLM 1.0.1, Jolt 5.2.0), by library ID; nothing is fetched until a configured module links it (GLM since CORE-1) |
+| `cmake/Dependencies.cmake` | The recipes of the Engine's pinned third parties (Flecs 4.2.0, GLM 1.0.1, Jolt 5.2.0), by library ID; nothing is fetched until a configured module links it (GLM since CORE-1, Flecs since ECS-1) |
 | `cmake/checks/PublicHeaderScan.cmake` | Script: library types in `Public/`; Godot outside GodotBridge and GodotTools |
 | `cmake/checks/SourceIncludeScan.cmake` | Script: includes of another module's `Source/` |
 | `cmake/checks/CatalogSync.cmake` | Script: the catalog equals the module tables of RunicDocs › Repositories, build targets and processes |
@@ -104,7 +104,7 @@ Called once in the module's own `CMakeLists.txt` (in the Engine: `Engine/<Group>
 | Tests | When tests are enabled, `Tests/**/*.cpp` → one executable `<Namespace><Name>Tests` (namespaced, so `Runic::Client` and `RunicGame::Client` never collide) linking the module, `GTest::gtest_main` and `GTest::gmock`, registered with `gtest_discover_tests` and the CTest label `module` |
 | Third parties | A dependency that names a recipe ID (`glm`) or one of its targets (`glm::glm`) fetches that recipe once when the row lists it; an ID links the recipe's targets (section Third parties by need) |
 | Catalog | Configure fails if `<Name>` is not in the catalog, if `GROUP` or `HEADLESS` disagree with it, or if a module dependency is not in `ALLOWS` |
-| PUBLIC third parties | Configure fails if a third-party target is in `PUBLIC_DEPS` without a matching `PUBLIC_EXCEPTIONS` entry (`glm` → GLM, `behaviortree-nodes` → BehaviorTree.CPP, `godot-cpp` → godot-cpp). Flecs has no exception since 2026-11-12: the Flecs world is reachable only through the opt-in `Runic::ECSNative` target, whose helper support ECS-1 adds |
+| PUBLIC third parties | Configure fails if a third-party target is in `PUBLIC_DEPS` without a matching `PUBLIC_EXCEPTIONS` entry (`glm` → GLM, `behaviortree-nodes` → BehaviorTree.CPP, `godot-cpp` → godot-cpp). Flecs has no exception since 2026-11-12: the Flecs world is reachable only through the opt-in `Runic::ECSNative` target (section runic_add_native_target, added by ECS-1) |
 | Headless | `HEADLESS` registers the module for the headless check; a module whose row is `no`, `tool` or `never-shipped` is marked presentation automatically |
 | Directions | Configure fails on an Engine target linking any `RunicPlatform::` or `RunicGame::` target, a Platform target linking `RunicGame::`, or an Engine target linking an infrastructure library |
 
@@ -115,6 +115,26 @@ runic_add_interface_target(<Name> FROM <Module> HEADERS <dir>)
 ```
 
 The one header-only interface target a module may export for an interface the Platform implements (`Runic::NetworkTransport` from Network, `Runic::SimulationPort` from Simulation). An INTERFACE library with `<dir>` as include root, linking only `Runic::Core`; configure fails at the end of configure if anything else was linked to it. It lives in `<module folder>/<Name>/` with its own `CMakeLists.txt` (`HEADERS ${CMAKE_CURRENT_SOURCE_DIR}`), which `runic_add_catalog_modules` adds even when the module itself is not configured.
+
+### runic_add_native_target
+
+```cmake
+runic_add_native_target(<Name> FROM <Module> HEADERS <dir> LIBRARY <third-party id>)
+```
+
+The opt-in door to a library a module keeps private (ECS-1). An INTERFACE library with `<dir>` as include root,
+outside `Public/`, that carries `<Module>` and the library's targets; the module's own `CMakeLists.txt` calls it after
+`runic_add_module`, and the folder is `<module folder>/<Name>/`. The architecture defines one: `Runic::ECSNative`, the
+native Flecs world, **discouraged**. It has no catalog row: any module whose row allows `<Module>` may link it, in
+`PRIVATE_DEPS` only, so the library never reaches that module's users or its `Public/` headers (the public-header
+scan still applies).
+
+| Behavior | Rule |
+| --- | --- |
+| Checks at the call | Configure fails if `<Module>` is not a configured module, if `<third-party id>` is not in its catalog row or the module does not link it, or if `<dir>` is not a directory |
+| Checks at the end of configure | Configure fails if a module links it PUBLIC, or if the module's row does not allow `<Module>` |
+| Listing | The end of configure prints `RUNIC: native target Runic::ECSNative (flecs, discouraged) is linked by: <modules>` (or `no module`), so every use stays visible |
+| Header paths | Its headers count in the unique-header-path check |
 
 ### runic_add_group
 
@@ -277,6 +297,9 @@ Merge order: RunicEngine, then RunicPlatform, then RunicGame.
 | `build.public_third_party` | `public_third_party` | A third party in `PUBLIC_DEPS` without a `PUBLIC_EXCEPTIONS` entry fails configure |
 | `build.wrong_direction` | `wrong_direction` | A `Runic::` module linking a `RunicPlatform::` target fails configure, even when its row allows it |
 | `build.interface_target` | `interface_target` | An interface target that links anything but `Runic::Core` fails configure |
+| `build.native_target` | `native_target` | A module opts into a native target PRIVATE; configure passes and lists it as the target's one user |
+| `build.native_target_public` | `native_target_public` | A native target linked PUBLIC fails configure |
+| `build.native_target_not_allowed` | `native_target_not_allowed` | A module whose row does not allow the native target's module fails configure |
 | `build.headless_module` | `headless_module` | A `HEADLESS` module that reaches a marked presentation target through another target fails configure with the chain |
 | `build.headless_executable` | `headless_executable` | `runic_check_headless` on an executable that reaches a marked target fails configure |
 | `build.headless_executable_clean` | `headless_executable` | The same executable without the edge passes and prints `RUNIC: link checks passed` |

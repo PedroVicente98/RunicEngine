@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.24)
+project(FixtureNativeTargetPublic LANGUAGES CXX)
+include("${CMAKE_CURRENT_LIST_DIR}/../FixturePrologue.cmake")
+# A native target linked PUBLIC would hand the library to the users of the module: configure fails.
+add_library(fixture_library INTERFACE)
+runic_third_party(fixturelib TARGETS fixture_library)
+runic_catalog_module(Alpha GROUP Foundation THIRD_PARTY fixturelib HEADLESS yes)
+runic_catalog_module(Beta GROUP Foundation ALLOWS Fixture::Alpha HEADLESS yes)
+runic_catalog_module(Gamma GROUP Foundation ALLOWS Fixture::Alpha HEADLESS yes)
+add_subdirectory(Alpha)
+add_subdirectory(Beta)
+add_subdirectory(Gamma)

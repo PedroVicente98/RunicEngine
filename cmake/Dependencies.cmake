@@ -17,9 +17,9 @@ function(_runic_recipe_flecs)
     set(FLECS_SHARED OFF)
     set(FLECS_TESTS OFF)
     set(FLECS_PIC ON)
-    runic_fetch_archive(flecs FOLDER flecs-4.0.4
-        URL https://codeload.github.com/SanderMertens/flecs/tar.gz/refs/tags/v4.0.4
-        SHA256 a3b6238a913f65d90db18759ab5442393901da914e4a9bfe30aa8823687dce86)
+    runic_fetch_archive(flecs FOLDER flecs-4.2.0
+        URL https://codeload.github.com/SanderMertens/flecs/tar.gz/refs/tags/v4.2.0
+        SHA256 4107b0a36aa25f80ddcd6f939451ccfe1bacafcccdd2695840a4a8c413d05b40)
 endfunction()
 runic_third_party_recipe(flecs TARGETS flecs::flecs_static FETCH _runic_recipe_flecs)
 

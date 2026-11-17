@@ -316,6 +316,47 @@ function(runic_add_interface_target name)
     set_property(GLOBAL APPEND PROPERTY RUNIC_PUBLIC_ROOTS "${full}|${headers_dir}")
 endfunction()
 
+# runic_add_native_target(<Name> FROM <Module> HEADERS <dir> LIBRARY <third-party id>)
+#   The opt-in door to a library a module keeps private: an INTERFACE target that carries the module and the
+#   library, with its own include root outside Public/, called from the module's own CMakeLists.txt after
+#   runic_add_module. Runic::ECSNative (ECS-1) is the one the architecture defines: the native Flecs world,
+#   discouraged. A module links a native target PRIVATE, without a catalog entry, and the link checks list every
+#   module that does.
+function(runic_add_native_target name)
+    cmake_parse_arguments(N "" "FROM;HEADERS;LIBRARY" "" ${ARGN})
+    _runic_namespace(ns)
+    set(full "${ns}::${name}")
+    set(module "${ns}::${N_FROM}")
+    get_property(in_catalog GLOBAL PROPERTY "RUNIC_CATALOG_${module}_GROUP" SET)
+    if(NOT in_catalog OR NOT TARGET ${module})
+        runic_fatal("RUNIC: native target ${full} comes FROM '${N_FROM}', which is not a module of this build")
+    endif()
+    get_property(row_third_party GLOBAL PROPERTY "RUNIC_CATALOG_${module}_THIRD_PARTY")
+    if(NOT N_LIBRARY OR NOT N_LIBRARY IN_LIST row_third_party)
+        runic_fatal(
+            "RUNIC: native target ${full} opens '${N_LIBRARY}', which is not a third party of ${module}'s catalog row")
+    endif()
+    get_property(library_targets GLOBAL PROPERTY "RUNIC_THIRD_PARTY_${N_LIBRARY}_TARGETS")
+    if(NOT library_targets)
+        runic_fatal(
+            "RUNIC: native target ${full} opens '${N_LIBRARY}', which ${module} does not link: a native target opens a library its module already uses")
+    endif()
+    if(NOT N_HEADERS OR NOT IS_DIRECTORY "${N_HEADERS}")
+        runic_fatal("RUNIC: native target ${full}: HEADERS '${N_HEADERS}' is not a directory")
+    endif()
+    string(TOLOWER "${ns}_${name}" target)
+    add_library(${target} INTERFACE)
+    add_library(${full} ALIAS ${target})
+    target_include_directories(${target} INTERFACE "$<BUILD_INTERFACE:${N_HEADERS}>")
+    target_compile_features(${target} INTERFACE cxx_std_20)
+    target_link_libraries(${target} INTERFACE ${module} ${library_targets})
+    get_filename_component(headers_dir "${N_HEADERS}" ABSOLUTE)
+    set_property(GLOBAL APPEND PROPERTY RUNIC_NATIVE_TARGETS "${full}")
+    set_property(GLOBAL PROPERTY "RUNIC_NATIVE_${full}_LIBRARY" "${N_LIBRARY}")
+    set_property(GLOBAL PROPERTY "RUNIC_NATIVE_${full}_MODULE" "${module}")
+    set_property(GLOBAL APPEND PROPERTY RUNIC_PUBLIC_ROOTS "${full}|${headers_dir}")
+endfunction()
+
 function(runic_add_group group)
     cmake_parse_arguments(G "" "" "MODULES" ${ARGN})
     _runic_namespace(ns)

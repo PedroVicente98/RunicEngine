@@ -4,6 +4,7 @@ The authoritative simulation: Flecs behind the Runic API, 64-bit world space and
 
 | Module | Target | First package | Headless |
 | --- | --- | --- | --- |
+| [ECS](ECS/README.md) | `Runic::ECS` (and the opt-in `Runic::ECSNative`) | ECS-1 (slice 4) | yes |
 | [Simulation](Simulation/README.md) | `Runic::Simulation` | SIM-1 (slice 3) | yes |
 
 ## Planned modules
@@ -13,7 +14,6 @@ branch (`git checkout origin/layout -- Engine/SimulationCore/<Module>/README.md`
 
 | Module | Target | First package | Headless |
 | --- | --- | --- | --- |
-| ECS | `Runic::ECS` | ECS-1 (slice 4) | yes |
 | World | `Runic::World` | WORLD-1 (slice 4) | yes |
 | Physics | `Runic::Physics` | PHYS-1 (slice 7) | yes |
 

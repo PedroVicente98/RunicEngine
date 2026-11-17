@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.24)
+project(FixtureNativeTargetNotAllowed LANGUAGES CXX)
+include("${CMAKE_CURRENT_LIST_DIR}/../FixturePrologue.cmake")
+# Beta may not link Alpha, so it may not link the native target that carries Alpha: configure fails.
+add_library(fixture_library INTERFACE)
+runic_third_party(fixturelib TARGETS fixture_library)
+runic_catalog_module(Alpha GROUP Foundation THIRD_PARTY fixturelib HEADLESS yes)
+runic_catalog_module(Beta GROUP Foundation HEADLESS yes)
+runic_catalog_module(Gamma GROUP Foundation ALLOWS Fixture::Alpha HEADLESS yes)
+add_subdirectory(Alpha)
+add_subdirectory(Beta)
+add_subdirectory(Gamma)
