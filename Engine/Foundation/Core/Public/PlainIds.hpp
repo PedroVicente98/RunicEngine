@@ -51,6 +51,7 @@ struct WaterBodyIdTag;
 struct FieldIdTag;
 struct WidgetIdTag;
 struct RenderInstanceIdTag;
+struct DebugMeshIdTag;
 
 // An entity across processes; never a local Flecs ID.
 using GlobalEntityId = Id<GlobalEntityIdTag, std::uint64_t>;
@@ -74,6 +75,9 @@ using WidgetId = Id<WidgetIdTag, std::uint32_t>;
 // Stable references): an entity's comes from its GlobalEntityId, a static object's from its cooked
 // placement. Whoever fills a frame keeps the IDs in it unique.
 using RenderInstanceId = Id<RenderInstanceIdTag, std::uint64_t>;
+// A cached debug mesh (RunicDocs › Render data › Debug geometry: "cached debug meshes"): geometry
+// uploaded once and drawn by instances. Whoever puts meshes in a library keeps the IDs unique.
+using DebugMeshId = Id<DebugMeshIdTag, std::uint64_t>;
 
 // The master tick number of a simulation. Not an opaque ID: tick 0 is a real tick (the first), and
 // ticks count and only move forward.

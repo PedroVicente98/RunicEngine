@@ -24,6 +24,7 @@ DebugGeometry::DebugGeometry(const DebugGeometryCapacity &capacity) : m_Capacity
     }
     m_Texts.reserve(capacity.texts);
     m_TextBytes.reserve(capacity.textBytes);
+    m_MeshInstances.reserve(capacity.meshInstances);
 }
 
 void DebugGeometry::Clear() noexcept {
@@ -35,8 +36,23 @@ void DebugGeometry::Clear() noexcept {
     }
     m_Texts.clear();
     m_TextBytes.clear();
+    m_MeshInstances.clear();
     m_DroppedVertices = 0;
     m_DroppedTexts = 0;
+    m_DroppedMeshInstances = 0;
+}
+
+bool DebugGeometry::AddMeshInstance(const DebugMeshInstance &instance) noexcept {
+    if (m_MeshInstances.size() >= m_Capacity.meshInstances) {
+        ++m_DroppedMeshInstances;
+        return false;
+    }
+    m_MeshInstances.push_back(instance);
+    return true;
+}
+
+std::span<const DebugMeshInstance> DebugGeometry::MeshInstances() const noexcept {
+    return m_MeshInstances;
 }
 
 bool DebugGeometry::AddLine(DebugBatch batch, Core::Vec3 a, Core::Vec3 b,
@@ -106,6 +122,9 @@ std::string_view DebugGeometry::TextOf(const DebugText &text) const noexcept {
 
 std::uint32_t DebugGeometry::DroppedVertices() const noexcept { return m_DroppedVertices; }
 std::uint32_t DebugGeometry::DroppedTexts() const noexcept { return m_DroppedTexts; }
+std::uint32_t DebugGeometry::DroppedMeshInstances() const noexcept {
+    return m_DroppedMeshInstances;
+}
 
 bool DebugGeometry::IsEmpty() const noexcept {
     for (const auto &batch : m_Streams) {
@@ -115,7 +134,7 @@ bool DebugGeometry::IsEmpty() const noexcept {
             }
         }
     }
-    return m_Texts.empty();
+    return m_Texts.empty() && m_MeshInstances.empty();
 }
 
 const DebugGeometryCapacity &DebugGeometry::Capacity() const noexcept { return m_Capacity; }

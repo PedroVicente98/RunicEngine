@@ -20,7 +20,7 @@ RenderFrameExchange::RenderFrameExchange(const RenderFrameCapacity &capacity)
       m_Newest(kFirstNewestSlot), m_Writing(kFirstWritingSlot), m_Reading(kFirstReadingSlot) {}
 
 RenderFrameExchange::RenderFrameExchange(const DebugGeometryCapacity &capacity)
-    : RenderFrameExchange(RenderFrameCapacity{capacity, kDefaultShapeInstanceCapacity}) {}
+    : RenderFrameExchange(RenderFrameCapacity{capacity, kDefaultShapeInstanceCapacity, {}}) {}
 
 RenderFrame &RenderFrameExchange::WriteFrame() noexcept { return m_Slots[m_Writing]; }
 

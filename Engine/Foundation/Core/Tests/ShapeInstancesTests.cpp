@@ -159,7 +159,7 @@ TEST(ShapeInstances, ShapesPastTheCapacityOrOutOfReachAreDroppedAndCounted) {
 
 TEST(ShapeInstances, AReaderThatSkipsAFrameSeesABaseItDidNotApply) {
     // Through the exchange: the writer publishes three frames while the reader looks once.
-    RenderFrameExchange frames(RenderFrameCapacity{{}, 16});
+    RenderFrameExchange frames(RenderFrameCapacity{{}, 16, {}});
     ShapeInstanceWriter writer(16);
     std::vector<Placed> shapes{{1, {}}, {2, {}}};
 
@@ -205,7 +205,7 @@ TEST(ShapeInstances, WritingAllocatesNothingOnceMade) {
 }
 
 TEST(ShapeInstances, AFrameHoldsShapesBesideItsDebugGeometry) {
-    const RenderFrame frame(RenderFrameCapacity{{}, 8});
+    const RenderFrame frame(RenderFrameCapacity{{}, 8, {}});
     EXPECT_EQ(frame.shapes.Capacity(), 8u);
     const RenderFrame defaults;
     EXPECT_EQ(defaults.shapes.Capacity(), kDefaultShapeInstanceCapacity);

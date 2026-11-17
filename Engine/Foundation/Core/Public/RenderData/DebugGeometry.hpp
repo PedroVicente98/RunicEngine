@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Math.hpp"
+#include "PlainIds.hpp"
 #include "RenderData/Color.hpp"
 
 // DebugGeometry: what debug drawing produces, as plain lines, triangles and text (RunicDocs › Debug
@@ -33,12 +34,14 @@ inline constexpr std::uint32_t kDefaultLineVertexCapacity = 65'536;
 inline constexpr std::uint32_t kDefaultTriangleVertexCapacity = 16'384;
 inline constexpr std::uint32_t kDefaultTextCapacity = 256;
 inline constexpr std::uint32_t kDefaultTextByteCapacity = 16'384;
+inline constexpr std::uint32_t kDefaultMeshInstanceCapacity = 4'096;
 
 struct DebugGeometryCapacity {
     std::uint32_t lineVertices = kDefaultLineVertexCapacity;
     std::uint32_t triangleVertices = kDefaultTriangleVertexCapacity;
     std::uint32_t texts = kDefaultTextCapacity;
     std::uint32_t textBytes = kDefaultTextByteCapacity;
+    std::uint32_t meshInstances = kDefaultMeshInstanceCapacity;
 };
 
 // One label: where it is (camera-relative), its color and batch, and its bytes inside the
@@ -49,6 +52,15 @@ struct DebugText {
     DebugBatch batch = DebugBatch::WorldDepth;
     std::uint32_t offset = 0;
     std::uint32_t length = 0;
+};
+
+// A cached debug mesh (DebugMeshes.hpp) drawn in a frame: where the mesh's own origin is, relative
+// to the frame's origin, and how it is turned, in one of the frame's batches.
+struct DebugMeshInstance {
+    Core::DebugMeshId mesh;
+    DebugBatch batch = DebugBatch::WorldDepth;
+    Core::Vec3 position{0.0f};
+    Core::Quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
 };
 
 class DebugGeometry {
@@ -68,6 +80,8 @@ class DebugGeometry {
                      PackedColor color) noexcept;
     bool AddText(DebugBatch batch, Core::Vec3 position, std::string_view text,
                  PackedColor color) noexcept;
+    // A cached mesh drawn this frame (its mesh is in the stream's DebugMeshLibrary).
+    bool AddMeshInstance(const DebugMeshInstance &instance) noexcept;
 
     // The vertex streams of one batch and primitive: positions[i] and colors[i] are vertex i. Lines
     // are vertex pairs, triangles vertex triples.
@@ -78,10 +92,12 @@ class DebugGeometry {
 
     std::span<const DebugText> Texts() const noexcept;
     std::string_view TextOf(const DebugText &text) const noexcept; // valid until the next Clear
+    std::span<const DebugMeshInstance> MeshInstances() const noexcept;
 
-    std::uint32_t DroppedVertices() const noexcept; // since the last Clear
-    std::uint32_t DroppedTexts() const noexcept;    // since the last Clear
-    bool IsEmpty() const noexcept;                  // no vertex and no text
+    std::uint32_t DroppedVertices() const noexcept;      // since the last Clear
+    std::uint32_t DroppedTexts() const noexcept;         // since the last Clear
+    std::uint32_t DroppedMeshInstances() const noexcept; // since the last Clear
+    bool IsEmpty() const noexcept;                       // no vertex, no text and no mesh instance
     const DebugGeometryCapacity &Capacity() const noexcept;
 
   private:
@@ -97,8 +113,10 @@ class DebugGeometry {
     Stream m_Streams[kDebugBatchCount][kDebugPrimitiveCount];
     std::vector<DebugText> m_Texts;
     std::vector<char> m_TextBytes;
+    std::vector<DebugMeshInstance> m_MeshInstances;
     std::uint32_t m_DroppedVertices = 0;
     std::uint32_t m_DroppedTexts = 0;
+    std::uint32_t m_DroppedMeshInstances = 0;
 };
 
 } // namespace Runic::RenderData

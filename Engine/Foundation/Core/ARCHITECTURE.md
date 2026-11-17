@@ -12,13 +12,16 @@ branch `preview/slices-3-11`): the worker pool, the metrics and debug-stream reg
 per-worker buffers, with their acceptance tests. **CORE-8 implemented** (slice 3, same branch): process
 configuration, with its acceptance tests. **Shape instances added** (slice 5, same branch; an interface addition the
 plan does not list, awaiting the owner): `RenderInstanceId` and the RenderFrame's shape instances, which GDB-3's
-presenter keeps between frames. The folder map
+presenter keeps between frames. **Cached debug meshes added** (slice 8, same branch; CORE-3's "cached debug meshes",
+which slice 2 left for their first user, the physics geometry layer): `DebugMeshId`, the `DebugMeshLibrary` a frame
+stream shares, mesh instances in `DebugGeometry`, and the RenderFrame's own `physics` geometry. The folder map
 is [README.md](README.md); the slice briefs are [RunicEngine#144](https://github.com/PedroVicente98/RunicEngine/issues/144)
 (slice 1) and [RunicEngine#145](https://github.com/PedroVicente98/RunicEngine/issues/145) (slice 2), the plans
 [RunicEngine#9](https://github.com/PedroVicente98/RunicEngine/issues/9) (CORE-1) and
 [RunicEngine#18](https://github.com/PedroVicente98/RunicEngine/issues/18) (CORE-3). Slice 3's brief and walkthrough
 are [preview/slice-03-fixed-step-clock.md](../../../preview/slice-03-fixed-step-clock.md); slice 5's, which explains the
-addition, are [preview/slice-05-moving-entities.md](../../../preview/slice-05-moving-entities.md).
+addition, are [preview/slice-05-moving-entities.md](../../../preview/slice-05-moving-entities.md); slice 8's, for the
+cached meshes, [preview/slice-08-physics-view.md](../../../preview/slice-08-physics-view.md).
 
 ## Purpose
 
@@ -40,7 +43,7 @@ included by their path under `Public/` (`#include "WorldSpace.hpp"`, `#include "
 
 | Header | Holds | Since |
 | --- | --- | --- |
-| `PlainIds.hpp` | `Id<Tag, Rep>` (a distinct type per kind, explicit from its integer, `kInvalidValue` (0) invalid, ordered, hashable); 64-bit `GlobalEntityId`, `GlobalPlayerId`, `AssetId`; 32-bit `SimulationId`, `WorldId`, `InstanceId`, `WaterBodyId`, `FieldId`, `WidgetId`; 64-bit `RenderInstanceId` (slice 5 addition); the counters `TickId` (64-bit, from `kFirstTick`) and `AuthorityEpoch` (32-bit, from `kFirstEpoch`) | CORE-1 |
+| `PlainIds.hpp` | `Id<Tag, Rep>` (a distinct type per kind, explicit from its integer, `kInvalidValue` (0) invalid, ordered, hashable); 64-bit `GlobalEntityId`, `GlobalPlayerId`, `AssetId`; 32-bit `SimulationId`, `WorldId`, `InstanceId`, `WaterBodyId`, `FieldId`, `WidgetId`; 64-bit `RenderInstanceId` (slice 5 addition) and `DebugMeshId` (slice 8 addition); the counters `TickId` (64-bit, from `kFirstTick`) and `AuthorityEpoch` (32-bit, from `kFirstEpoch`) | CORE-1 |
 | `Result.hpp` | `Error` (a message), `Fail`, `Result<T>`, `Result<void>` | CORE-1 |
 | `Assert.hpp` | `RUNIC_ASSERT`, `RUNIC_ASSERT_MSG`, `RUNIC_ASSERTS_ENABLED`; `AssertFailure`, `AssertHandler`, `SetAssertHandler`, `FailAssert` | CORE-1 |
 | `Log.hpp` | `LogLevel`, `LogRecord`, `LogSink`, `SetLogSink`, `SetMinimumLogLevel`, `MinimumLogLevel`, `IsLogLevelEnabled`, `WriteLog`, `Log`, `kMaxLogLineBytes`, `LogLevelName` and the names in `LogLevelNames`, the `RUNIC_LOG_*` macros | CORE-1 |
@@ -67,6 +70,7 @@ camera-relative floats under one 64-bit origin per frame.
 | `RenderData/DebugDraw.hpp` | `DebugDraw` (line, ray, arrow, AABB, OBB, circle, sphere, cylinder, capsule, cone, arc sector, arc volume, XZ grid, text, filled triangle) and each shape's cost: the `kMin*Segments`, the part counts (`kNoLines` for a shape with no size) and the `*Lines` functions; `kNoInnerRadius` and `kGridHeightM` | CORE-3 |
 | `RenderData/RenderFrame.hpp` | `RenderFrame` (number, 64-bit origin, camera, debug geometry) | CORE-3 |
 | `RenderData/RenderFrameExchange.hpp` | `RenderFrameExchange` (`WriteFrame`, `Publish`, `ReadNewest`, `PublishedFrames`) | CORE-3 |
+| `RenderData/DebugMeshes.hpp` | `DebugMesh` (line and triangle streams in the mesh's own space), `DebugMeshLibrary` (`Put`, `Remove`, `Contains`, `Count`, `Revision`, `Snapshot`; thread-safe); `DebugMeshInstance`, `DebugGeometryCapacity::meshInstances` (`kDefaultMeshInstanceCapacity`, 4,096), `DebugGeometry::AddMeshInstance`, `MeshInstances`, `DroppedMeshInstances` in `DebugGeometry.hpp`; `RenderFrame::physics` and `RenderFrameCapacity::physics`; `RenderFrameExchange::Meshes` | slice 8 addition |
 | `RenderData/ShapeInstances.hpp` | `ShapeKind` (`Box`, `Sphere`, `Capsule`, `Cylinder`), `ShapeInstance` (ID, kind, color, position relative to the origin, rotation, size), `ShapeInstanceList` (the instances, their revision and base revision, whether the layout changed, the indices that changed, the dropped count), `ShapeInstanceWriter` (`Begin`, `Add` at a world position, `End`), `kDefaultShapeInstanceCapacity` (65,536); `RenderFrame::shapes`, `RenderFrameCapacity` and the exchange's constructor from it; `Core::RenderInstanceId` in `PlainIds.hpp` | slice 5 addition |
 
 **Public exception (approved):** GLM types appear in `Math.hpp` and `WorldSpace.hpp` as the Engine's math vocabulary
@@ -125,7 +129,7 @@ under `kMaxLocalOffsetM` (10 km, where the float step is about 1 mm).
   logs the error and stops) is the program's.
 - The rest of the command line: flags such as `--quit-after` are Runic::Application's `CommandLine`; the configuration
   reads only `--set` and `--config` and leaves every other argument alone.
-- Everything of the later Core packages: the RenderData kinds of CORE-4 to CORE-7 and cached debug meshes (slice 8).
+- Everything of the later Core packages: the RenderData kinds of CORE-4 to CORE-7.
 
 ## Allowed dependencies
 
@@ -203,7 +207,7 @@ or the values read from it, to what it builds. An arena owns its blocks; what it
 - Everything else is defined in `Source/<Subsystem>/`: `Errors/` (`FailAssert`, `SetAssertHandler`), `Logging/` (the
   sink, the level, `LogLevelName`, `WriteLog`, `Detail::WriteFormattedLog`), `Time/` (`MonotonicNow`, `ToSeconds`,
   `FromSeconds`, `TickRate::TimeOfTick`, `TickRate::TicksIn`), `Math/` (`ToLocal`) and `RenderData/` (`DebugGeometry`'s
-  construction and adds, `DebugDraw`'s shapes, `RenderFrameExchange`, and from slice 5 `ShapeInstances.cpp`). `Ids/` and `Memory/` have no folder yet: those
+  construction and adds, `DebugDraw`'s shapes, `RenderFrameExchange`, from slice 5 `ShapeInstances.cpp` and from slice 8 `DebugMeshes.cpp`). `Ids/` and `Memory/` have no folder yet: those
   subsystems are header-only so far. In RenderData, `Color`, `Camera`, `RenderFrame` and the line-count functions are
   header-only.
 - CORE-2's code: `Source/WorkerPool/` (the pool), `Source/Memory/` (`TickArena`), `Source/Metrics/` and
@@ -242,6 +246,7 @@ or the values read from it, to what it builds. An arena owns its blocks; what it
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | **Implemented** (slice 2): `RunicCoreTests` passes with the 23 CORE-3 tests below; decisions D1–D3, D5 and D6 in RunicEngine#145; awaiting the verify step |
 | CORE-4 to CORE-7 | RenderData kinds: scene, world state, water and fields, effects | See RunicDocs › Modules, work packages | Not started (slices 22, 25a, 42a, 44+) |
 | (slice 5 addition) | `RenderInstanceId` and shape instances: debug shapes the presenter keeps between frames | Unchanged shapes keep their revision whatever the origin does; a reader that skipped a frame can tell | **Implemented** (slice 5, preview branch): `RunicCoreTests` passes with the 12 tests below (10 where asserts are compiled out). Not in the plan: GDB-3 (slice 5) presents instances by `RenderInstanceId`, which the plan defines with CORE-4 in slice 22; awaiting the owner's decision (move `RenderInstanceId` into slice 5, or name a package for this) |
+| (slice 8 addition) | Cached debug meshes and the physics layer's geometry | A large shape's geometry crosses to the reader once and each frame carries only its instances; the physics geometry travels apart from the debug shapes | **Implemented** (slice 8, preview branch): `RunicCoreTests` passes with the 4 tests below. CORE-3 lists cached debug meshes; slice 2 left them for their first user, GDB-4 (slice 8). `RenderFrame::physics` is not in the plan's RenderFrame (which has one `debug`): the physics layer toggles apart from the debug shapes; awaiting the owner |
 | CORE-8 | Process configuration | A setting resolves from each source in precedence order; an unknown key or a bad value is reported with its source | **Implemented** (slice 3, preview branch): `RunicCoreTests` passes with the 17 CORE-8 tests below (13 where asserts are compiled out); three decisions await the owner (file format, the `RUNIC_CFG_` prefix, `--set`), listed in the slice brief; awaiting the owner's review |
 
 CORE-1's acceptance tests (`RunicCoreTests`): `PlainIds.*`, `Result.*`, `Assert.*`, `Log.*`, `LogDefaultSink.*`,
@@ -258,6 +263,11 @@ positions relative to its origin; unchanged shapes keep the revision when the or
 resized, re-kinded or turned shape is listed by its index; adding, removing or reordering changes the layout; the
 capacity and the reach of a 32-bit position; a reader that skipped a frame through the exchange sees a base it did not
 apply; no allocation once made; a frame holds shapes beside its debug geometry) and `ShapeInstancesDeathTest.*`.
+
+The slice 8 addition's tests: `DebugMeshLibrary.*` (meshes by ID with a revision per change; a replaced mesh still
+held by a reader stays whole; shared by a writer and a reader thread, revisions only moving forward),
+`DebugGeometry.ListsMeshInstancesUpToItsCapacity` (no allocation; dropped and counted past the capacity; cleared) and
+`RenderFrame.CarriesThePhysicsLayersGeometryApartAndTheExchangeItsMeshes`.
 
 CORE-2's acceptance tests: `WorkerPool.*` (every job runs once; jobs run on the pool's threads at the same time and
 never share a slot; the barrier; nested submits and waits; a full queue; `ParallelFor` covers every index once with
@@ -287,8 +297,6 @@ range).
 - An error code in `Error`, when a caller must branch on the kind of failure.
 - Copying and moving the fixed containers, when a consumer needs it.
 - More plain ID kinds, added to `PlainIds.hpp` by the package that first needs each.
-- Cached debug meshes, with their first user, the physics geometry layer (PHYS-3 and GDB-4, slice 8; slice 2 decision
-  D2).
 - Several writers into one frame (per-worker debug geometries merged in a fixed order), when extraction runs on the
   worker pool (CLI-1 and later).
 

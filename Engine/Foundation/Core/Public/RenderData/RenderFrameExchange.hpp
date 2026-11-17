@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "RenderData/DebugMeshes.hpp"
 #include "RenderData/RenderFrame.hpp"
 
 // How frames move from the thread that writes them (extraction) to the thread that draws them
@@ -38,6 +39,11 @@ class RenderFrameExchange {
     // Frames published so far. Thread-safe.
     std::uint64_t PublishedFrames() const noexcept;
 
+    // The cached debug meshes the frames' instances refer to (DebugMeshes.hpp): the writer puts
+    // them, the reader syncs them. Thread-safe.
+    DebugMeshLibrary &Meshes() noexcept { return m_Meshes; }
+    const DebugMeshLibrary &Meshes() const noexcept { return m_Meshes; }
+
   private:
     static constexpr std::size_t kSlotCount = 3;
     static constexpr std::uint8_t kSlotMask = 0x03;
@@ -45,6 +51,7 @@ class RenderFrameExchange {
     static constexpr std::uint8_t kFreshBit = 0x04;
 
     std::array<RenderFrame, kSlotCount> m_Slots;
+    DebugMeshLibrary m_Meshes;
     std::atomic<std::uint8_t> m_Newest; // the slot between writer and reader, with kFreshBit
     std::atomic<std::uint64_t> m_Published{0};
     std::uint8_t m_Writing; // writer only
