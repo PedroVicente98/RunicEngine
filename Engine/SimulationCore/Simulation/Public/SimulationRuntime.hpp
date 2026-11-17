@@ -12,6 +12,7 @@
 #include "EventBuffer.hpp"
 #include "EventHub.hpp"
 #include "MetricsRegistry.hpp"
+#include "PhysicsWorld.hpp"
 #include "PlainIds.hpp"
 #include "TickContext.hpp"
 #include "TickDomain.hpp"
@@ -114,6 +115,8 @@ namespace Detail {
 class CommandQueueBase; // CommandQueue.hpp
 } // namespace Detail
 
+class PhysicsBridge; // PhysicsBridge.hpp
+
 // The simulation of a process that hosts one and was given no ID by a service.
 inline constexpr Core::SimulationId kStandaloneSimulation{1};
 
@@ -170,6 +173,14 @@ class SimulationRuntime {
     // The facts of observable states, as events.
     Events::EventBuffer<ECS::StateEntered> &StateEnteredFacts() noexcept;
     Events::EventBuffer<ECS::StateExited> &StateExitedFacts() noexcept;
+
+    // Gives the simulation a physics world and the bridge between it and the entities
+    // (PhysicsBridge.hpp), once, between steps. The bridge registers its components and adds its
+    // systems to the PhysicsStructure, PhysicsStep and PostPhysics phases; enable physics before
+    // adding other systems to those phases, so the bridge's run first.
+    PhysicsBridge &EnablePhysics(const Physics::PhysicsWorldSpec &spec = {});
+    // The bridge, or nullptr while physics is not enabled.
+    PhysicsBridge *FindPhysicsBridge() noexcept;
 
     // True while a system of that realtime phase runs.
     bool IsRunning(RealtimePhase phase) const noexcept;

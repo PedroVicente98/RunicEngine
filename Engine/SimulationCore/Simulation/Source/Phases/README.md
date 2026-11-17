@@ -3,6 +3,6 @@
 Phases in a fixed order, barriers, and the event flush at each barrier.
 
 - **Filled by:** SIM-2 (slice 5)
-- **Status:** SIM-2 (slice 5) wrote `Phases.cpp` (a phase's systems run with the world's changes held back; the barrier after it applies them and flushes the event hub)
+- **Status:** SIM-2 (slice 5) wrote `Phases.cpp` (a phase's systems run with the world's changes held back; the barrier after it applies them and flushes the event hub); SIM-8 (slice 7) added the physics bridge's look for destroyed entities at every barrier
 
 Private to `Runic::Simulation`: other modules reach this code only through the module's public headers. Files here use namespace `Runic::Simulation` (or `Runic::Simulation::Detail` for helpers several files of the module share); a helper used by one file sits in an unnamed namespace inside that file. Layout and rules: [the module's README](../../README.md).

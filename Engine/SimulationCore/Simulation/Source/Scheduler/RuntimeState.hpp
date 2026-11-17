@@ -2,15 +2,18 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "CommandQueue.hpp"
+#include "PhysicsBridge.hpp"
 #include "SimulationRuntime.hpp"
 
 // The state behind a SimulationRuntime, shared by the files that implement it: the scheduler
-// (Scheduler/), the phases and their barriers (Phases/) and the command queues (Commands/).
+// (Scheduler/), the phases and their barriers (Phases/), the command queues (Commands/) and the
+// physics bridge (PhysicsBridge/).
 
 namespace Runic::Simulation {
 
@@ -69,11 +72,17 @@ struct SimulationRuntime::State {
     Core::TimingId stepTime;
     Core::CounterId overruns;
 
+    // The physics bridge, once enabled. Last: its systems, queries and fact buffer go before the
+    // world and the hub they belong to.
+    std::unique_ptr<PhysicsBridge> physics;
+
     // Phases/: runs one phase's systems with the world's changes held back, then the barrier.
     // Returns the time the systems took (zero without a metrics registry).
     Core::Duration RunPhase(const std::vector<Detail::System> &systems, const TickContext &context);
     // Applies what was held back and makes emitted facts readable.
     void Barrier();
+    // After held-back changes applied: bodies and characters follow their destroyed entities.
+    void FollowEntities();
 };
 
 } // namespace Runic::Simulation

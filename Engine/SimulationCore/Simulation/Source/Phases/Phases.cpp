@@ -27,15 +27,23 @@ Core::Duration SimulationRuntime::State::RunPhase(const std::vector<Detail::Syst
             }
         }
     }
+    FollowEntities();
     // The facts of this phase, IDs given in a fixed order, readable from the next phase on.
     hub.Flush();
     return elapsed;
 }
 
 void SimulationRuntime::State::Barrier() {
-    // Nothing is held back between phases; what remains is to flush what was emitted outside a
-    // phase (between steps, by code that runs at a safe point).
+    // Nothing is held back between phases; what remains is to follow entities destroyed between
+    // steps and to flush what was emitted outside a phase (by code that runs at a safe point).
+    FollowEntities();
     hub.Flush();
+}
+
+void SimulationRuntime::State::FollowEntities() {
+    if (physics != nullptr) {
+        physics->AtBarrier(); // destroyed entities' bodies go before the next phase sees them
+    }
 }
 
 } // namespace Runic::Simulation
