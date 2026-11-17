@@ -16,7 +16,7 @@ far it got, and the next package in it is where to continue.
 | --- | --- | --- | --- |
 | 3 · Fixed-step clock | CORE-2, CORE-8, SIM-1 | **Done** | [slice-03-fixed-step-clock.md](slice-03-fixed-step-clock.md) |
 | 4 · ECS and world coordinates | ECS-1, EVT-1, ECS-2, WORLD-1 | **Done** | [slice-04-ecs-and-world-coordinates.md](slice-04-ecs-and-world-coordinates.md) |
-| 5 · Moving entities | SIM-2, CLI-1, GDB-3 | Not started | |
+| 5 · Moving entities | SIM-2, CLI-1, GDB-3 (and a Core addition) | **Done** | [slice-05-moving-entities.md](slice-05-moving-entities.md) |
 | 6 · Editor shell | GDT-2, GAME-1 | Not started | |
 | 7 · Physics | PHYS-1, PHYS-2, SIM-8, CLI-2 | Not started | |
 | 8 · Physics view | PHYS-3, GDB-4, GDT-3 | Not started | |
