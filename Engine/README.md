@@ -13,7 +13,7 @@ umbrella target); it has no code of its own.
 | Group | Modules |
 | --- | --- |
 | [Foundation](Foundation/README.md) | Core 1 · Application 1 · Events 4 · Content 9 · Assets 9 |
-| SimulationCore | Simulation 3 · ECS 4 · World 4 · Physics 7 |
+| [SimulationCore](SimulationCore/README.md) | Simulation 3 · ECS 4 · World 4 · Physics 7 |
 | GameplayAPI | Gameplay 14 · Combat 16 · GameplayFlow 29 · Quest 30 |
 | WorldSystems | Environment 25 · Perception 25 · Navigation 31 · AI 32 · Water 40 |
 | Networking | Network 12 · DistributedSimulation 36 |
@@ -21,10 +21,11 @@ umbrella target); it has no code of its own.
 | [Tools](Tools/README.md) | GodotTools 0 · Cooker 9 |
 | [Programs](Programs/README.md) | RunicEditor 0 · RunicServer 1 · RunicClient 1 · RunicBot 38 — executables, not modules |
 
-Modules with code: Core (CORE-1) and Application (APP-1), from slice 1; GodotBridge (the slice 0 LibGodot host and
-GDB-1's GodotLayer) and GodotTools (the GDT-1 test plugin). Programs with code: RunicEditor (slice 0, on the entry
-point since GDB-1), RunicServer (APP-1) and RunicClient (GDB-1). The other groups, modules and programs are only on
-the `layout` branch so far.
+Modules with code: Core (CORE-1, CORE-3; CORE-2 and CORE-8 from slice 3) and Application (APP-1), from slice 1;
+Simulation (SIM-1, slice 3); GodotBridge (the slice 0 LibGodot host and GDB-1's GodotLayer) and GodotTools (the GDT-1
+test plugin). Programs with code: RunicEditor (slice 0, on the entry point since GDB-1), RunicServer (APP-1, with the
+Simulation layer since SIM-1) and RunicClient (GDB-1). The other groups, modules and programs are only on the `layout`
+branch so far.
 
 ## The shape of a module
 
