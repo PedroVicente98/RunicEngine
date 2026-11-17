@@ -1,0 +1,14 @@
+; {{GAME_NAME}}: a RunicEngine project, made from the runic-mmo template.
+
+config_version=5
+
+[application]
+
+config/name="{{GAME_NAME}}"
+config/description="{{GAME_NAME}}: a RunicEngine project."
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[physics]
+
+2d/physics_engine="Dummy"
+3d/physics_engine="Dummy"

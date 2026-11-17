@@ -1,0 +1,11 @@
+; {{GAME_NAME}}'s editor library: the game's marker nodes and docks, built from Source/Editor and loaded
+; (and reloaded after each build) by the RunicEditor. Never shipped.
+[configuration]
+entry_symbol = "game_editor_init"
+compatibility_minimum = "4.7"
+reloadable = true
+
+[libraries]
+linux.editor.x86_64 = "res://Build/bin/libgame_editor.so"
+windows.editor.x86_64 = "res://Build/bin/game_editor.dll"
+macos.editor = "res://Build/bin/libgame_editor.dylib"

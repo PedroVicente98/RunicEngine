@@ -1,13 +1,17 @@
 // RunicEditor: the Godot editor run through LibGodot, with the Runic tools compiled in
-// (GodotTools), on the Engine's entry point since GDB-1 (slice 1): its stack is one GodotLayer
-// (editor library, no input forwarding).
+// (GodotTools), on the Engine's entry point since GDB-1 (slice 1). Its stack, from slice 6: the
+// Simulation layer with the editor's local world (what the Runic World dock inspects), then the
+// GodotLayer (editor library, no input forwarding).
 //
 //   RunicEditor
-//       Godot's project manager (New and Open)
+//       Godot's project manager (New and Open; Project > Tools > Runic: make this a Runic project
+//       turns a new, empty Godot project into a Runic one)
 //   RunicEditor --editor --path <project>
 //       opens a project, as the project manager does
+//   RunicEditor --runic-new-project <folder> <game name>
+//       makes <folder> a Runic project from the runic-mmo template and exits, without Godot
 //   RunicEditor --headless --editor --path <project> --quit-after 120
-//       the GDT-1 spike check in CI: open, load the plugin, exit
+//       the CI check: open the project, load the plugin, show the dock, exit
 //
 // Every argument goes to Godot unchanged: the project manager opens a project by relaunching this
 // executable with --path, so the entry point never consumes or rewrites arguments.
@@ -16,10 +20,18 @@
 #include "EntryPoint.hpp"
 #include "GodotLayer.hpp"
 #include "GodotToolsModule.hpp"
+#include "LocalWorld.hpp"
 #include "Log.hpp"
+#include "RunicProject.hpp"
+#include "SimulationLayer.hpp"
+#include "SimulationRuntime.hpp"
 
+#include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace {
@@ -31,6 +43,45 @@ using Runic::Application::kCleanExit;
 using Runic::Application::LoopPolicy;
 
 constexpr const char *kProgramName = "RunicEditor";
+// RunicEditor's own command: New without Godot. It is handled before Godot starts.
+constexpr std::string_view kNewProjectFlag = "--runic-new-project";
+constexpr int kNewProjectArguments = 2; // the folder and the game's name
+constexpr std::string_view kNewProjectLayerName = "engine:new_project";
+constexpr std::uint64_t kOneFrame = 1;
+
+#ifndef RUNIC_TEMPLATES_DIR
+#define RUNIC_TEMPLATES_DIR "templates"
+#endif
+#ifndef RUNIC_ENGINE_VERSION
+#define RUNIC_ENGINE_VERSION "0.0.0"
+#endif
+
+// Where the runic-mmo template is: staged by the build next to the executables' folder.
+std::filesystem::path TemplateDirectory() {
+    return std::filesystem::path(RUNIC_TEMPLATES_DIR) / Runic::GodotTools::kDefaultTemplateName;
+}
+
+// --runic-new-project <folder> <game name>: makes the project and stops, with Godot never started.
+// A failure fails the attach, so the program exits with the host's code for it.
+class NewProjectLayer final : public Runic::Application::Layer {
+  public:
+    explicit NewProjectLayer(Runic::GodotTools::NewProjectSpec project)
+        : Layer(std::string(kNewProjectLayerName)), m_Project(std::move(project)) {}
+
+    Runic::Core::Result<void> OnAttach(Runic::Application::LayerContext &context) override {
+        auto made = Runic::GodotTools::InitializeProject(m_Project);
+        if (!made) {
+            return Runic::Core::Fail("no new project: " + made.GetError().message);
+        }
+        RUNIC_LOG_INFO("RUNIC: new Runic project {} in {}", m_Project.gameName,
+                       m_Project.root.string());
+        context.RequestStop(kCleanExit);
+        return {};
+    }
+
+  private:
+    Runic::GodotTools::NewProjectSpec m_Project;
+};
 
 // Godot's Play buttons relaunch the editor executable without --editor and with --editor-pid to run
 // the project as a game. In a Runic project the game runs through Runic's Run (GDT-9, slice 13),
@@ -60,16 +111,46 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
                           "through Runic's Run instead (not available before slice 13).");
         return nullptr;
     }
+    const auto &arguments = command.Arguments();
+    for (std::size_t i = 0; i < arguments.size(); ++i) {
+        if (arguments[i] != kNewProjectFlag) {
+            continue;
+        }
+        if (i + kNewProjectArguments >= arguments.size()) {
+            RUNIC_LOG_ERROR("RUNIC: {} needs a folder and a game name", kNewProjectFlag);
+            return nullptr;
+        }
+        GodotTools::NewProjectSpec project;
+        project.templateDirectory = TemplateDirectory();
+        project.root = arguments[i + 1];
+        project.gameName = arguments[i + 2];
+        project.engineVersion = RUNIC_ENGINE_VERSION;
+        auto application = std::make_unique<RunicEditorApplication>(
+            ApplicationSpec{kProgramName, LoopPolicy::PacedByTopLayer(), kOneFrame});
+        application->PushLayer(std::make_unique<NewProjectLayer>(std::move(project)));
+        return application;
+    }
+
+    // The editor's local world: what the Runic World dock inspects.
+    auto simulation = std::make_unique<Simulation::SimulationLayer>(
+        std::make_unique<Simulation::SimulationRuntime>());
+    Programs::PopulateLocalWorld(simulation->Runtime());
+
     GodotBridge::GodotLayerSpec spec;
     spec.target = GodotBridge::GodotTarget::Editor;
     spec.arguments = command.Arguments();
     spec.forwardInput = false; // the editor's input belongs to the editor
     auto layer = std::make_unique<GodotBridge::GodotLayer>(std::move(spec));
-    GodotTools::RegisterEditorTools(layer->Runtime());
+    GodotTools::EditorToolsSpec tools;
+    tools.localWorld = &simulation->Runtime();
+    tools.templateDirectory = TemplateDirectory();
+    tools.engineVersion = RUNIC_ENGINE_VERSION;
+    GodotTools::RegisterEditorTools(layer->Runtime(), tools);
 
     // The editor paces its own frames, and Godot reads the frame limit (kQuitAfterFlag) itself.
     auto application = std::make_unique<RunicEditorApplication>(ApplicationSpec{
         kProgramName, LoopPolicy::PacedByTopLayer(), ApplicationSpec::kRunUntilStopped});
+    application->PushLayer(std::move(simulation));
     application->PushLayer(std::move(layer));
     return application;
 }
