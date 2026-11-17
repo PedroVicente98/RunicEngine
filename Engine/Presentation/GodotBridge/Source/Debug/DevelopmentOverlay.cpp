@@ -26,10 +26,12 @@ constexpr float kOverlayMarginPx = 12.0f;
 constexpr std::string_view kOverlayTitle = "Runic development overlay";
 // What the last frame drew, then Godot's frame rate.
 constexpr std::string_view kStatsFormat =
-    "frame {} · {} line and {} triangle vertices · {} texts · {} dropped · {:.0f} fps";
+    "frame {} · {} line and {} triangle vertices · physics {} and {} · {} cached mesh "
+    "instances · {} texts · {} dropped · {:.0f} fps";
 constexpr const char *kToggledSignal = "toggled";
 constexpr std::array<DebugLayer, kDebugLayerCount> kLayers{
-    DebugLayer::DepthShapes, DebugLayer::OverlayShapes, DebugLayer::Text};
+    DebugLayer::DepthShapes, DebugLayer::OverlayShapes, DebugLayer::Text,
+    DebugLayer::PhysicsGeometry, DebugLayer::ServerView};
 
 godot::String ToGodot(std::string_view text) {
     return godot::String::utf8(text.data(), static_cast<int64_t>(text.size()));
@@ -85,6 +87,7 @@ void RunicDevelopmentOverlay::ShowStats(const DebugViewStats &stats) {
     }
     const std::string line =
         std::format(kStatsFormat, stats.frame, stats.lineVertices, stats.triangleVertices,
+                    stats.physicsLineVertices, stats.physicsTriangleVertices, stats.meshInstances,
                     stats.texts, stats.droppedVertices + stats.droppedTexts,
                     godot::Engine::get_singleton()->get_frames_per_second());
     m_Stats->set_text(ToGodot(line));

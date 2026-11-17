@@ -22,6 +22,9 @@
 //       scripted clicks on and beside the test button, and a key (godot.runic_client_input)
 //   RunicClient --headless --quit-after 600 --walk-check
 //       scripted keys: R (walk on its own), Space (jump), R again (godot.runic_client_walk)
+//   RunicClient --headless --quit-after 300 --walk-check --physics-check
+//       the same walk, and each frame the capsule's collision lines (the physics geometry layer,
+//       slice 8) are measured against its gameplay shape (godot.runic_client_physics_view)
 //
 // Development builds run Godot's editor library on the project folder, as Godot's play button does;
 // every argument reaches Godot unchanged, with --path added when it is missing.
@@ -34,16 +37,21 @@
 #include "InputLayer.hpp"
 #include "Log.hpp"
 #include "MovingEntities.hpp"
+#include "PhysicsWorld.hpp"
 #include "PresentationLayer.hpp"
 #include "RenderData/RenderFrameExchange.hpp"
 #include "SimulationLayer.hpp"
 #include "SimulationRuntime.hpp"
 #include "WalkScene.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #ifndef RUNIC_CLIENT_PROJECT_DIR
 #define RUNIC_CLIENT_PROJECT_DIR "."
@@ -68,6 +76,7 @@ constexpr const char *kInputTraceLayerName = "engine:input_trace";
 constexpr std::string_view kMovingSceneFlag = "--moving-scene";
 constexpr std::string_view kInputCheckFlag = "--input-check";
 constexpr std::string_view kWalkCheckFlag = "--walk-check";
+constexpr std::string_view kPhysicsCheckFlag = "--physics-check";
 
 // kInputCheckFlag's input, by Godot frame. The test button in Project/Main.tscn spans (20, 20) to
 // (220, 80): a click at its center stays in Godot's UI, one beside it reaches the stack, and so
@@ -104,6 +113,63 @@ class InputTraceLayer final : public Layer {
                            MouseButtonEvent::kName, button->x, button->y);
         }
     }
+};
+
+// Above every layer, after the GodotLayer applied the frame: the capsule's collision lines (green,
+// in the physics geometry layer) against the capsule's gameplay shape, as Godot holds both. Logs
+// the worst distance between their centers when the client stops.
+class PhysicsCheckLayer final : public Layer {
+  public:
+    explicit PhysicsCheckLayer(const Runic::GodotBridge::GodotLayer &godot)
+        : Layer(kPhysicsCheckLayerName), m_Godot(godot) {}
+
+    void OnUpdate(const Runic::Application::FrameTime &) override {
+        Runic::GodotBridge::PresentedInstance shape;
+        if (!m_Godot.ReadBackInstance(
+                Runic::Core::RenderInstanceId(Runic::Programs::kCapsuleRenderId), shape) ||
+            !m_Godot.ReadBackPhysicsSurface(Runic::RenderData::DebugBatch::WorldDepth,
+                                            Runic::RenderData::DebugPrimitive::Lines, m_Positions,
+                                            m_Colors)) {
+            return;
+        }
+        Runic::Core::Vec3 low(std::numeric_limits<float>::max());
+        Runic::Core::Vec3 high(std::numeric_limits<float>::lowest());
+        bool found = false;
+        for (std::size_t i = 0; i < m_Positions.size(); ++i) {
+            if (m_Colors[i] == Runic::Physics::kCharacterColor) {
+                low = glm::min(low, m_Positions[i]);
+                high = glm::max(high, m_Positions[i]);
+                found = true;
+            }
+        }
+        if (!found) {
+            return;
+        }
+        // The shape's center against the middle of the collision capsule, which Jolt lifts by its
+        // padding.
+        const Runic::Core::Vec3 middle = (low + high) / kHalves;
+        const Runic::Core::Vec3 lifted = shape.position + Runic::Core::Vec3(0.0f, kPaddingM, 0.0f);
+        m_Worst = std::max(m_Worst, glm::length(middle - lifted));
+        ++m_Frames;
+    }
+
+    void OnDetach() override {
+        RUNIC_LOG_INFO("RUNIC: physics check: the capsule's collision lines up with its shape "
+                       "within {:.1f} mm over {} frames",
+                       m_Worst * kMillimetresPerMetre, m_Frames);
+    }
+
+  private:
+    static constexpr const char *kPhysicsCheckLayerName = "engine:physics_check";
+    static constexpr float kHalves = 2.0f;
+    static constexpr float kPaddingM = 0.02f; // Jolt's character padding
+    static constexpr float kMillimetresPerMetre = 1000.0f;
+
+    const Runic::GodotBridge::GodotLayer &m_Godot;
+    std::vector<Runic::Core::Vec3> m_Positions;
+    std::vector<Runic::RenderData::PackedColor> m_Colors;
+    float m_Worst = 0.0f;
+    std::uint64_t m_Frames = 0;
 };
 
 class RunicClientApplication final : public Application {
@@ -163,7 +229,7 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     } else {
         auto walk =
             std::make_unique<Programs::WalkSceneLayer>(runtime, presentation->Camera(), *input);
-        walk->RegisterExtractors(presentation->Extractors());
+        walk->RegisterExtractors(presentation->Extractors(), application->Frames().Meshes());
         scene = std::move(walk);
     }
     presentation->Extractors().Emplace<Client::DebugShapeExtractor>(
@@ -178,8 +244,11 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     application->PushLayer(std::move(input));
     application->PushLayer(std::move(scene));
     application->PushLayer(std::move(presentation));
-    application->PushLayer(
-        std::make_unique<GodotBridge::GodotLayer>(std::move(spec))); // the top layer
+    auto godot = std::make_unique<GodotBridge::GodotLayer>(std::move(spec));
+    if (command.Has(kPhysicsCheckFlag)) {
+        application->PushOverlay(std::make_unique<PhysicsCheckLayer>(*godot));
+    }
+    application->PushLayer(std::move(godot)); // the top layer
     return application;
 }
 

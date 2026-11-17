@@ -77,7 +77,7 @@ constexpr float kNoJumpMps = 0.0f;
 constexpr float kRisingMps = 1.0f;
 
 // The render IDs of what the scene draws as shapes.
-constexpr std::uint64_t kCapsuleId = 1001;
+constexpr std::uint64_t kCapsuleId = kCapsuleRenderId;
 constexpr std::uint64_t kFirstBlockId = kCapsuleId + 1;
 constexpr std::uint64_t kFirstCrateId = kFirstBlockId + kBlockCount;
 
@@ -212,6 +212,29 @@ class TerrainExtractor final : public Client::Extractor {
     const TerrainMesh &m_Mesh;
     const ECS::EntityWorld &m_World;
     ECS::Entity m_Capsule;
+};
+
+// The simulation's physics near the camera, into the frame's physics geometry (PHYS-3's debug view,
+// drawn by GDB-4's layer). It is the physics geometry's one writer: it empties it first.
+class PhysicsGeometryExtractor final : public Client::Extractor {
+  public:
+    PhysicsGeometryExtractor(Simulation::PhysicsBridge &physics,
+                             RenderData::DebugMeshLibrary &meshes)
+        : m_Physics(physics), m_Meshes(meshes) {
+        m_Settings.radiusM = kPhysicsViewRadiusM;
+    }
+
+    void Extract(const Client::ExtractionView &view, RenderData::RenderFrame &frame) override {
+        frame.physics.Clear();
+        m_Physics.World().ExtractDebugGeometry(view.origin, m_Settings, frame.physics, &m_Meshes);
+    }
+
+  private:
+    static constexpr double kPhysicsViewRadiusM = 100.0;
+
+    Simulation::PhysicsBridge &m_Physics;
+    RenderData::DebugMeshLibrary &m_Meshes;
+    Physics::PhysicsDebugSettings m_Settings;
 };
 
 } // namespace
@@ -412,9 +435,12 @@ WalkSceneLayer::WalkSceneLayer(Simulation::SimulationRuntime &runtime, Client::C
 
 WalkSceneLayer::~WalkSceneLayer() = default;
 
-void WalkSceneLayer::RegisterExtractors(Client::ExtractorRegistry &registry) {
+void WalkSceneLayer::RegisterExtractors(Client::ExtractorRegistry &registry,
+                                        RenderData::DebugMeshLibrary &meshes) {
     registry.Emplace<TerrainExtractor>(kTerrainExtractorName, m_State->terrain,
                                        m_State->runtime.Entities(), m_State->capsule);
+    registry.Emplace<PhysicsGeometryExtractor>(kPhysicsGeometryExtractorName,
+                                               *m_State->runtime.FindPhysicsBridge(), meshes);
 }
 
 void WalkSceneLayer::OnDetach() {

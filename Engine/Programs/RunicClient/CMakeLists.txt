@@ -37,6 +37,13 @@ if(RUNIC_ENGINE_BUILD_TESTS)
             "-DCOMMAND=$<TARGET_FILE:RunicClient>|--headless|--quit-after|600|--walk-check"
             "-DEXPECT=RUNIC: walk scene: the capsule walked [1-9][0-9]*\\.[0-9] m on terrain 8602 km from the origin, jumps 1, marks 0, highest [0-9.]+ m, ends on the ground|RUNIC: RunicClient exited cleanly after 600 frames"
             -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
+    # Slice 8: the physics geometry layer draws the simulation's collision (the terrain as one cached mesh) and the
+    # capsule's collision lines up with its gameplay shape in Godot, frame after frame, while it walks.
+    add_test(NAME godot.runic_client_physics_view
+        COMMAND "${CMAKE_COMMAND}"
+            "-DCOMMAND=$<TARGET_FILE:RunicClient>|--headless|--quit-after|300|--walk-check|--physics-check"
+            "-DEXPECT=RUNIC: physics geometry stopped at frame [1-9][0-9]*: [1-9][0-9]* line vertices, [0-9]+ triangle vertices, [1-9][0-9]* mesh instances of 1 cached meshes \\(1 uploads\\)|RUNIC: physics check: the capsule's collision lines up with its shape within [0-9]\\.[0-9] mm over [1-9][0-9]* frames|RUNIC: RunicClient exited cleanly after 300 frames"
+            -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
     set_tests_properties(godot.runic_client_headless godot.runic_client_input godot.runic_client_moving_entities
-        godot.runic_client_walk PROPERTIES LABELS godot TIMEOUT 600)
+        godot.runic_client_walk godot.runic_client_physics_view PROPERTIES LABELS godot TIMEOUT 600)
 endif()

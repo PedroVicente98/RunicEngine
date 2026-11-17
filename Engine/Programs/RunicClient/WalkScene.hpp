@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string_view>
 
@@ -7,6 +8,7 @@
 #include "ExtractorRegistry.hpp"
 #include "InputLayer.hpp"
 #include "Layer.hpp"
+#include "RenderData/DebugMeshes.hpp"
 #include "SimulationRuntime.hpp"
 
 // RunicClient's walk scene (slice 7's runnable result): a capsule walks on static terrain 8,600 km
@@ -23,6 +25,10 @@ namespace Runic::Programs {
 
 inline constexpr std::string_view kWalkSceneLayerName = "engine:walk_scene";
 inline constexpr std::string_view kTerrainExtractorName = "engine:demo_terrain";
+// The capsule's render ID (its gameplay shape in the frame).
+inline constexpr std::uint64_t kCapsuleRenderId = 1001;
+// Slice 8: the simulation's physics as the physics geometry layer draws it (PHYS-3, GDB-4).
+inline constexpr std::string_view kPhysicsGeometryExtractorName = "engine:demo_physics_geometry";
 
 class WalkSceneLayer final : public Application::Layer {
   public:
@@ -34,8 +40,11 @@ class WalkSceneLayer final : public Application::Layer {
     ~WalkSceneLayer() override;
 
     // Registers the terrain extractor (the terrain's triangles and the controls above the
-    // capsule) on the Presentation layer's registry.
-    void RegisterExtractors(Client::ExtractorRegistry &registry);
+    // capsule) and the physics geometry extractor (the bodies and the capsule near the camera, the
+    // terrain as a cached mesh in meshes, the frame stream's library) on the Presentation layer's
+    // registry.
+    void RegisterExtractors(Client::ExtractorRegistry &registry,
+                            RenderData::DebugMeshLibrary &meshes);
 
     // Logs what the capsule did.
     void OnDetach() override;

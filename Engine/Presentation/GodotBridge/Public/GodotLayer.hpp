@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -91,6 +92,18 @@ class GodotLayer final : public Application::Layer {
     bool ReadBackDebugSurface(RenderData::DebugBatch batch, RenderData::DebugPrimitive primitive,
                               std::vector<Core::Vec3> &positions,
                               std::vector<RenderData::PackedColor> &colors) const;
+    // The same for the physics geometry layer (GDB-4), its positions in Godot's space (moved by the
+    // presenter's shift, as the presenter's instances are).
+    bool ReadBackPhysicsSurface(RenderData::DebugBatch batch, RenderData::DebugPrimitive primitive,
+                                std::vector<Core::Vec3> &positions,
+                                std::vector<RenderData::PackedColor> &colors) const;
+    // A cached mesh's instance drawn in the last frame, by its order in the frame (the debug
+    // shapes' instances, then the physics layer's): its mesh and its place in Godot's space. False
+    // past the last one.
+    bool ReadBackMeshInstance(std::size_t index, Core::DebugMeshId &mesh,
+                              Core::Vec3 &position) const;
+    // Whether the physics layer draws on top of everything now ("see what the server sees").
+    bool PhysicsDrawnOnTop() const noexcept;
 
     // Before the layer attaches: add registration hooks here (GodotTools registers the
     // RunicEditor's classes).

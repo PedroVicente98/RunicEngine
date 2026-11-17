@@ -23,7 +23,8 @@ struct GodotLayer::Impl {
     // Created once Godot runs (its RIDs need Godot's bindings), when the spec has frames.
     std::unique_ptr<Detail::DebugLayers> debug;
     std::unique_ptr<Detail::Presenter> presenter;
-    std::array<bool, kDebugLayerCount> debugVisible{true, true, true}; // until debug exists
+    std::array<bool, kDebugLayerCount> debugVisible{true, true, true, true,
+                                                    false}; // until debug exists
     bool headless = false;
 };
 
@@ -73,7 +74,7 @@ Core::Result<void> GodotLayer::OnAttach(Application::LayerContext &context) {
         for (std::size_t i = 0; i < impl.debugVisible.size(); ++i) {
             impl.debug->SetLayerVisible(static_cast<DebugLayer>(i), impl.debugVisible[i]);
         }
-        impl.debug->Create(impl.spec.developmentOverlay);
+        impl.debug->Create(impl.spec.developmentOverlay, &impl.spec.frames->Meshes());
         impl.presenter = std::make_unique<Detail::Presenter>();
         impl.presenter->Create();
     }
@@ -172,6 +173,25 @@ bool GodotLayer::ReadBackDebugSurface(RenderData::DebugBatch batch,
     positions.clear();
     colors.clear();
     return m_Impl->debug != nullptr && m_Impl->debug->ReadBack(batch, primitive, positions, colors);
+}
+
+bool GodotLayer::ReadBackPhysicsSurface(RenderData::DebugBatch batch,
+                                        RenderData::DebugPrimitive primitive,
+                                        std::vector<Core::Vec3> &positions,
+                                        std::vector<RenderData::PackedColor> &colors) const {
+    positions.clear();
+    colors.clear();
+    return m_Impl->debug != nullptr &&
+           m_Impl->debug->ReadBackPhysics(batch, primitive, positions, colors);
+}
+
+bool GodotLayer::ReadBackMeshInstance(std::size_t index, Core::DebugMeshId &mesh,
+                                      Core::Vec3 &position) const {
+    return m_Impl->debug != nullptr && m_Impl->debug->ReadBackMeshInstance(index, mesh, position);
+}
+
+bool GodotLayer::PhysicsDrawnOnTop() const noexcept {
+    return m_Impl->debug != nullptr && m_Impl->debug->PhysicsDrawnOnTop();
 }
 
 } // namespace Runic::GodotBridge
