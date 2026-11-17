@@ -6,7 +6,8 @@ in one place, so the owner can see where the project is heading without mixing t
 
 Each slice was built in the order of the roadmap, package by package, the way the slice pipeline asks (RunicDocs ›
 Building with Claude Code): the contract first (the module's `ARCHITECTURE.md`, its public headers, its acceptance
-tests), then the code, then the checks. Every package is one commit named after it (`CORE-2: …`), and every slice ends
+tests), then the code, then the checks. Every package is one commit named after it (`CORE-2: …`); a RunicGame package (GAME-1) is committed on RunicGame's
+branch of the same name, `preview/slices-3-11`. Every slice ends
 with a commit that adds its note here. If the work stops, it stops after a finished package: the table below says how
 far it got, and the next package in it is where to continue.
 
@@ -17,7 +18,7 @@ far it got, and the next package in it is where to continue.
 | 3 · Fixed-step clock | CORE-2, CORE-8, SIM-1 | **Done** | [slice-03-fixed-step-clock.md](slice-03-fixed-step-clock.md) |
 | 4 · ECS and world coordinates | ECS-1, EVT-1, ECS-2, WORLD-1 | **Done** | [slice-04-ecs-and-world-coordinates.md](slice-04-ecs-and-world-coordinates.md) |
 | 5 · Moving entities | SIM-2, CLI-1, GDB-3 (and a Core addition) | **Done** | [slice-05-moving-entities.md](slice-05-moving-entities.md) |
-| 6 · Editor shell | GDT-2, GAME-1 | Not started | |
+| 6 · Editor shell | GDT-2, GAME-1 (RunicGame, same branch name) | **Done** | [slice-06-editor-shell.md](slice-06-editor-shell.md) |
 | 7 · Physics | PHYS-1, PHYS-2, SIM-8, CLI-2 | Not started | |
 | 8 · Physics view | PHYS-3, GDB-4, GDT-3 | Not started | |
 | 9 · First cooker proof | CNT-1, ASSET-1, COOK-1, GDT-4 | Not started | |

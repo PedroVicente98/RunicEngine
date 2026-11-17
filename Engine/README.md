@@ -24,8 +24,8 @@ umbrella target); it has no code of its own.
 Modules with code: Core (CORE-1, CORE-3; CORE-2 and CORE-8 from slice 3; shape instances from slice 5) and Application
 (APP-1), from slice 1; Simulation (SIM-1, slice 3; SIM-2, slice 5); Events (EVT-1), ECS (ECS-1, ECS-2) and World
 (WORLD-1), from slice 4; Client (CLI-1, slice 5); GodotBridge (the slice 0 LibGodot host, GDB-1's GodotLayer, GDB-2's
-debug view, GDB-3's presenter) and GodotTools (the GDT-1 test plugin). Programs with code: RunicEditor (slice 0, on the
-entry point since GDB-1), RunicServer (APP-1, with the Simulation layer since SIM-1) and RunicClient (GDB-1; slice 5's
+debug view, GDB-3's presenter) and GodotTools (GDT-2's project model, editor plugin and world dock, slice 6). Programs with code: RunicEditor (slice 0, on the
+entry point since GDB-1, with a local world since GDT-2), RunicServer (APP-1, with the Simulation layer since SIM-1) and RunicClient (GDB-1; slice 5's
 moving entities). The other groups, modules and programs are only on the `layout` branch so far.
 
 ## The shape of a module
