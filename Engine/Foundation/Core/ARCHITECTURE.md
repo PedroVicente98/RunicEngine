@@ -9,7 +9,8 @@ UI (RenderData in Core); Debug drawing (Engine). Status: **CORE-1 implemented** 
 the RenderData headers, `Source/RenderData/` and their acceptance tests, which pass with GCC (and under
 ThreadSanitizer for the frame exchange); awaiting the verify step. **CORE-2 implemented** (slice 3, on the preview
 branch `preview/slices-3-11`): the worker pool, the metrics and debug-stream registries, the per-tick arena and the
-per-worker buffers, with their acceptance tests. The folder map
+per-worker buffers, with their acceptance tests. **CORE-8 implemented** (slice 3, same branch): process
+configuration, with its acceptance tests. The folder map
 is [README.md](README.md); the slice briefs are [RunicEngine#144](https://github.com/PedroVicente98/RunicEngine/issues/144)
 (slice 1) and [RunicEngine#145](https://github.com/PedroVicente98/RunicEngine/issues/145) (slice 2), the plans
 [RunicEngine#9](https://github.com/PedroVicente98/RunicEngine/issues/9) (CORE-1) and
@@ -24,8 +25,9 @@ math types on GLM, the 64-bit world-space types and their type rule, fixed-capac
 not allocate, and RenderData: the plain frame the client extracts and only GodotBridge reads, starting with debug
 geometry and the debug-draw API (CORE-3). CORE-2 adds what a simulation runs on: the worker pool that owns every
 simulation thread, the metrics registry and the debug-stream registry a process records into, and the per-tick arenas
-and per-worker buffers its phases write into. Later packages add more RenderData kinds (CORE-4 to CORE-7) and process
-configuration (CORE-8).
+and per-worker buffers its phases write into. CORE-8 adds process configuration: the typed settings a process reads
+once at start from its defaults, a file, the environment and the command line. Later packages add more RenderData
+kinds (CORE-4 to CORE-7).
 
 ## Public API
 
@@ -48,6 +50,7 @@ included by their path under `Public/` (`#include "WorldSpace.hpp"`, `#include "
 | `PerWorker.hpp` | `PerWorker<T>` (one `T` per worker slot, each on its own cache lines), `kCacheLineBytes` | CORE-2 |
 | `TickArena.hpp` | `TickArena` (`Allocate`, `AllocateArray`, `Create`, `Reset`, `UsedBytes`, `ReservedBytes`, `BlockCount`), `kDefaultArenaBlockBytes` | CORE-2 |
 | `MetricsRegistry.hpp` | `MetricKind`, `MetricDescription` (name, clock-domain label, help), `kNoMetricDomain`, `CounterId`, `GaugeId`, `TimingId`, `TimingSnapshot` (`Mean`, `Percentile`), `MetricSnapshot`, `MetricsRegistry` (`AddCounter`, `AddGauge`, `AddTiming`, `Increment`, `Add`, `Set`, `Record`, `Count`, `Capacity`, `Read`), `ScopedTiming`, `kDefaultMetricCapacity`, `kTimingBuckets`, `kFirstTimingBucket`, `TimingBucketLimit` | CORE-2 |
+| `ProcessConfig.hpp` | `ConfigSource`, `ConfigSourceName`, `SettingKind`, `BoolSetting`, `IntSetting`, `TextSetting`, `IntRange`, `ConfigProblem`, `ConfigInputs`, `SettingInfo`, `ProcessConfig` (`DeclareBool`, `DeclareInt`, `DeclareText`, `Load`, `LoadForProcess`, `IsLoaded`, `Problems`, `Get`, `SourceOf`, `Count`, `Describe`, `EnvironmentName`), `kConfigFileFlag` (`--config`), `kConfigSetFlag` (`--set`), `kConfigEnvironmentPrefix` (`RUNIC_CFG_`), `kConfigTrue`, `kConfigFalse` | CORE-8 |
 | `DebugStreamRegistry.hpp` | `DebugStreamSpec`, `DebugStreamId`, `DebugRecordRead`, `DebugStreamInfo`, `DebugStreamRegistry` (`Add`, `SetEnabled`, `IsEnabled`, `Publish`, `Read`, `Count`, `IdAt`, `Find`, `Describe`), `kFirstDebugRecord`, `kDefaultDebugStreamCapacity`, `kDefaultDebugStreamBytes` | CORE-2 |
 
 RenderData (`Public/RenderData/`, namespace `Runic::RenderData`): plain data, no Flecs, Jolt or Godot types, and
@@ -88,6 +91,10 @@ under `kMaxLocalOffsetM` (10 km, where the float step is about 1 mm).
 - The form of a metric (a counter, a gauge or a timing with a histogram, labelled with a clock domain) and of a debug
   stream (records of bytes with a sequence number, kept in a ring), and that recording never allocates.
 - The per-tick arena's promise: `Reset` returns nothing to the system.
+- How a process is configured: the order of precedence (default, file, environment, command line), the file's format
+  (`key = value` lines, `#` comment lines), the environment's names (`RUNIC_CFG_` and the key in upper case with `_`
+  for `.`), the command line's flags (`--set key=value`, `--config <path>`), how a value of each kind is written, and
+  that every problem is reported with its source, all at once.
 
 ## Does not own
 
@@ -106,8 +113,12 @@ under `kMaxLocalOffsetM` (10 km, where the float step is about 1 mm).
   layer, NET-7): Core only keeps what was recorded and lets them read it.
 - What runs on the pool and in which order: phases and their merges are Runic::Simulation (SIM-2, SIM-3); Jolt's job
   system is adapted in Runic::Physics (PHYS-4). The worker count is a setting the program reads (CORE-8, SIM-1).
-- Everything of the later Core packages: the RenderData kinds of CORE-4 to CORE-7 and cached debug meshes (slice 8),
-  process configuration (CORE-8).
+- Which settings exist: each module declares its own through a function the program calls before it loads the
+  configuration (the Simulation's worker count, SIM-1). What a program does when the configuration has a problem (it
+  logs the error and stops) is the program's.
+- The rest of the command line: flags such as `--quit-after` are Runic::Application's `CommandLine`; the configuration
+  reads only `--set` and `--config` and leaves every other argument alone.
+- Everything of the later Core packages: the RenderData kinds of CORE-4 to CORE-7 and cached debug meshes (slice 8).
 
 ## Allowed dependencies
 
@@ -117,7 +128,8 @@ the platform's thread library where it is a separate one (`Threads::Threads`, PU
 ## Forbidden dependencies
 
 Every Runic module (Core is the bottom of the Engine); every other third-party library; Godot and platform SDKs; any
-I/O except the default log sink's writes to stderr.
+I/O except the default log sink's writes to stderr and `ProcessConfig::LoadForProcess`, which reads the configuration
+file and the process's environment once, at start.
 
 ## Threading and tick model
 
@@ -140,6 +152,9 @@ I/O except the default log sink's writes to stderr.
 - `MetricsRegistry` and `DebugStreamRegistry`: registration is thread-safe and happens at start (it allocates).
   Recording a metric is lock-free from any thread. Publishing to a debug stream takes that stream's short lock, and
   only when the stream is enabled: a disabled stream costs one atomic load. Reading is thread-safe.
+- `ProcessConfig`: settings are declared and loaded at start, on one thread, before anything reads them; after
+  `Load` it never changes, so every thread may read it. `LoadForProcess` reads a file: it runs at start, never in a
+  tick.
 - Nothing in Core blocks outside a barrier, and nothing allocates on a hot path: a log line is formatted into a stack
   buffer of `kMaxLogLineBytes`, the fixed containers store their elements inline, `DebugGeometry` allocates its arrays
   once, at construction, the pool's queue and the registries' slots are allocated at construction, and an arena keeps
@@ -153,7 +168,8 @@ the writer owns the frame `WriteFrame` returned until it publishes it, and the r
 until its next call. A `WorkerPool` owns its threads and its queue; a job's `user` data and its `JobGroup` belong to
 whoever submitted it, and stay alive until the group has been waited for. A registry owns its slots and a copy of
 every name and help text; the program owns the registries and hands them to what records into them (they are objects,
-not globals). An arena owns its blocks; what it hands out is valid until its next `Reset`, and no destructor runs.
+not globals). A `ProcessConfig` owns its settings' keys, help texts and values; the program owns it and passes it,
+or the values read from it, to what it builds. An arena owns its blocks; what it hands out is valid until its next `Reset`, and no destructor runs.
 
 ## Integration points
 
@@ -167,6 +183,9 @@ not globals). An arena owns its blocks; what it hands out is valid until its nex
 - Modules register their metrics and debug streams in the registries the program gives them. The Platform's exporter
   walks `MetricsRegistry::Count` and `Read` (PBND-3); the Diagnostics layer enables streams and reads them with a
   cursor per reader (NET-7).
+- A program builds one `ProcessConfig`, lets each module it composes declare its settings, calls `LoadForProcess`
+  with its command line and stops with the error if it fails (RunicServer, SIM-1). The Platform's server bindings and
+  the Game's programs declare theirs the same way.
 - Every other module uses the types directly.
 
 ## Where the code lives
@@ -182,6 +201,13 @@ not globals). An arena owns its blocks; what it hands out is valid until its nex
   header-only.
 - CORE-2's code: `Source/WorkerPool/` (the pool), `Source/Memory/` (`TickArena`), `Source/Metrics/` and
   `Source/DebugStreams/` (the registries). `PerWorker` and the template part of `ParallelFor` are header-only.
+- CORE-8's code: `Source/Config/ProcessConfig.cpp`. `Load` is pure (it reads only its inputs), which is what the
+  tests use; `LoadForProcess` gathers the file's text and the `RUNIC_CFG_` variables and calls it.
+- Formats the tests rely on: a problem is `<source>: <message>`, where the source is `<file>:<line>`,
+  `environment <NAME>` or `command line --set <key>=<value>`; `Load`'s error is `<n> configuration problem(s)` followed
+  by one indented problem per line. A Bool is `true` or `false`; an Int is decimal with an optional sign; a Text is
+  the rest of the line without the blanks around it (in the file) or the value as given (elsewhere). A key set twice
+  in the file is a problem; on the command line the last `--set` wins.
 - The pool: one fixed ring of jobs under one mutex and one condition variable, signalled when a job is queued, when a
   group finishes and when the pool stops. `ParallelFor` submits one runner per worker (at most one per chunk); the
   runners claim chunk numbers from one atomic counter, so the chunks depend on the count and the chunk size only.
@@ -204,7 +230,7 @@ not globals). An arena owns its blocks; what it hands out is valid until its nex
 | CORE-2 | Worker pool, metrics registry, debug-stream registry, per-tick arenas and per-worker buffers | Jobs run on the pool; metrics are recorded per tick domain; a per-tick arena resets without returning memory to the system | **Implemented** (slice 3, preview branch): `RunicCoreTests` passes with the 40 CORE-2 tests below, with GCC, with clang and warnings as errors, and under ThreadSanitizer, AddressSanitizer and UBSan; awaiting the owner's review |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | **Implemented** (slice 2): `RunicCoreTests` passes with the 23 CORE-3 tests below; decisions D1–D3, D5 and D6 in RunicEngine#145; awaiting the verify step |
 | CORE-4 to CORE-7 | RenderData kinds: scene, world state, water and fields, effects | See RunicDocs › Modules, work packages | Not started (slices 22, 25a, 42a, 44+) |
-| CORE-8 | Process configuration | A setting resolves from each source in precedence order; an unknown key or a bad value is reported with its source | Not started (slice 3) |
+| CORE-8 | Process configuration | A setting resolves from each source in precedence order; an unknown key or a bad value is reported with its source | **Implemented** (slice 3, preview branch): `RunicCoreTests` passes with the 17 CORE-8 tests below (13 where asserts are compiled out); three decisions await the owner (file format, the `RUNIC_CFG_` prefix, `--set`), listed in the slice brief; awaiting the owner's review |
 
 CORE-1's acceptance tests (`RunicCoreTests`): `PlainIds.*`, `Result.*`, `Assert.*`, `Log.*`, `LogDefaultSink.*`,
 `Time.*`, `WorldSpace.*` and `FixedContainers.*`, plus the `*DeathTest.*` suites that run where asserts are on; the
@@ -222,8 +248,17 @@ storage; a reset tick allocates nothing and returns nothing; an oversized reques
 clock domain; percentiles; several threads; no allocation; a full registry) and `DebugStreamRegistry.*` (a disabled
 stream keeps nothing; two readers; a full ring; several publishing threads; no allocation).
 
+CORE-8's acceptance tests: `ProcessConfig.*` (defaults; each source wins over the ones before it; every kind from
+every source; the file's format; an unknown key and a bad value reported with their source, all at once; malformed
+lines and flags; `Describe`), `ProcessConfigFile.*` (the running process: the file `--config` names, the environment,
+an unreadable file) and `ProcessConfigDeathTest.*` (declaring twice, after the load, a bad key, a default outside its
+range).
+
 ## Future extensions
 
+- More setting kinds (a decimal number, a duration, a list), each with the package that first needs it.
+- Reloading a development flag while the process runs, if a tool needs it; today the configuration is read once.
+- A listing of every setting with its help (`--help`), built on `Count` and `Describe`.
 - Changing a pool's worker count at a safe point between ticks (RunicDocs › Threading model), when a process resizes
   its CPU allotment; today the count is fixed when the pool is built.
 - A lock-free or work-stealing queue, if the queue's mutex shows in a profile (slice 38, battle scale).
