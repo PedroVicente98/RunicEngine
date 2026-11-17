@@ -22,10 +22,10 @@ umbrella target); it has no code of its own.
 | [Programs](Programs/README.md) | RunicEditor 0 · RunicServer 1 · RunicClient 1 · RunicBot 38 — executables, not modules |
 
 Modules with code: Core (CORE-1, CORE-3; CORE-2 and CORE-8 from slice 3) and Application (APP-1), from slice 1;
-Simulation (SIM-1, slice 3); GodotBridge (the slice 0 LibGodot host and GDB-1's GodotLayer) and GodotTools (the GDT-1
-test plugin). Programs with code: RunicEditor (slice 0, on the entry point since GDB-1), RunicServer (APP-1, with the
-Simulation layer since SIM-1) and RunicClient (GDB-1). The other groups, modules and programs are only on the `layout`
-branch so far.
+Simulation (SIM-1, slice 3); Events (EVT-1), ECS (ECS-1, ECS-2) and World (WORLD-1), from slice 4; GodotBridge (the
+slice 0 LibGodot host and GDB-1's GodotLayer) and GodotTools (the GDT-1 test plugin). Programs with code: RunicEditor
+(slice 0, on the entry point since GDB-1), RunicServer (APP-1, with the Simulation layer since SIM-1) and RunicClient
+(GDB-1). The other groups, modules and programs are only on the `layout` branch so far.
 
 ## The shape of a module
 
