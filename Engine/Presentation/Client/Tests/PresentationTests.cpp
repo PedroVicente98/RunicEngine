@@ -21,7 +21,7 @@ using Core::WorldPosition;
 
 namespace {
 
-const RenderData::RenderFrameCapacity kSmallFrame{{}, 64};
+const RenderData::RenderFrameCapacity kSmallFrame{{}, 64, {}};
 const Vec3 kLookForward(0.0f, 0.0f, -1.0f); // a Godot camera looks down its -Z
 
 Vec3 ForwardOf(const RenderData::Camera &camera) { return camera.rotation * kLookForward; }

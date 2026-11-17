@@ -34,7 +34,7 @@ class Recorder final : public Extractor {
     std::string m_Name;
 };
 
-const RenderData::RenderFrameCapacity kSmallFrame{{}, 64};
+const RenderData::RenderFrameCapacity kSmallFrame{{}, 64, {}};
 
 ExtractionView ViewFrom(WorldPosition camera, float drawDistanceM = 100.0f) {
     ExtractionView view;
