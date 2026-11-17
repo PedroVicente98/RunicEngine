@@ -2,7 +2,7 @@
 
 **Runnable result:** the scheduler runs 60/30/20/10 Hz on the server loop with metrics.
 **Packages:** CORE-2, CORE-8 (Runic::Core), SIM-1 (Runic::Simulation, with the RunicServer program).
-**Status:** done on the preview branch; 85 new tests, 211 in the headless build, all passing.
+**Status:** done on the preview branch; 85 new tests and 2 new program tests, 211 in the headless build, all passing.
 
 ```sh
 cmake --preset headless && cmake --build --preset headless && ctest --preset headless

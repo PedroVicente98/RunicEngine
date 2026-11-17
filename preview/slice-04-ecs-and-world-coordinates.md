@@ -2,7 +2,7 @@
 
 **Runnable result:** entities with 64-bit positions are created and queried.
 **Packages:** ECS-1, ECS-2 (Runic::ECS), EVT-1 (Runic::Events), WORLD-1 (Runic::World).
-**Status:** done on the preview branch; 93 new tests and 3 new build tests, 287 in the headless build, all passing.
+**Status:** done on the preview branch; 73 new tests and 3 new build tests, 287 in the headless build, all passing.
 
 ```sh
 cmake --preset headless && cmake --build --preset headless && ctest --preset headless
