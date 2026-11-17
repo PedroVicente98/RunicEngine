@@ -19,7 +19,7 @@ far it got, and the next package in it is where to continue.
 | 4 · ECS and world coordinates | ECS-1, EVT-1, ECS-2, WORLD-1 | **Done** | [slice-04-ecs-and-world-coordinates.md](slice-04-ecs-and-world-coordinates.md) |
 | 5 · Moving entities | SIM-2, CLI-1, GDB-3 (and a Core addition) | **Done** | [slice-05-moving-entities.md](slice-05-moving-entities.md) |
 | 6 · Editor shell | GDT-2, GAME-1 (RunicGame, same branch name) | **Done** | [slice-06-editor-shell.md](slice-06-editor-shell.md) |
-| 7 · Physics | PHYS-1, PHYS-2, SIM-8, CLI-2 | Not started | |
+| 7 · Physics | PHYS-1, PHYS-2, SIM-8, CLI-2 (and fixes to PHYS-1 and GDT-2) | **Done** | [slice-07-physics.md](slice-07-physics.md) |
 | 8 · Physics view | PHYS-3, GDB-4, GDT-3 | Not started | |
 | 9 · First cooker proof | CNT-1, ASSET-1, COOK-1, GDT-4 | Not started | |
 | 10 · Worker pool | PHYS-4, SIM-3 | Not started | |

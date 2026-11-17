@@ -136,7 +136,8 @@ The dock's Godot side (rebuilding two trees) was not measured; at 500 rows it is
   marker bases or docks, the Engine will need position-independent builds or a shared SDK, and two copies of Engine
   state (the editor's and the library's) must be thought about.
 - **Godot behavior worth knowing:** loading an extension queues a regeneration of its documentation; an editor shut
-  down in the same moment crashes in that deferred call. The tests let the editor run one more second.
+  down in the same moment crashes in that deferred call. The tests let the editor run one more second (not enough under
+  load: slice 7 made them wait for Godot's help thread first; see its note).
 - RunicGame has no `slice/1` branch, so its preview branch was cut from `main`. **RunicGame's `main` still links the
   transitional `Runic::Runtime` bundle**, which the Engine removed in slice 1 (decision D1, "once RunicGame's
   executables linked per-module targets (GAME-0)"); GAME-0 is not on RunicGame's `main`. So RunicGame's server and
