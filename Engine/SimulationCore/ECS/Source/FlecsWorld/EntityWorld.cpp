@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "FlecsWorld/WorldAccess.hpp"
 #include "Registration/ComponentNames.hpp"
 
 namespace Runic::ECS {
@@ -93,8 +94,13 @@ struct EntityWorld::State {
         RUNIC_ASSERT(deferDepth > 0);
         if (--deferDepth == 0) {
             ecs_merge(stage);
+            ++applied;
         }
     }
+
+    // How many times held-back changes have been applied: the state storage uses it to know
+    // that what it was holding back is in the world now.
+    std::uint64_t applied = 0;
 
     std::vector<std::uint64_t> componentIds; // by Detail::TypeIndexOf
     std::vector<ComponentRecord> components; // in registration order
@@ -337,5 +343,19 @@ ArchetypeId EntityWorld::ArchetypeOf(Entity entity) const noexcept {
 }
 
 void *EntityWorld::NativeWorldHandle() const noexcept { return m_State->world; }
+
+namespace Detail {
+
+ecs_world_t *WorldAccess::World(const EntityWorld &world) noexcept { return world.m_State->world; }
+
+ecs_world_t *WorldAccess::Target(const EntityWorld &world) noexcept {
+    return world.m_State->Target();
+}
+
+std::uint64_t WorldAccess::AppliedCount(const EntityWorld &world) noexcept {
+    return world.m_State->applied;
+}
+
+} // namespace Detail
 
 } // namespace Runic::ECS

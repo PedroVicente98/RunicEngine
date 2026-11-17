@@ -29,6 +29,10 @@
 
 namespace Runic::ECS {
 
+namespace Detail {
+struct WorldAccess; // how the rest of this module reaches the library behind a world
+} // namespace Detail
+
 // Which set of components an entity has, as an opaque value: two entities with the same value are
 // stored together. It changes when a component is added or removed, and tests and tools use it
 // to see that an operation did not move an entity.
@@ -163,6 +167,7 @@ class EntityWorld {
 
   private:
     template <class... Ts> friend class EntityQuery;
+    friend struct Detail::WorldAccess;
 
     static constexpr std::uint64_t kNoComponent = 0;
 
