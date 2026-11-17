@@ -96,7 +96,8 @@ void ContactBuffer::ForgetOwner(JPH::BodyID body) {
 }
 
 WorldState::WorldState(const PhysicsWorldSpec &spec)
-    : layers(spec.layers), scratch(spec.stepScratchBytes), jobs(kMaxPhysicsJobs) {
+    : layers(spec.layers), scratch(spec.stepScratchBytes), jobs(kMaxPhysicsJobs),
+      characters(layers.Table()) {
     system.Init(spec.maxBodies, kDefaultBodyMutexes, spec.maxBodyPairs, spec.maxContactConstraints,
                 layers, layers, layers);
     system.SetGravity(ToJolt(spec.gravity));
@@ -175,10 +176,6 @@ JPH::EMotionType MotionOf(MotionType motion) {
 
 } // namespace Detail
 
-struct PhysicsWorld::State : Detail::WorldState {
-    using WorldState::WorldState;
-};
-
 PhysicsWorld::PhysicsWorld(const PhysicsWorldSpec &spec) : m_State(std::make_unique<State>(spec)) {
     RUNIC_ASSERT_MSG(spec.layers.Count() > 0, "a PhysicsWorld needs collision layers");
 }
@@ -232,10 +229,10 @@ void PhysicsWorld::CreateBodies(std::span<const BodyDesc> descs, std::span<BodyH
                          "a body names a shape the world does not have");
         RUNIC_ASSERT_MSG(desc.layer.IsValid() && desc.layer.Value() <= state.layers.Table().Count(),
                          "a body names a collision layer the world does not have");
-        JPH::BodyCreationSettings settings(state.shapes[desc.shape.Value() - 1u].shape,
-                                           Detail::ToJolt(desc.pose.position),
-                                           Detail::ToJolt(desc.pose.rotation),
-                                           Detail::MotionOf(desc.motion), Detail::ToJolt(desc.layer));
+        JPH::BodyCreationSettings settings(
+            state.shapes[desc.shape.Value() - 1u].shape, Detail::ToJolt(desc.pose.position),
+            Detail::ToJolt(desc.pose.rotation), Detail::MotionOf(desc.motion),
+            Detail::ToJolt(desc.layer));
         settings.mLinearVelocity = Detail::ToJolt(desc.linearVelocity);
         settings.mFriction = desc.friction;
         settings.mRestitution = desc.restitution;
@@ -329,6 +326,9 @@ void PhysicsWorld::Step(float dtSeconds) {
     const int collisionSteps =
         std::max(Detail::kMinCollisionSteps,
                  static_cast<int>(std::lround(dtSeconds * Detail::kCollisionStepsPerSecond)));
+    // Characters first, at the bodies' poses and velocities of this step's start: a platform's
+    // velocity carries whoever stands on it before the platform moves.
+    state.characters.Update(dtSeconds, state.system, state.scratch);
     state.system.Update(dtSeconds, collisionSteps, &state.scratch, &state.jobs);
     ++state.steps;
     for (const JPH::BodyID removed : state.removedSinceStep) {
@@ -344,6 +344,7 @@ PhysicsStats PhysicsWorld::Stats() const {
     stats.bodies = m_State->system.GetNumBodies();
     stats.activeBodies = m_State->system.GetNumActiveBodies(JPH::EBodyType::RigidBody);
     stats.shapes = static_cast<std::uint32_t>(m_State->shapes.size());
+    stats.characters = m_State->characters.Count();
     stats.steps = m_State->steps;
     return stats;
 }

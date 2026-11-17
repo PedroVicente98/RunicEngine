@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "Characters/CharacterSet.hpp"
 #include "CollisionLayers/JoltLayers.hpp"
 #include "PhysicsWorld.hpp"
 #include "PhysicsWorld/JoltRuntime.hpp"
@@ -82,6 +83,7 @@ struct WorldState {
     JPH::JobSystemSingleThreaded jobs;
     ContactBuffer contacts;
     JPH::PhysicsSystem system;
+    CharacterSet characters;        // after the system its characters belong to
     std::vector<NamedShape> shapes; // ShapeId n is shapes[n - 1]
     // Bodies removed since the last step: their owners are kept for the contacts that end in the
     // next step.
@@ -90,3 +92,13 @@ struct WorldState {
 };
 
 } // namespace Runic::Physics::Detail
+
+namespace Runic::Physics {
+
+// The PhysicsWorld's private state, defined here so every file of the module that implements the
+// world (PhysicsWorld/, Characters/) reaches it.
+struct PhysicsWorld::State : Detail::WorldState {
+    using WorldState::WorldState;
+};
+
+} // namespace Runic::Physics
