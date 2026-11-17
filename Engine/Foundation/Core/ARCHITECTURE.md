@@ -10,12 +10,15 @@ the RenderData headers, `Source/RenderData/` and their acceptance tests, which p
 ThreadSanitizer for the frame exchange); awaiting the verify step. **CORE-2 implemented** (slice 3, on the preview
 branch `preview/slices-3-11`): the worker pool, the metrics and debug-stream registries, the per-tick arena and the
 per-worker buffers, with their acceptance tests. **CORE-8 implemented** (slice 3, same branch): process
-configuration, with its acceptance tests. The folder map
+configuration, with its acceptance tests. **Shape instances added** (slice 5, same branch; an interface addition the
+plan does not list, awaiting the owner): `RenderInstanceId` and the RenderFrame's shape instances, which GDB-3's
+presenter keeps between frames. The folder map
 is [README.md](README.md); the slice briefs are [RunicEngine#144](https://github.com/PedroVicente98/RunicEngine/issues/144)
 (slice 1) and [RunicEngine#145](https://github.com/PedroVicente98/RunicEngine/issues/145) (slice 2), the plans
 [RunicEngine#9](https://github.com/PedroVicente98/RunicEngine/issues/9) (CORE-1) and
 [RunicEngine#18](https://github.com/PedroVicente98/RunicEngine/issues/18) (CORE-3). Slice 3's brief and walkthrough
-are [preview/slice-03-fixed-step-clock.md](../../../preview/slice-03-fixed-step-clock.md).
+are [preview/slice-03-fixed-step-clock.md](../../../preview/slice-03-fixed-step-clock.md); slice 5's, which explains the
+addition, are [preview/slice-05-moving-entities.md](../../../preview/slice-05-moving-entities.md).
 
 ## Purpose
 
@@ -37,7 +40,7 @@ included by their path under `Public/` (`#include "WorldSpace.hpp"`, `#include "
 
 | Header | Holds | Since |
 | --- | --- | --- |
-| `PlainIds.hpp` | `Id<Tag, Rep>` (a distinct type per kind, explicit from its integer, `kInvalidValue` (0) invalid, ordered, hashable); 64-bit `GlobalEntityId`, `GlobalPlayerId`, `AssetId`; 32-bit `SimulationId`, `WorldId`, `InstanceId`, `WaterBodyId`, `FieldId`, `WidgetId`; the counters `TickId` (64-bit, from `kFirstTick`) and `AuthorityEpoch` (32-bit, from `kFirstEpoch`) | CORE-1 |
+| `PlainIds.hpp` | `Id<Tag, Rep>` (a distinct type per kind, explicit from its integer, `kInvalidValue` (0) invalid, ordered, hashable); 64-bit `GlobalEntityId`, `GlobalPlayerId`, `AssetId`; 32-bit `SimulationId`, `WorldId`, `InstanceId`, `WaterBodyId`, `FieldId`, `WidgetId`; 64-bit `RenderInstanceId` (slice 5 addition); the counters `TickId` (64-bit, from `kFirstTick`) and `AuthorityEpoch` (32-bit, from `kFirstEpoch`) | CORE-1 |
 | `Result.hpp` | `Error` (a message), `Fail`, `Result<T>`, `Result<void>` | CORE-1 |
 | `Assert.hpp` | `RUNIC_ASSERT`, `RUNIC_ASSERT_MSG`, `RUNIC_ASSERTS_ENABLED`; `AssertFailure`, `AssertHandler`, `SetAssertHandler`, `FailAssert` | CORE-1 |
 | `Log.hpp` | `LogLevel`, `LogRecord`, `LogSink`, `SetLogSink`, `SetMinimumLogLevel`, `MinimumLogLevel`, `IsLogLevelEnabled`, `WriteLog`, `Log`, `kMaxLogLineBytes`, `LogLevelName` and the names in `LogLevelNames`, the `RUNIC_LOG_*` macros | CORE-1 |
@@ -64,6 +67,7 @@ camera-relative floats under one 64-bit origin per frame.
 | `RenderData/DebugDraw.hpp` | `DebugDraw` (line, ray, arrow, AABB, OBB, circle, sphere, cylinder, capsule, cone, arc sector, arc volume, XZ grid, text, filled triangle) and each shape's cost: the `kMin*Segments`, the part counts (`kNoLines` for a shape with no size) and the `*Lines` functions; `kNoInnerRadius` and `kGridHeightM` | CORE-3 |
 | `RenderData/RenderFrame.hpp` | `RenderFrame` (number, 64-bit origin, camera, debug geometry) | CORE-3 |
 | `RenderData/RenderFrameExchange.hpp` | `RenderFrameExchange` (`WriteFrame`, `Publish`, `ReadNewest`, `PublishedFrames`) | CORE-3 |
+| `RenderData/ShapeInstances.hpp` | `ShapeKind` (`Box`, `Sphere`, `Capsule`, `Cylinder`), `ShapeInstance` (ID, kind, color, position relative to the origin, rotation, size), `ShapeInstanceList` (the instances, their revision and base revision, whether the layout changed, the indices that changed, the dropped count), `ShapeInstanceWriter` (`Begin`, `Add` at a world position, `End`), `kDefaultShapeInstanceCapacity` (65,536); `RenderFrame::shapes`, `RenderFrameCapacity` and the exchange's constructor from it; `Core::RenderInstanceId` in `PlainIds.hpp` | slice 5 addition |
 
 **Public exception (approved):** GLM types appear in `Math.hpp` and `WorldSpace.hpp` as the Engine's math vocabulary
 (RunicDocs › Modules, work packages and the implementation contract › Module contract). GLM is a PUBLIC dependency, and
@@ -86,6 +90,9 @@ under `kMaxLocalOffsetM` (10 km, where the float step is about 1 mm).
   the layout Godot uploads (3 floats per position, colors as the bytes R, G, B, A), and the hand-over of frames from
   one thread to another without a lock.
 - The debug-draw API: how each shape becomes lines and triangles, and what it costs.
+- Shape instances (slice 5): what makes a shape changed (its place in the world, rotation, size, color or kind, never
+  a new frame origin), and the revision rule: equal revisions mean the same shapes in the same places, and a list's
+  `Changed()` is complete only for a reader that applied its base revision.
 - The worker pool: the only threads the Engine creates for simulation work, the worker slots (two jobs that run at the
   same time never share one) and the barrier. A pool of one worker creates no thread.
 - The form of a metric (a counter, a gauge or a timing with a histogram, labelled with a clock domain) and of a debug
@@ -196,7 +203,7 @@ or the values read from it, to what it builds. An arena owns its blocks; what it
 - Everything else is defined in `Source/<Subsystem>/`: `Errors/` (`FailAssert`, `SetAssertHandler`), `Logging/` (the
   sink, the level, `LogLevelName`, `WriteLog`, `Detail::WriteFormattedLog`), `Time/` (`MonotonicNow`, `ToSeconds`,
   `FromSeconds`, `TickRate::TimeOfTick`, `TickRate::TicksIn`), `Math/` (`ToLocal`) and `RenderData/` (`DebugGeometry`'s
-  construction and adds, `DebugDraw`'s shapes, `RenderFrameExchange`). `Ids/` and `Memory/` have no folder yet: those
+  construction and adds, `DebugDraw`'s shapes, `RenderFrameExchange`, and from slice 5 `ShapeInstances.cpp`). `Ids/` and `Memory/` have no folder yet: those
   subsystems are header-only so far. In RenderData, `Color`, `Camera`, `RenderFrame` and the line-count functions are
   header-only.
 - CORE-2's code: `Source/WorkerPool/` (the pool), `Source/Memory/` (`TickArena`), `Source/Metrics/` and
@@ -215,6 +222,10 @@ or the values read from it, to what it builds. An arena owns its blocks; what it
   8.4 s; `Percentile` returns the limit of the bucket that holds the rank asked for, never above the maximum.
 - A debug stream stores each record as a 32-bit size and its bytes in a ring; a full ring drops its oldest records,
   and a reader whose cursor is older learns how many it missed.
+- Shape instances: the writer keeps the shapes of the list it ended last, in world terms, and compares each `Add`
+  with the shape at the same index: another ID there (or a different count at `End`) is a new layout, otherwise a
+  difference is a change at that index. A list's revision goes up by one when anything changed and stays when nothing
+  did. Both arrays and the list's storage are reserved when they are made, so writing allocates nothing.
 - The frame exchange: three slots; the writer's and the reader's are their own, and one atomic byte holds the third
   slot's index and whether it holds a frame the reader has not taken.
 - Formats the tests rely on: the default sink writes `<Level>: <message>` and a newline to stderr; `FailAssert` logs
@@ -230,6 +241,7 @@ or the values read from it, to what it builds. An arena owns its blocks; what it
 | CORE-2 | Worker pool, metrics registry, debug-stream registry, per-tick arenas and per-worker buffers | Jobs run on the pool; metrics are recorded per tick domain; a per-tick arena resets without returning memory to the system | **Implemented** (slice 3, preview branch): `RunicCoreTests` passes with the 40 CORE-2 tests below, with GCC, with clang and warnings as errors, and under ThreadSanitizer, AddressSanitizer and UBSan; awaiting the owner's review |
 | CORE-3 | RenderData foundation: the double-buffered RenderFrame, DebugGeometry and the debug-draw API | A frame is written on one thread and read on another with no lock; debug vertices need no conversion before upload; every debug shape becomes lines and triangles | **Implemented** (slice 2): `RunicCoreTests` passes with the 23 CORE-3 tests below; decisions D1–D3, D5 and D6 in RunicEngine#145; awaiting the verify step |
 | CORE-4 to CORE-7 | RenderData kinds: scene, world state, water and fields, effects | See RunicDocs › Modules, work packages | Not started (slices 22, 25a, 42a, 44+) |
+| (slice 5 addition) | `RenderInstanceId` and shape instances: debug shapes the presenter keeps between frames | Unchanged shapes keep their revision whatever the origin does; a reader that skipped a frame can tell | **Implemented** (slice 5, preview branch): `RunicCoreTests` passes with the 12 tests below (10 where asserts are compiled out). Not in the plan: GDB-3 (slice 5) presents instances by `RenderInstanceId`, which the plan defines with CORE-4 in slice 22; awaiting the owner's decision (move `RenderInstanceId` into slice 5, or name a package for this) |
 | CORE-8 | Process configuration | A setting resolves from each source in precedence order; an unknown key or a bad value is reported with its source | **Implemented** (slice 3, preview branch): `RunicCoreTests` passes with the 17 CORE-8 tests below (13 where asserts are compiled out); three decisions await the owner (file format, the `RUNIC_CFG_` prefix, `--set`), listed in the slice brief; awaiting the owner's review |
 
 CORE-1's acceptance tests (`RunicCoreTests`): `PlainIds.*`, `Result.*`, `Assert.*`, `Log.*`, `LogDefaultSink.*`,
@@ -240,6 +252,12 @@ CORE-3's acceptance tests: `RenderFrameExchange.*` (a frame written on one threa
 lock-free atomic; no allocation), `DebugGeometry.*` and `Color.*` (the vertex layout Godot uploads; the budget; text
 copied in), `DebugDraw.*` (every shape's lines against its line-count function; filled triangles keep their opacity;
 the batch; degenerate shapes; no allocation for a frame of every shape) and `Camera.*`.
+
+The slice 5 addition's tests: `ShapeInstances.*` (an empty list at revision 0; the first list is a new layout with
+positions relative to its origin; unchanged shapes keep the revision when the origin moves; a moved, recolored,
+resized, re-kinded or turned shape is listed by its index; adding, removing or reordering changes the layout; the
+capacity and the reach of a 32-bit position; a reader that skipped a frame through the exchange sees a base it did not
+apply; no allocation once made; a frame holds shapes beside its debug geometry) and `ShapeInstancesDeathTest.*`.
 
 CORE-2's acceptance tests: `WorkerPool.*` (every job runs once; jobs run on the pool's threads at the same time and
 never share a slot; the barrier; nested submits and waits; a full queue; `ParallelFor` covers every index once with

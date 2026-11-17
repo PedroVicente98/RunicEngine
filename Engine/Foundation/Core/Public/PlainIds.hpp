@@ -50,6 +50,7 @@ struct AssetIdTag;
 struct WaterBodyIdTag;
 struct FieldIdTag;
 struct WidgetIdTag;
+struct RenderInstanceIdTag;
 
 // An entity across processes; never a local Flecs ID.
 using GlobalEntityId = Id<GlobalEntityIdTag, std::uint64_t>;
@@ -69,6 +70,10 @@ using WaterBodyId = Id<WaterBodyIdTag, std::uint32_t>;
 using FieldId = Id<FieldIdTag, std::uint32_t>;
 // A world-UI widget.
 using WidgetId = Id<WidgetIdTag, std::uint32_t>;
+// A drawn instance that the presenter keeps from frame to frame (RunicDocs › RenderData in Core ›
+// Stable references): an entity's comes from its GlobalEntityId, a static object's from its cooked
+// placement. Whoever fills a frame keeps the IDs in it unique.
+using RenderInstanceId = Id<RenderInstanceIdTag, std::uint64_t>;
 
 // The master tick number of a simulation. Not an opaque ID: tick 0 is a real tick (the first), and
 // ticks count and only move forward.

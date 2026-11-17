@@ -18,7 +18,8 @@ namespace Runic::RenderData {
 
 class RenderFrameExchange {
   public:
-    explicit RenderFrameExchange(const DebugGeometryCapacity &capacity = {});
+    explicit RenderFrameExchange(const RenderFrameCapacity &capacity = {});
+    explicit RenderFrameExchange(const DebugGeometryCapacity &capacity);
     RenderFrameExchange(const RenderFrameExchange &) = delete;
     RenderFrameExchange &operator=(const RenderFrameExchange &) = delete;
 
