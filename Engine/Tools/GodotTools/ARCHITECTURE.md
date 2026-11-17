@@ -149,6 +149,13 @@ in `<build>/templates`; godot-cpp is PUBLIC; the JSON reader is the module's own
 the watcher loads the library itself when Godot has not and reloads on a settled change; the spike plugin and its
 folder are gone.
 
+**A known Godot 4.7.2 crash at shutdown:** the editor loads its help cache on a thread, which ends by queuing the
+generation of the extensions' docs; an editor shut down before that queued call ran crashes in `Main::cleanup`, which
+flushes it after the docs were deleted (`EditorHelp::_gen_extensions_docs`). The editor tests open a help page before
+shutting down (it waits for that thread) and run a second of frames after it; the RunicEditor itself can still crash
+on a quit within the first seconds on a loaded machine, until Godot checks for the deleted docs (to report upstream,
+or a later release pin).
+
 ## Future extensions
 
 - Opening a build error at its line (with Run, GDT-9), and the assistants (GDT-10) that write files and register them.

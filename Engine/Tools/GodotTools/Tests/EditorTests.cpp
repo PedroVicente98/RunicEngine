@@ -11,8 +11,10 @@
 #include "SimulationRuntime.hpp"
 
 #include <godot_cpp/classes/class_db_singleton.hpp>
+#include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/script_editor.hpp>
 #include <godot_cpp/classes/window.hpp>
 
 #include <gtest/gtest.h>
@@ -38,9 +40,14 @@ constexpr const char *kLibraryInProject = "Build/bin/libgame_editor.so";
 // watcher half a second apart.
 constexpr auto kPatience = std::chrono::seconds(60);
 constexpr auto kFramePause = std::chrono::milliseconds(5);
-// After a load or a reload the editor regenerates the extension's documentation in a deferred call; a
-// second of frames lets it run before the test shuts the editor down.
+// After a load or a reload the editor regenerates the extension's documentation in a deferred call;
+// a second of frames lets it run before the test shuts the editor down.
 constexpr auto kSettle = std::chrono::seconds(1);
+// Godot 4.7.2 loads its help cache on a thread that ends by queuing the extension docs' generation;
+// shutting the editor down before that call ran crashes in Main::cleanup (the docs are gone by
+// then). Opening a help page waits for that thread, so the call is queued before the settle frames
+// run.
+constexpr const char *kAnyHelpTopic = "class_name:Object";
 
 bool LibGodotBuilt() {
     return fs::exists(
@@ -116,13 +123,19 @@ class EditorHarness {
             std::move(application), Application::CommandLine({kTestExecutable}));
     }
     ~EditorHarness() {
+        if (m_Started) {
+            WaitForEditorHelp();
+        }
         RunFor(kSettle);
         m_Host->Shutdown();
     }
     EditorHarness(const EditorHarness &) = delete;
     EditorHarness &operator=(const EditorHarness &) = delete;
 
-    bool Start() { return static_cast<bool>(m_Host->Start()); }
+    bool Start() {
+        m_Started = static_cast<bool>(m_Host->Start());
+        return m_Started;
+    }
     // Runs editor frames until done() or the patience runs out.
     bool RunUntil(const std::function<bool()> &done) {
         const auto deadline = std::chrono::steady_clock::now() + kPatience;
@@ -137,6 +150,14 @@ class EditorHarness {
     }
 
   private:
+    static void WaitForEditorHelp() {
+        godot::EditorInterface *editor = godot::EditorInterface::get_singleton();
+        if (editor == nullptr || editor->get_script_editor() == nullptr) {
+            return;
+        }
+        editor->get_script_editor()->goto_help(kAnyHelpTopic);
+    }
+
     void RunFor(std::chrono::steady_clock::duration time) {
         const auto deadline = std::chrono::steady_clock::now() + time;
         while (std::chrono::steady_clock::now() < deadline) {
@@ -146,6 +167,7 @@ class EditorHarness {
     }
 
     std::unique_ptr<Application::ApplicationHost> m_Host;
+    bool m_Started = false;
 };
 
 } // namespace
