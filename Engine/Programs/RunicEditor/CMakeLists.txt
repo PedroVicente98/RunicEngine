@@ -27,7 +27,9 @@ if(RUNIC_ENGINE_BUILD_TESTS)
     set_tests_properties(godot.editor_spike godot.editor_project_manager PROPERTIES LABELS godot TIMEOUT 600)
 
     # GDT-2 (slice 6): New makes a project from the template; the editor opens it, loads its editor library (the
-    # fixture's build 1) and shows the world dock over its local simulation (a region and 12 markers).
+    # fixture's build 1) and shows the world dock over its local simulation (a region, 12 markers, and since GDT-3 a
+    # floor and two crates). GDT-3 (slice 8): the physics dock lists the 15 bodies and the "see what the server sees"
+    # layer draws them in the editor's viewport.
     set(_runic_new_project "${CMAKE_BINARY_DIR}/godot/NewProjectCheck")
     add_test(NAME godot.editor_new_project_clean COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_runic_new_project}")
     add_test(NAME godot.editor_new_project
@@ -46,7 +48,7 @@ if(RUNIC_ENGINE_BUILD_TESTS)
         add_test(NAME godot.editor_opens_project
             COMMAND "${CMAKE_COMMAND}"
                 "-DCOMMAND=$<TARGET_FILE:RunicEditor>|--headless|--editor|--path|${_runic_new_project}|--quit-after|300"
-                "-DEXPECT=RUNIC: Runic editor plugin loaded|RUNIC: project Check Game opened \\(Runic format 1, made with Engine ${RunicEngine_VERSION}\\)|RUNIC: game editor library res://Build/bin/libgame_editor.so|RUNIC: game editor fixture loaded \\(build 1\\)|RUNIC: world dock shows 13 entities of simulation 1|RUNIC: Runic editor plugin unloaded|RUNIC: RunicEditor exited cleanly"
+                "-DEXPECT=RUNIC: Runic editor plugin loaded|RUNIC: project Check Game opened \\(Runic format 1, made with Engine ${RunicEngine_VERSION}\\)|RUNIC: game editor library res://Build/bin/libgame_editor.so|RUNIC: game editor fixture loaded \\(build 1\\)|RUNIC: world dock shows 16 entities of simulation 1|RUNIC: physics dock shows 15 bodies of simulation 1|RUNIC: server view draws [0-9]+ line vertices|RUNIC: Runic editor plugin unloaded|RUNIC: RunicEditor exited cleanly"
                 -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
         set_tests_properties(godot.editor_project_library PROPERTIES
             FIXTURES_REQUIRED runic_new_project FIXTURES_SETUP runic_project_library)

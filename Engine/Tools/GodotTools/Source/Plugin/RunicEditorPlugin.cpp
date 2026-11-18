@@ -8,10 +8,12 @@
 #include <godot_cpp/classes/editor_file_system.hpp>
 #include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
+#include "Docks/RunicPhysicsDock.hpp"
 #include "Docks/RunicWorldDock.hpp"
 #include "IdeBridge.hpp"
 #include "Log.hpp"
@@ -81,6 +83,11 @@ void RunicEditorPlugin::_enter_tree() {
         m_Dock = memnew(RunicWorldDock);
         m_Dock->Attach(*world);
         add_control_to_dock(DOCK_SLOT_RIGHT_UL, m_Dock);
+        m_PhysicsDock = memnew(RunicPhysicsDock);
+        m_PhysicsDock->Attach(*world, Context().editedSceneOrigin);
+        add_control_to_dock(DOCK_SLOT_RIGHT_BL, m_PhysicsDock);
+        // The physics dock picks with a click in any 3D viewport, whatever node is selected.
+        set_input_event_forwarding_always_enabled();
     }
     set_process(true);
 }
@@ -90,6 +97,11 @@ void RunicEditorPlugin::_exit_tree() {
         remove_control_from_docks(m_Dock);
         m_Dock->queue_free();
         m_Dock = nullptr;
+    }
+    if (m_PhysicsDock != nullptr) {
+        remove_control_from_docks(m_PhysicsDock);
+        m_PhysicsDock->queue_free();
+        m_PhysicsDock = nullptr;
     }
     if (m_NewProject != nullptr) {
         remove_tool_menu_item(kNewProjectItem);
@@ -113,6 +125,22 @@ void RunicEditorPlugin::_process(double delta) {
 }
 
 godot::String RunicEditorPlugin::_get_plugin_name() const { return kPluginName; }
+
+int32_t RunicEditorPlugin::_forward_3d_gui_input(godot::Camera3D *camera,
+                                                 const godot::Ref<godot::InputEvent> &event) {
+    const godot::Ref<godot::InputEventMouseButton> click = event;
+    if (m_PhysicsDock == nullptr || !m_PhysicsDock->IsPicking() || camera == nullptr ||
+        click.is_null() || !click->is_pressed()) {
+        return AFTER_GUI_INPUT_PASS;
+    }
+    if (click->get_button_index() == godot::MOUSE_BUTTON_LEFT) {
+        const godot::Vector2 at = click->get_position();
+        m_PhysicsDock->PickRay(camera->project_ray_origin(at), camera->project_ray_normal(at));
+    }
+    // A left click picks, any other button gives up picking; neither reaches the editor.
+    m_PhysicsDock->StopPicking();
+    return AFTER_GUI_INPUT_STOP;
+}
 
 void RunicEditorPlugin::OpenProject() {
     const std::filesystem::path folder = ProjectFolder();

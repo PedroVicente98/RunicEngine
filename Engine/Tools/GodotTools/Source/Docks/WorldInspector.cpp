@@ -6,18 +6,10 @@
 #include <format>
 
 #include "EntityWorld.hpp"
+#include "InspectorText.hpp"
 #include "WorldComponents.hpp"
 
 namespace Runic::GodotTools {
-
-namespace {
-
-constexpr std::string_view kEntityLabelFormat = "entity {}";
-
-// The part of an entity handle that names the entity; the rest counts its reuses.
-constexpr std::uint64_t kEntityIndexMask = 0xFFFF'FFFFull;
-
-} // namespace
 
 WorldSummary WorldInspector::Summary() const {
     const ECS::EntityWorld &world = m_Runtime.Entities();
@@ -52,7 +44,7 @@ InspectedEntity WorldInspector::Inspect(ECS::Entity entity) const {
     const ECS::EntityWorld &world = m_Runtime.Entities();
     InspectedEntity inspected;
     inspected.entity = entity;
-    inspected.label = std::format(kEntityLabelFormat, entity.Raw() & kEntityIndexMask);
+    inspected.label = Detail::EntityLabel(entity.Raw());
     if (!world.IsAlive(entity)) {
         return inspected;
     }
