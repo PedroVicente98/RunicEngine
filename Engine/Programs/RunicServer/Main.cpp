@@ -16,6 +16,10 @@
 //   RunicServer --quit-after 300 --cooked <folder> [--cooked-spawn -12,0,0]
 //       slice 9: loads a cooked folder's cells into physics and walks a character on them from
 //       the spawn point (relative to the first cell's origin), reporting where it ended
+//   RunicServer --quit-after 150 --parallel-demo --set simulation.workers=4
+//       slice 10: thousands of movers and a physics pile whose every step splits its work across
+//       the workers; at realtime tick 60 it logs a hash of the whole scene, the same for any
+//       worker count (the CTest programs.runic_server_parallel)
 //   RunicServer --config server.cfg
 //       settings come from their defaults, then the file, then RUNIC_CFG_* environment variables,
 //       then --set key=value; a problem in any of them stops the server with exit code 1
@@ -28,6 +32,7 @@
 #include "EntryPoint.hpp"
 #include "Log.hpp"
 #include "MetricsRegistry.hpp"
+#include "ParallelDemo.hpp"
 #include "ProcessConfig.hpp"
 #include "SimulationLayer.hpp"
 #include "SimulationRuntime.hpp"
@@ -80,6 +85,8 @@ constexpr std::string_view kCookedFlag = "--cooked";
 constexpr std::string_view kCookedSpawnFlag = "--cooked-spawn";
 constexpr char kVectorSeparator = ',';
 constexpr const char *kCookedLayerName = "CookedWalk";
+// And the parallel demo of slice 10.
+constexpr std::string_view kParallelDemoFlag = "--parallel-demo";
 constexpr std::size_t kVectorParts = 3;
 
 // The layer that stops a server whose configuration has a problem.
@@ -291,6 +298,9 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     auto runtime = std::make_unique<SimulationRuntime>(simulation);
     if (command.Has(kClockDemoFlag)) {
         AddClockProbes(*runtime);
+    }
+    if (command.Has(kParallelDemoFlag)) {
+        Programs::AddParallelDemo(*runtime);
     }
     std::unique_ptr<Layer> cookedWalk;
     if (const auto folder = command.ValueOf(kCookedFlag)) {

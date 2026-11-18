@@ -1,8 +1,9 @@
 # RunicServer: the Engine's own game-agnostic server, on the Engine's entry point with the fixed 60 Hz loop. Created by
 # APP-1 (slice 1); SIM-1 (slice 3) puts the Simulation layer on it, with its settings from the process configuration.
 # A composition root, not a module. Never shipped. Slice 9 (COOK-1, GDT-4) adds --cooked: a cooked folder's cells
-# loaded through Runic::Assets and walked on.
-add_executable(RunicServer Main.cpp CookedWalk.cpp)
+# loaded through Runic::Assets and walked on. Slice 10 (PHYS-4, SIM-3) adds --parallel-demo: a scene whose steps split
+# their work across the simulation's workers, with the same result for any worker count.
+add_executable(RunicServer Main.cpp CookedWalk.cpp ParallelDemo.cpp)
 target_link_libraries(RunicServer PRIVATE Runic::Application Runic::Simulation Runic::Assets)
 runic_apply_toolchain(RunicServer)
 runic_check_headless(RunicServer)  # a server never reaches Godot, graphics, audio or editor code
@@ -31,4 +32,10 @@ if(RUNIC_ENGINE_BUILD_TESTS)
         COMMAND RunicServer --quit-after 120 --set simulation.workers=0 --set simulation.wokers=2)
     set_tests_properties(programs.runic_server_bad_setting PROPERTIES LABELS programs TIMEOUT 60
         PASS_REGULAR_EXPRESSION "command line --set simulation.workers=0: simulation.workers: 0 is outside 1 to 64.*command line --set simulation.wokers=2: unknown setting 'simulation.wokers'.*Configuration failed to attach: 2 problem\\(s\\) in the settings.*RunicServer stopped with exit code 1 after 0 frames")
+
+    # Slice 10: the parallel demo on one, two and four workers logs the same hash of its whole scene.
+    add_test(NAME programs.runic_server_parallel
+        COMMAND "${CMAKE_COMMAND}" "-DSERVER=$<TARGET_FILE:RunicServer>" "-DWORKERS=1|2|4"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/SameParallelResult.cmake")
+    set_tests_properties(programs.runic_server_parallel PROPERTIES LABELS programs TIMEOUT 600)
 endif()

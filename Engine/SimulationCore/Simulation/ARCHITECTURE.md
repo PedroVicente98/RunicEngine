@@ -5,14 +5,17 @@ Group: Simulation core · Headless: **yes** · Target: `Runic::Simulation` (`run
 Source: RunicDocs › Architecture › Simulation core clock and threads (Engine); Repositories, build targets and
 processes (Engine modules); Modules, work packages and the implementation contract (SIM-1); Application and LayerStack
 (Engine); Tools › Metrics every process exports; Simulation core Flecs and Jolt (Engine) › Realtime 30 Hz phase,
-Deferred mutation and Events. Status: **SIM-1 implemented** (slice 3, on the preview branch `preview/slices-3-11`):
+Deferred mutation and Events; Simulation core clock and threads › Threading model (SIM-3). Status: **SIM-1 implemented** (slice 3, on the preview branch `preview/slices-3-11`):
 the clock domains, `TickContext`, `DomainTickCount`, the `SimulationRuntime`, the Simulation layer and the
 Simulation's settings; RunicServer runs it. **SIM-2 implemented** (slice 5, same branch): the realtime phases and
 their barriers, command queues, and the simulation's entities, states and event hub. **SIM-8 implemented** (slice 7,
-same branch): the physics bridge. Each with its acceptance tests. The folder map is [README.md](README.md); the slice briefs and walkthroughs are
+same branch): the physics bridge. **SIM-3 implemented** (slice 10, same branch): work inside a phase on the worker
+pool, per-worker buffers merged in a fixed order, and the physics step on the same pool. Each with its acceptance
+tests. The folder map is [README.md](README.md); the slice briefs and walkthroughs are
 [preview/slice-03-fixed-step-clock.md](../../../preview/slice-03-fixed-step-clock.md) and
-[preview/slice-05-moving-entities.md](../../../preview/slice-05-moving-entities.md) and
-[preview/slice-07-physics.md](../../../preview/slice-07-physics.md).
+[preview/slice-05-moving-entities.md](../../../preview/slice-05-moving-entities.md),
+[preview/slice-07-physics.md](../../../preview/slice-07-physics.md) and
+[preview/slice-10-worker-pool.md](../../../preview/slice-10-worker-pool.md).
 
 ## Purpose
 
@@ -24,9 +27,11 @@ the domain metrics. SIM-2 gives the runtime its world (entities, their states an
 realtime slot into seven phases with a barrier after each, where held-back world changes apply and emitted facts
 become readable; input enters the world only through command queues drained in the first phase. SIM-8 adds the physics bridge: an
 opt-in physics world whose bodies and characters follow their entities, synced on each side of the step, with
-contacts as facts. Later packages add
-phases on the worker pool (SIM-3), prediction (SIM-4), the service port (SIM-5), the replication registry (SIM-6) and
-behavior counters (SIM-7).
+contacts as facts. SIM-3 splits a system's per-entity work across the worker
+pool in chunks that do not depend on the worker count, gathers what the chunks do to others in per-worker buffers
+merged in chunk order, and steps physics on the same pool, so a scene gives the same result with one worker and with
+many. Later packages add prediction (SIM-4), the service port (SIM-5), the replication registry (SIM-6) and behavior
+counters (SIM-7).
 
 ## Public API
 
@@ -42,6 +47,7 @@ No library types.
 | `CommandQueue.hpp` | `CommandQueue<T>` (`Push` from any thread, `Drain(apply)` in the Commands phase, `Name`, `Describe`) | SIM-2 |
 | `SimulationRuntime.hpp` | `SimulationRuntime::EnablePhysics`, `FindPhysicsBridge` | SIM-8 |
 | `PhysicsBridge.hpp` | `PhysicsBody` (body handle, motion), `PhysicsCharacter` (character handle, next move), `PhysicsContact` (the fact: phase, entities, point, normal), `PhysicsBridgeStats`, `PhysicsBridge` (`AddBody`, `AddCharacter`, `Remove`, `World`, `Contacts`, `Stats`); the names `kPhysicsBodyName` (`engine:physics_body`), `kPhysicsCharacterName` (`engine:physics_character`), `kPhysicsContactsBufferName` (`engine:physics_contacts`) and the systems' `engine:physics_structure`, `engine:physics_step`, `engine:physics_write_back` | SIM-8 |
+| `ParallelWork.hpp` | `ParallelEach(runtime, query, entitiesPerChunk, body)`, `ParallelChunk` (loop, chunk, its entities' positions, worker), `ParallelOutput<T>` (`Push` from a chunk, `Merge` on the driving thread, `Size`), `kDefaultEntitiesPerChunk` (256); `SimulationRuntime::EnablePhysics` puts the physics world on the runtime's pool | SIM-3 |
 | `SimulationLayer.hpp` | `SimulationLayer` (an `Application::Layer` that owns a runtime: `Runtime`, `BacklogTicks`), `SimulationLayerSpec`, `kSimulationLayerName`, `kDefaultMaxTicksPerUpdate` (5), `kBacklogMetric` | SIM-1 |
 | `SimulationSettings.hpp` | `SimulationSettings`, `DeclareSimulationSettings`, `SimulationSpecFrom`, `SimulationLayerSpecFrom`, the keys `kWorkersSetting` (`simulation.workers`) and `kMaxTicksPerUpdateSetting` (`simulation.max_ticks_per_update`), `kMaxTicksPerUpdateLimit` | SIM-1 |
 
@@ -68,6 +74,29 @@ queued; a command queued during the drain waits for the next one. `Drain` anywhe
 command is applied, not just accepted: the system that drains it validates it and changes the world, and a rejected
 command changes nothing.
 
+**The parallel rule** (SIM-3; RunicDocs › Threading model: "the work inside a phase is split across workers … Effects
+on other entities go to per-worker buffers that are merged at the barrier in a fixed order, so results never depend
+on thread timing"):
+
+- *A loop over a query's entities, in chunks.* `ParallelEach` gathers the query's runs of entities on the driving
+  thread, then hands chunks of `entitiesPerChunk` entities (by their position in the query's order) to the pool,
+  the driving thread among the workers, and returns when every chunk has run: its end is a barrier. The chunks depend
+  on the entity count and the chunk size only, so a chunk holds the same entities with one worker and with many; with
+  one worker they run in order on the driving thread. While the loop runs, the world's shape holds still (the loop
+  holds changes back as a phase does), so the component arrays the chunks write stay where they are.
+- *A chunk touches only its own entities.* A body writes the components of the entity it is given and reads only
+  what no chunk of the loop writes. It never calls the world, the event hub, the runtime or a queue: the world belongs
+  to the driving thread. Anything it does to others (a hit on another entity, an event, a spawn, a destruction) is
+  pushed into a `ParallelOutput`.
+- *Per-worker buffers, merged in a fixed order.* A `ParallelOutput<T>` keeps one buffer per worker slot on its own
+  cache lines, so a push takes no lock. The system merges it on the driving thread after its loops: every value comes
+  out by loop (numbered in the order the runtime's loops run), then by chunk, then in the order its chunk pushed it,
+  whichever worker ran which chunk and when. The merge applies them to the world, emits facts and asks for spawns and
+  destructions; inside a phase those wait for its barrier as usual, in the order they were asked for, so entity
+  handles and event IDs come out the same too.
+- *One loop at a time*, on the driving thread (asserted: a loop inside a chunk, or a merge while a loop runs, is a
+  fault). A phase's systems still run one after another; each splits its own work.
+
 **The physics rule** (SIM-8): physics is opt-in (`EnablePhysics`, once, between steps); the runtime then owns a
 `Physics::PhysicsWorld` and the bridge, which registers two components and adds one system to each of the
 PhysicsStructure, PhysicsStep and PostPhysics phases. The entities hold the truth: an entity's `WorldTransform` is
@@ -82,7 +111,8 @@ bridge adds and removes.
   the ones that went and takes their bodies and characters. The entities and Physics never disagree inside a phase.
 - *A sync on each side of the step.* PhysicsStep moves every kinematic body to its entity's transform, hands every
   character its `move` (and clears it, so a character nobody moves stands), then steps the world once with the
-  realtime `dt`. PostPhysics writes every dynamic body's pose and every character's position (its feet) into their
+  realtime `dt`, on the runtime's worker pool (SIM-3 through PHYS-4: `EnablePhysics` gives the world the runtime's
+  pool; a spec that names another pool is a fault). PostPhysics writes every dynamic body's pose and every character's position (its feet) into their
   transforms; a character's rotation stays the entity's own. Static bodies never move.
 - *Contacts are facts.* Physics only buffers what Jolt reports inside the step; PostPhysics emits each as a
   `PhysicsContact` with the entities of its bodies into `engine:physics_contacts`, readable from the Queries phase on.
@@ -100,6 +130,8 @@ bridge adds and removes.
   observable states.
 - The phases of the realtime slot and the barrier after every phase; the command queues' list, their counts and
   their metric (SIM-2).
+- The parallel loops (SIM-3): their numbering, the one that runs, and the runs of entities it gathered (kept between
+  loops, so a loop allocates nothing once they have grown).
 - The physics bridge, once enabled (SIM-8): the physics world, the two components, the requests, which entity has
   which body or character, the sync and the contact facts' buffer.
 - The rule for falling behind: every due step runs, late if need be; the backlog is a metric and a warning, and no
@@ -113,8 +145,9 @@ bridge adds and removes.
   registry and the configuration and passes them in.
 - What systems do: each module registers its own. The world's data is Runic::ECS (ECS-1), events are Runic::Events
   (EVT-1), physics is Runic::Physics (the bridge only connects it to the entities).
-- Phases on the worker pool and the deterministic merge (SIM-3, slice 10). Until then a phase's systems run one
-  after another on the driving thread, and each may split its own work with `Workers().ParallelFor`.
+- Which systems of a phase could run at the same time: a phase's systems run one after another (each splits its own
+  work with `ParallelEach`, or with `Workers().ParallelFor`).
+- What a chunk computes and what its outputs mean: the system that runs the loop.
 - How entities, states and events work (Runic::ECS, ECS-1 and ECS-2; Runic::Events, EVT-1): the runtime owns one of
   each and decides when held-back changes apply and when the hub flushes.
 - What a command means: each module defines its command types and the system that applies them.
@@ -140,8 +173,10 @@ editor code (the module is headless), and RunicPlatform and RunicGame. No third-
 
 - One thread drives a runtime: the thread that calls `RunMasterTick` (in a process, the main thread through the
   Simulation layer). It is the worker pool's driving thread, worker 0.
-- A system runs on the driving thread and may split its work across the pool; it has finished every job it submitted
-  when it returns, so the end of a system is a barrier.
+- A system runs on the driving thread and may split its work across the pool (`ParallelEach`, `Workers().ParallelFor`);
+  it has finished every job it submitted when it returns, so the end of a system is a barrier. A chunk runs on any
+  worker, the driving thread included; it writes only its own entity's components and pushes everything else into a
+  `ParallelOutput`, whose slot is the worker's own (no lock). Merges run on the driving thread.
 - `AddSystem` is called between steps only (asserted). `NextMasterTick`, `TicksRun` and `Time` are read by the driving
   thread; other threads read the metrics registry instead.
 - The world (`Entities`, `States`, `EventHub`) belongs to the driving thread: systems change it in their phases, and
@@ -152,7 +187,8 @@ editor code (the module is headless), and RunicPlatform and RunicGame. No third-
   is destroyed (asserted).
 - Nothing here blocks or reads a file or a socket. `RunMasterTick` allocates nothing itself.
 - The physics bridge belongs to the driving thread too: requests are made between steps or from systems, and its
-  systems run in their phases. Jolt runs on the driving thread (Physics, until PHYS-4).
+  systems run in their phases. The step's Jolt jobs run on the runtime's pool, the driving thread among its workers,
+  and have all finished when the step returns (PHYS-4).
 - The layer runs at most `maxTicksPerUpdate` steps per update. What is still due stays owed and runs in later
   updates.
 
@@ -200,6 +236,13 @@ application's layer stack owns the layer.
   physics bridge's look at destroyed entities, then `EventHub::Flush`) and the barrier that opens a step.
 - `Source/PhysicsBridge/PhysicsBridge.cpp`: the bridge (its requests, systems, queries and the barrier check) and
   `SimulationRuntime::EnablePhysics`.
+- `Public/ParallelWork.hpp`: `ParallelEach` and `ParallelOutput` are templates. A loop holds the world's changes back
+  (a `DeferScope`), gathers the query's runs with their first position, and runs `Core::WorkerPool::ParallelFor` over
+  the total; a chunk finds the run holding its first entity by binary search and walks on. A merge lists, per worker,
+  the contiguous records of each chunk, sorts that list by (loop, chunk) and applies the records, then clears the
+  buffers, keeping their memory.
+- `Source/Workers/ParallelWork.cpp`: the runtime's side, `Detail::ParallelAccess` (a loop's number, one loop at a
+  time, off the driving thread asserted).
 - `Source/Commands/CommandQueueBase.cpp`: a queue's registration, counts and metric; the typed part is in
   `Public/CommandQueue.hpp` because it is a template. A drain swaps the incoming list with the list being applied
   under the lock, so once both have grown to the largest burst, queuing and applying allocate nothing.
@@ -222,7 +265,7 @@ application's layer stack owns the layer.
 | --- | --- | --- | --- |
 | SIM-1 | SimulationRuntime: 60 Hz master clock, 30/20/10 Hz domains, TickContext, the Simulation layer, domain metrics; RunicServer runs it with its settings from configuration | Domain tick counts stay exact over a long run, with no drift | **Implemented** (slice 3, preview branch): `RunicSimulationTests` passes with the 28 tests below (26 where asserts are compiled out); RunicServer's CTests `programs.runic_server_clock` and `programs.runic_server_bad_setting` pass; awaiting the owner's review |
 | SIM-2 | Phases, commands and the command queue, deferred mutation, event flush at barriers | Commands apply in phase order; facts are visible to the next phase | **Implemented** (slice 5, preview branch): `RunicSimulationTests` passes with SIM-1's 28 tests and the 22 below (18 where asserts are compiled out); awaiting the owner's review |
-| SIM-3 | Phases on the worker pool, per-worker buffers, deterministic merge | The same scene with one worker and with many gives identical results | Not started (slice 10) |
+| SIM-3 | Phases on the worker pool, per-worker buffers, deterministic merge; the physics step runs through PHYS-4 | The same scene with one worker and with many gives identical results | **Implemented** (slice 10, preview branch): `RunicSimulationTests` passes with the 7 tests below added (5 where asserts are compiled out); awaiting the owner's review |
 | SIM-4 to SIM-7 | Prediction subset, service port, replication registry, behavior counters | See RunicDocs › Modules, work packages | Not started (slices 14, 27, 13, 39) |
 | SIM-8 | The physics bridge | The capsule's Flecs transform matches its CharacterVirtual after every step; destroying an entity removes its body at the next barrier; a contact reaches the next phase as a fact and no callback touches Flecs | **Implemented** (slice 7, preview branch): `RunicSimulationTests` passes with the 8 tests below added (7 where asserts are compiled out); awaiting the owner's review |
 
@@ -255,6 +298,22 @@ exactly; **a contact is read once, in the phase after the one that emitted it, w
 requests take bodies and drop waiting requests; an entity without a transform gets one from its description) and
 `PhysicsBridgeDeathTest.*`.
 
+SIM-3's acceptance tests (`RunicSimulationTests`): `ParallelEach.*` (every entity once, in chunks that depend only on
+the count, with one worker and with four; chunks that cross runs of entities stored apart), `ParallelOutput.*` (two
+loops merged by loop, then chunk, then push order, on four workers), `ParallelPhases.*` (**3,000 movers that bounce,
+hit each other in an order-sensitive way, die and spawn, 100 crates falling on a floor and six characters walking
+among them, 4,500 km from the origin, for 60 realtime ticks: every entity's values, every hit and contact fact with
+its ID, and every count are the same to the bit with 1, 2, 4 and 8 workers**), `PhysicsBridge.ThePhysicsStepRunsOnTheRuntimesPool`
+and `ParallelWorkDeathTest.*` (a loop inside a chunk, a merge during a loop, a chunk of no entities; physics on
+another pool).
+
+Decisions taken in SIM-3 that await the owner (also in the slice brief): the parallel unit is a system's loop over a
+query's entities, not the systems of a phase running at once; chunks are positions in the query's order, 256 entities
+by default; a chunk writes only its own entity and pushes everything else into a `ParallelOutput`; per-worker buffers
+are merged by the system after its loops (a barrier), by loop, chunk and push order, not at the phase's barrier by the
+runtime; one loop at a time; the physics world always runs on the runtime's pool; the bridge's sync stays on the
+driving thread.
+
 Decisions taken in SIM-8 that await the owner (also in the slice brief): physics is opt-in per runtime, owned by it;
 the bridge's components are added and removed only by the bridge; a destroyed entity is noticed by comparing counts
 at every barrier (Runic::ECS has no removal hook); a character's rotation is the entity's own; static bodies never
@@ -275,8 +334,11 @@ layer owns its runtime; the default catch-up limit is 5 steps per update.
   Runic::ECS so a destroyed entity is found without a scan, when the numbers ask for it.
 - Teleports and facing through the bridge (today `World().SetCharacterPose`).
 
-- Phases on the pool (SIM-3): the systems of one phase that touch different data run at once, with per-worker
-  command and event buffers merged in a fixed order at the barrier.
+- Systems of one phase that touch different data running at once, once systems declare what they read and write.
+- The bridge's write-back and kinematic sync as parallel loops, when the numbers ask for it (Physics' world is used by
+  one thread at a time, so it needs a read of poses for many bodies at once).
+- A parallel loop over something other than a query (clients, attacks), with the same chunk rule, when replication
+  (SIM-6) or combat queries need one.
 - Phases for the other slots, if a 20 Hz or 10 Hz slot needs a barrier inside it.
 - A bound on a command queue (a full queue refuses the command and counts it), when the network's per-connection
   limits need one.

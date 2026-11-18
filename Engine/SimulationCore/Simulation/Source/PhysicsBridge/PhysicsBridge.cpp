@@ -370,7 +370,12 @@ PhysicsBridge &SimulationRuntime::EnablePhysics(const Physics::PhysicsWorldSpec 
     State &state = *m_State;
     RUNIC_ASSERT_MSG(!state.stepping, "physics was enabled while a master step runs");
     RUNIC_ASSERT_MSG(state.physics == nullptr, "physics is already enabled");
-    state.physics = std::make_unique<PhysicsBridge>(*this, spec);
+    RUNIC_ASSERT_MSG(spec.workers == nullptr || spec.workers == &state.workers,
+                     "physics steps on the runtime's worker pool, not another");
+    // The step's jobs run on the simulation's own pool (SIM-3 through PHYS-4).
+    Physics::PhysicsWorldSpec onThePool = spec;
+    onThePool.workers = &state.workers;
+    state.physics = std::make_unique<PhysicsBridge>(*this, onThePool);
     return *state.physics;
 }
 

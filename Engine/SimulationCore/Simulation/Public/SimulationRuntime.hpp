@@ -113,6 +113,7 @@ struct CommandQueueInfo {
 
 namespace Detail {
 class CommandQueueBase; // CommandQueue.hpp
+struct ParallelAccess;  // ParallelWork.hpp
 } // namespace Detail
 
 class PhysicsBridge; // PhysicsBridge.hpp
@@ -175,7 +176,8 @@ class SimulationRuntime {
     Events::EventBuffer<ECS::StateExited> &StateExitedFacts() noexcept;
 
     // Gives the simulation a physics world and the bridge between it and the entities
-    // (PhysicsBridge.hpp), once, between steps. The bridge registers its components and adds its
+    // (PhysicsBridge.hpp), once, between steps. The world steps on the runtime's worker pool: the
+    // spec names no pool, or this one (asserted). The bridge registers its components and adds its
     // systems to the PhysicsStructure, PhysicsStep and PostPhysics phases; enable physics before
     // adding other systems to those phases, so the bridge's run first.
     PhysicsBridge &EnablePhysics(const Physics::PhysicsWorldSpec &spec = {});
@@ -198,13 +200,15 @@ class SimulationRuntime {
     // Simulation time: the time of the next master tick, exact from its number.
     Core::Duration Time() const noexcept;
 
-    // The simulation's worker pool, for systems that split their work.
+    // The simulation's worker pool, for systems that split their work (ParallelWork.hpp), and the
+    // pool the physics step runs on (SIM-3).
     Core::WorkerPool &Workers() noexcept;
     // The registry given in the spec, or nullptr.
     Core::MetricsRegistry *Metrics() const noexcept;
 
   private:
     friend class Detail::CommandQueueBase;
+    friend struct Detail::ParallelAccess;
 
     struct State;
     std::unique_ptr<State> m_State;

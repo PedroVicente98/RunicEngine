@@ -8,12 +8,13 @@
 #include <vector>
 
 #include "CommandQueue.hpp"
+#include "ParallelWork.hpp"
 #include "PhysicsBridge.hpp"
 #include "SimulationRuntime.hpp"
 
 // The state behind a SimulationRuntime, shared by the files that implement it: the scheduler
-// (Scheduler/), the phases and their barriers (Phases/), the command queues (Commands/) and the
-// physics bridge (PhysicsBridge/).
+// (Scheduler/), the phases and their barriers (Phases/), the command queues (Commands/), the
+// physics bridge (PhysicsBridge/) and the parallel loops (Workers/).
 
 namespace Runic::Simulation {
 
@@ -66,6 +67,7 @@ struct SimulationRuntime::State {
     std::array<std::uint64_t, kTickDomainCount> ticksRun{};
     bool stepping = false;
     std::optional<RealtimePhase> runningPhase;
+    Detail::ParallelLoops parallel; // Workers/: the loop that runs and the next loop's number
 
     std::array<Core::TimingId, kTickDomainCount> tickTime;
     std::array<Core::CounterId, kTickDomainCount> ticks;
