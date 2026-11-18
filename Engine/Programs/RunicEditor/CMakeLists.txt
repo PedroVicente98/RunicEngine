@@ -55,6 +55,33 @@ if(RUNIC_ENGINE_BUILD_TESTS)
         set_tests_properties(godot.editor_opens_project PROPERTIES
             FIXTURES_REQUIRED "runic_new_project;runic_project_library")
         list(APPEND _runic_project_tests godot.editor_project_library godot.editor_opens_project)
+
+        # GDT-4 and COOK-1 (slice 9): the first cooker proof. The test region (a glTF that stands in for a Blender
+        # export, and a scene placing it with a RunicCollider3D) goes into the project; the RunicEditor imports it and
+        # cooks it without a window; the RunicServer walks a character on the cooked cell, up the ramp onto the
+        # platform, to the collider.
+        set(_runic_region "${PROJECT_SOURCE_DIR}/tests/godot/fixtures/test_region")
+        add_test(NAME godot.editor_cook_fixture
+            COMMAND "${CMAKE_COMMAND}" "-DFILES=${_runic_region}/test_region.glb|${_runic_region}/test_region.tscn"
+                    "-DTO=${_runic_new_project}/Content/TestRegion" -P "${PROJECT_SOURCE_DIR}/tests/godot/CopyIntoFolder.cmake")
+        add_test(NAME godot.editor_cooks_test_region
+            COMMAND "${CMAKE_COMMAND}"
+                "-DCOMMAND=$<TARGET_FILE:RunicEditor>|--headless|--editor|--path|${_runic_new_project}|--runic-cook-scene=res://Content/TestRegion/test_region.tscn"
+                "-DEXPECT=RUNIC: cook succeeded in [0-9]+ ms: 4 meshes, 4 collisions, 1 cells, 4 placements, 1 colliders, 44 collision triangles|RUNIC: the local world loaded the cook: 1 cells, 5 bodies|RUNIC: RunicEditor exited cleanly"
+                -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
+        add_test(NAME godot.server_walks_cooked_region
+            COMMAND "${CMAKE_COMMAND}"
+                "-DCOMMAND=$<TARGET_FILE:RunicServer>|--quit-after|480|--cooked|${_runic_new_project}/Build/Cooked|--cooked-spawn|-12,0,0"
+                "-DEXPECT=RUNIC: cooked walk: loaded 1 cells and 5 bodies|RUNIC: cooked walk: 1 cells, 5 bodies from .*; the character walked 1[0-9]\\.[0-9] m on cell game:test_region/test_region/cell_0_0_0 and ends at \\(3\\.[56][0-9], 1\\.0[0-9], -?0\\.00\\) from its origin, on the ground|RUNIC: RunicServer stopped cleanly"
+                -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
+        set_tests_properties(godot.editor_cook_fixture PROPERTIES
+            FIXTURES_REQUIRED runic_new_project FIXTURES_SETUP runic_cook_fixture)
+        set_tests_properties(godot.editor_cooks_test_region PROPERTIES
+            FIXTURES_REQUIRED "runic_new_project;runic_cook_fixture" FIXTURES_SETUP runic_cooked_region)
+        set_tests_properties(godot.server_walks_cooked_region PROPERTIES FIXTURES_REQUIRED runic_cooked_region)
+        list(APPEND _runic_project_tests godot.editor_cook_fixture godot.editor_cooks_test_region
+             godot.server_walks_cooked_region)
+        unset(_runic_region)
     endif()
     set_tests_properties(${_runic_project_tests} PROPERTIES LABELS godot TIMEOUT 600)
     unset(_runic_new_project)

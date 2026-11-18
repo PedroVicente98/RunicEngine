@@ -1,8 +1,9 @@
 # RunicServer: the Engine's own game-agnostic server, on the Engine's entry point with the fixed 60 Hz loop. Created by
 # APP-1 (slice 1); SIM-1 (slice 3) puts the Simulation layer on it, with its settings from the process configuration.
-# A composition root, not a module. Never shipped.
-add_executable(RunicServer Main.cpp)
-target_link_libraries(RunicServer PRIVATE Runic::Application Runic::Simulation)
+# A composition root, not a module. Never shipped. Slice 9 (COOK-1, GDT-4) adds --cooked: a cooked folder's cells
+# loaded through Runic::Assets and walked on.
+add_executable(RunicServer Main.cpp CookedWalk.cpp)
+target_link_libraries(RunicServer PRIVATE Runic::Application Runic::Simulation Runic::Assets)
 runic_apply_toolchain(RunicServer)
 runic_check_headless(RunicServer)  # a server never reaches Godot, graphics, audio or editor code
 

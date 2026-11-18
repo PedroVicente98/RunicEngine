@@ -7,7 +7,9 @@
 
 #include "Docks/RunicPhysicsDock.hpp"
 #include "Docks/RunicWorldDock.hpp"
+#include "Export/RunicImportPlugin.hpp"
 #include "GodotRuntime.hpp"
+#include "MarkerNodes/RunicCollider3D.hpp"
 #include "Plugin/EditorContext.hpp"
 #include "Plugin/RunicEditorPlugin.hpp"
 
@@ -36,6 +38,11 @@ void RegisterEditorTools(GodotBridge::GodotRuntime &runtime, const EditorToolsSp
         if (level == GodotInitLevel::Editor) {
             godot::ClassDB::register_internal_class<Detail::RunicWorldDock>();
             godot::ClassDB::register_internal_class<Detail::RunicPhysicsDock>();
+            // A marker node scenes hold: public in the editor's Create Node dialog.
+            godot::ClassDB::register_class<Detail::RunicCollider3D>();
+            godot::ClassDB::register_internal_class<Detail::RunicColliderGizmo>();
+            godot::ClassDB::register_internal_class<Detail::RunicImportPlugin>();
+            godot::ClassDB::register_internal_class<Detail::RunicExportPlugin>();
             godot::ClassDB::register_internal_class<Detail::RunicEditorPlugin>();
             godot::EditorPlugins::add_by_type<Detail::RunicEditorPlugin>(); // always on
         }

@@ -11,7 +11,11 @@ editor library loaded and reloaded, the IDE bridge, the Runic editor plugin and 
 tests; slice 6's brief and walkthrough are [preview/slice-06-editor-shell.md](../../../preview/slice-06-editor-shell.md).
 **GDT-3 implemented** (slice 8, same branch): the physics inspector (its model `PhysicsInspector` and the Runic Physics
 dock) and the "see what the server sees" layer in the editor's viewports, with their acceptance tests; slice 8's brief
-is [preview/slice-08-physics-view.md](../../../preview/slice-08-physics-view.md). The folder map is
+is [preview/slice-08-physics-view.md](../../../preview/slice-08-physics-view.md). **GDT-4 implemented** (slice 9, same
+branch): the Cooker integration (the import plugin's collision presets, the naming convention, RunicCollider3D, the
+scene reader, the cook from Project › Tools, before each export and with `--runic-cook`, the cook loaded into the
+local world), with its acceptance tests; slice 9's brief is
+[preview/slice-09-first-cooker-proof.md](../../../preview/slice-09-first-cooker-proof.md). The folder map is
 [README.md](README.md).
 
 ## Purpose
@@ -23,7 +27,9 @@ the Cooker. Editor code never ships to players. GDT-2 makes the editor a Runic e
 manifest, makes one from a template, loads and reloads the game's editor library, writes what the IDE needs, and
 shows the first dock over a local simulation in the editor process. GDT-3 adds the physics inspector: the local
 simulation's bodies, selectable in a list or with a click in a viewport, with their properties, and its collision drawn
-in the editor's viewports over the visuals, as a server holding that world would see it.
+in the editor's viewports over the visuals, as a server holding that world would see it. GDT-4 connects the editor to
+the Runic Cooker: Godot imports a glTF, the editor reads the scene Godot imported (no second glTF importer) and the
+Cooker cooks it; the cook loads into the local world, so the layer draws the cooked collision over the visual.
 
 ## Public API
 
@@ -31,10 +37,11 @@ Namespace `Runic::GodotTools`. Headers are included by their path under `Public/
 
 | Header | Holds | Since |
 | --- | --- | --- |
-| `GodotToolsModule.hpp` | `RegisterEditorTools(GodotRuntime&, const EditorToolsSpec&)`: registers the plugin and the docks through the runtime's initialization hooks; `EditorToolsSpec` (the local world, the world position the edited scene's origin stands for (`editedSceneOrigin`, GDT-3), the template folder, the Engine version, the IDE files' spec); `kPluginLoadedLine`, `kPluginUnloadedLine` | GDT-1, GDT-2, GDT-3 |
+| `GodotToolsModule.hpp` | `RegisterEditorTools(GodotRuntime&, const EditorToolsSpec&)`: registers the plugin and the docks through the runtime's initialization hooks; `EditorToolsSpec` (the local world, the world position the edited scene's origin stands for (`editedSceneOrigin`, GDT-3), the template folder, the Engine version, the IDE files' spec, `--runic-cook`'s `cookAndQuit`, `cookScenes` and `cookFinished` (GDT-4)); `kPluginLoadedLine`, `kPluginUnloadedLine`, `kCookSucceededLine`, `kCookFailedLine`, `kCookSucceededExitCode`, `kCookFailedExitCode` | GDT-1 to GDT-4 |
 | `RunicProject.hpp` | `ProjectManifest` (format, Engine version, game name, `ProjectPaths`, `ProjectExecutables`, `CookSettings`), `ParseProjectManifest`, `WriteProjectManifest`, `RunicProject`, `IsRunicProject`, `OpenProject`, `NewProjectSpec`, `InitializeProject` (New); the names `kManifestFileName`, `kGodotProjectFileName`, `kGameEditorExtensionFileName`, `kGodotCacheFolderName`, `kDefaultTemplateName`; `kManifestFormat` (1) | GDT-2 |
 | `IdeBridge.hpp` | `IdeFilesSpec` (the CMake preset and build folder), `IdeFilesReport`, `WriteIdeFiles`; the file names and `kGeneratedMarkerKey`, `kDefaultGoVersion` | GDT-2 |
 | `WorldInspector.hpp` | `WorldInspector` (`Summary`, `Entities`, `Inspect`, `Queries`, `CommandQueues`, `States`), `WorldSummary`, `InspectedEntity`, `InspectedComponent`, `kDefaultEntityListLimit` | GDT-2 |
+| `EditorCook.hpp` | `ReadImportedScene` (a scene Godot imported as a `Cooker::CookScene`), `CookEditorScenes`, `EditorCookSpec` (scenes, output, content folder, origin), `LoadCookedCells`, `CookedLoadStats`, `ContentNameOf`, `CollisionPreset`, `CollisionPresetHint`; `kCollisionOnlySuffix` (`-rcol`), `kCollisionPresetOption` (`runic/collision`), `kCollisionPresetMeta`, `kCollisionOnlyMeta`, `kDefaultContentFolder` | GDT-4 |
 | `PhysicsInspector.hpp` | `PhysicsInspector` (`Summary`, `Bodies` near a point, `Inspect`, `Pick` with a ray, `Select`/`Selected`, `DrawServerView`), `PhysicsSummary`, `InspectedBody`, `InspectedProperty`, the property names (`kBody...Property`), `ServerViewSettings` (radius, over the visuals, faces, velocities), `ServerViewStats`; `kDefaultBodyListLimit` (500), `kDefaultInspectRadiusM` (250), `kDefaultPickDistanceM` (1 km), `kSelectedBodyColor` (the query color), `kSelectionPaddingM` (2 cm) | GDT-3 |
 
 Approved exception: godot-cpp types may appear in this module's public headers, so a project's editor library can
@@ -51,6 +58,38 @@ absent. A member the model does not know is a problem, not ignored, and every pr
 folder may hold the project manager's `project.godot` (kept: the editor has it open) and `.godot/`, nothing else; the
 template's files are copied in with `{{GAME_NAME}}` filled, and the manifest is written. A folder with anything else
 is refused untouched.
+
+**The Cooker integration's rules** (GDT-4; RunicDocs › World authoring and cooking › How collision is marked):
+
+- *Reading a scene.* The scene is loaded afresh (the scenes it instances too, so a cook reads what was imported
+  last) and walked without entering the tree. Each MeshInstance3D is an asset and a placement. The asset is the
+  imported file that holds the node (the nearest of the node and its ancestors that a file instanced) and the node's
+  path in it: its AssetId is 64-bit FNV-1a of the file's Godot UID and that path (the path itself when the file has no
+  UID), its content name `game:` plus the file's path under the content folder without its extension, then the
+  node's path, in snake case (`res://Content/TestRegion/test_region.glb`, `Platform`:
+  `game:test_region/test_region/platform`). Its triangles are read surface by surface and turned from Godot's
+  clockwise to the formats' counter-clockwise; its normals kept when every surface has them. The placement is the
+  node's path from the scene's root and its pose relative to it (composed from the local transforms), its scale
+  taken from the basis. A RunicCollider3D is a collider, its node's scale baked into its size.
+- *The presets.* The import plugin adds **Runic › Collision** to a glTF's Import dock (*The mesh itself*, the default;
+  *None*; *Collision meshes (-rcol)*; *Convex hull* and *Simplified mesh*, listed and reported as not cooked yet) and
+  puts the preset on every mesh node of the imported scene, which keeps it.
+- *The naming convention.* A mesh node named `<Name>-rcol` (or `<Name>-rcol` followed by anything, for several
+  pieces) is collision only, for the mesh node `<Name>` that is its parent or its sibling: the import plugin hides it,
+  the reader transforms its triangles into `<Name>`'s space and makes them `<Name>`'s collision, whatever the file's
+  preset. A collision-only mesh without such an owner fails the read with its path.
+- *The cook.* `CookEditorScenes` reads every scene, then calls `Cooker::Cook` into the cooked folder. The plugin cooks
+  the manifest's world scene (`cook.world`) into `paths.cooked` from Project › Tools › **Runic: cook the project** and
+  before each export (the export plugin); with `--runic-cook` it waits until the editor has scanned and imported (and
+  a second more), cooks the scenes named by `--runic-cook-scene=` (or the world scene), opens a help page (Godot 4.7.2's
+  help thread must finish before a quit, see below), and a second later stops the program with the cook's exit code
+  (`cookFinished`) and quits Godot. A cook prints `RUNIC: cook succeeded in <ms> ms: <n> meshes, ...` or `RUNIC: cook
+  failed: ...` and each problem.
+- *Loading a cook.* `LoadCookedCells` puts every cell of a cooked folder into a simulation's physics: each placement's
+  cooked collision shapes and each collider as a static body of an entity tagged `engine:cooked_body`, at the cell's
+  origin plus their offsets; a later load destroys the entities the last one made (their bodies go at the next
+  barrier). Physics shapes are named by a hash of their content, so a reload of the same cook reuses them. The plugin
+  loads each cook into the editor's local world.
 
 **The physics inspector's rules** (GDT-3): the inspector reads the local simulation's physics world between its
 steps, through `SimulationRuntime::FindPhysicsBridge` and Physics' descriptions (`FindBodies`, `DescribeBody`,
@@ -98,6 +137,10 @@ position minus `editedSceneOrigin` in the edited scene.
   RenderingServer mesh per cached debug mesh and pooled instances, in the world the editor's 3D viewports render (the
   edited scene's, where the editor draws its own gizmos). It checks at creation that Godot lays a surface out as
   DebugGeometry does, as GodotBridge's debug view does, and draws nothing otherwise.
+- The Cooker integration (GDT-4, `Source/Export`, `Source/MarkerNodes`): the scene reader, the editor's cook, loading a
+  cook into a simulation, the import plugin (`RunicImportPlugin`), the export plugin (`RunicExportPlugin`),
+  RunicCollider3D (box, sphere or capsule; public in the editor's Create Node dialog) and its gizmo, the collision
+  convention's documentation in the project template (`Content/README.md`).
 
 ## Does not own
 
@@ -109,8 +152,10 @@ position minus `editedSceneOrigin` in the edited scene.
 - How states are listed: Runic::ECS offers no way to enumerate declared states by index, so the dock shows none
   (reported; see the slice brief).
 - The physics world, its bodies and its debug drawing (Runic::Physics, PHYS-1 to PHYS-3) and the bridge from entities
-  (Runic::Simulation, SIM-8); the client's physics layer (Runic::GodotBridge, GDB-4). Cooked collision (the Cooker,
-  COOK-1, and GDT-4's Cooker integration, slice 9): until then the layer draws the local simulation's own bodies.
+  (Runic::Simulation, SIM-8); the client's physics layer (Runic::GodotBridge, GDB-4).
+- Cooking itself (Runic::Cooker, COOK-1) and the cooked formats (Runic::Assets, ASSET-1). The other marker nodes
+  (RunicVolume3D, RunicSpawnArea3D, RunicInteractable3D, RunicRoute3D) and incremental cooking are GDT-7's (slice 21);
+  region scenes and their 64-bit origins GDT-8's.
 - Building libgodot (BUILD-1). Cooking (Runic::Cooker).
 
 ## Allowed dependencies
@@ -119,7 +164,8 @@ Catalog row (ceiling): any module and Runic::Cooker; third parties libgodot (edi
 the approved exception). GDT-2 links Runic::GodotBridge (public: the plugin is registered on its runtime),
 Runic::Simulation (public: `WorldInspector` and `EditorToolsSpec` name the `SimulationRuntime`) and godot-cpp
 (public). GDT-3 adds no link: `PhysicsInspector.hpp` names Runic::Physics and Core render data, which come with
-Runic::Simulation (public there since SIM-8). The JSON reader is the module's own (`Source/Project/Json.cpp`): the row allows no JSON library, and the
+Runic::Simulation (public there since SIM-8). GDT-4 links Runic::Cooker (public: `EditorCook.hpp` names its input and
+report; Runic::Assets and Runic::Content come with it). The JSON reader is the module's own (`Source/Project/Json.cpp`): the row allows no JSON library, and the
 model must work without Godot running.
 
 ## Forbidden dependencies
@@ -153,6 +199,8 @@ editor per process). The local simulation belongs to the program and outlives Go
 - The physics dock shows the local simulation's physics when the program enabled it
   (`SimulationRuntime::EnablePhysics`) and says "The local simulation runs no physics" otherwise. The plugin forwards
   3D viewport input always (`set_input_event_forwarding_always_enabled`), and takes a click only while the dock picks.
+- `--runic-cook` (the RunicEditor sets `cookAndQuit`, `cookScenes` and `cookFinished`); the export plugin cooks at the
+  start of every export; Project › Tools › Runic: cook the project.
 - The dock binds check methods for tests through Godot (its class is private): `shown_bodies`, `select_body(index)`,
   `selected_property(name)`, `pick_ray(origin, direction)` (in the scene's space), `server_view_surface(batch,
   primitive)`, `server_view_drawn_over_visuals`, `server_view_shown`; its controls are named `ServerView`,
@@ -164,10 +212,14 @@ editor per process). The local simulation belongs to the program and outlives Go
   `Template/runic-mmo/`.
 - `Source/IDEBridge/IdeBridge.cpp`; `Source/Docks/WorldInspector.cpp`, `RunicWorldDock.hpp`/`.cpp`,
   `InspectorText.hpp` (how both docks name an entity), `PhysicsInspector.cpp`, `RunicPhysicsDock.hpp`/`.cpp`,
-  `ServerViewLayer.hpp`/`.cpp`;
+  `ServerViewLayer.hpp`/`.cpp`; `Source/Export/SceneReader.cpp`, `EditorCook.cpp`, `RunicImportPlugin.hpp`/`.cpp`;
+  `Source/MarkerNodes/RunicCollider3D.hpp`/`.cpp`;
   `Source/Plugin/RunicEditorPlugin.hpp`/`.cpp`, `EditorContext.hpp`; `Source/GodotToolsModule.cpp`.
 - `tests/godot/fixtures/game_editor/GameEditorFixture.cpp`: the fixture editor library, built twice (build 1 and 2).
   `Tests/EditorHarness.hpp`: the scratch project and the editor in the test process, shared by the tests with Godot.
+  `tests/godot/fixtures/test_region/`: the test region (a glTF that stands in for a Blender export, its generator
+  script, and a scene placing it with a RunicCollider3D); `tests/godot/CopyIntoFolder.cmake` puts it into the CTests'
+  project.
 - Formats the CTests rely on: `RUNIC: Runic editor plugin loaded`, `RUNIC: project <name> opened (Runic format <n>,
   made with Engine <v>)`, `RUNIC: <folder> is a Godot project without runic.project.json; ...`, `RUNIC: game editor
   library <res path> (loaded|not loaded yet)`, `RUNIC: game editor library reloaded (<n> so far)`, `RUNIC: world dock
@@ -184,7 +236,8 @@ editor per process). The local simulation belongs to the program and outlives Go
 | GDT-1 | Spike: the RunicEditor executable on libgodot (editor target) opens the Godot editor with a test plugin; the editor target builds and opens without GDScript | The editor opens, loads the plugin and exits cleanly in CI; the spike's findings decide the fallback | Done in slice 0; its test plugin replaced by GDT-2's plugin |
 | GDT-2 | Project model: runic.project.json, the runic-mmo template, New and Open, loading and reloading the project's editor library; IDE bridge; first dock with world and ECS inspectors over a local simulation in the editor process | The editor opens a project and inspects entities of a local world; a rebuilt editor library reloads without restarting | **Implemented** (slice 6, preview branch): `RunicGodotToolsTests` passes with the 19 tests below; the CTests `godot.editor_spike`, `godot.editor_new_project`, `godot.editor_project_library`, `godot.editor_opens_project`; awaiting the owner's review |
 | GDT-3 | Physics inspector and the "see what the server sees" viewport layer | Bodies are selectable with their properties; cooked collision draws over the visual | **Implemented** (slice 8, preview branch): `RunicGodotToolsTests` passes with the 12 tests below; the CTest `godot.editor_opens_project` sees the physics dock and the layer; awaiting the owner's review |
-| GDT-4 to GDT-16 | Cooker integration, docks, schema inspectors, region tools, Run, AI editor, live attach, water authoring, GDScript locks | See RunicDocs | Not started |
+| GDT-4 | Cooker integration: export plugin that calls the Cooker; collision presets in Godot's import settings; RunicCollider3D; the collision naming convention for glTF | A Blender mesh imported by Godot cooks into collision and is walkable | **Implemented** (slice 9, preview branch): `RunicGodotToolsTests` passes with the 4 tests below; the CTests `godot.editor_cook_fixture`, `godot.editor_cooks_test_region` and `godot.server_walks_cooked_region`; awaiting the owner's review |
+| GDT-5 to GDT-16 | Docks, schema inspectors, region tools, Run, AI editor, live attach, water authoring, GDScript locks | See RunicDocs | Not started |
 
 GDT-2's acceptance tests (`RunicGodotToolsTests`): `ProjectManifest.*` (RunicDocs' manifest read; written back the
 same; defaults; every problem named, all at once; broken JSON with its line and column; escapes and Unicode),
@@ -209,6 +262,37 @@ position, then picks with a ray as a viewport click does; **the collision draws 
 lines, read back from the RenderingServer, span the floor and the box at their place in the edited scene, with no
 depth test; depth-tested, they move to the other batch; the layer hides). The CTest `godot.editor_opens_project`
 checks the physics dock's line (15 bodies) and the layer's.
+
+GDT-4's acceptance tests (`RunicGodotToolsTests`, with Godot headless in the test process): `EditorCook.*` (**the
+reader takes what Godot imported**: four assets from the glTF, the rock's collision from its `-rcol` mesh in its own
+space, every triangle counter-clockwise facing its normal, the placements' paths and poses, the wall collider, IDs
+stable from Godot's UID, the collision-only mesh hidden by the import plugin while the platform draws; **a cooked
+region is walkable and its collision draws where Godot draws the visual**: the cook's 4 meshes, 4 collisions and 44
+triangles load into the local world as 5 bodies, a second load replaces the first, a character walks from the ground
+up the ramp onto the platform and stops at the wall 8,600 km out, and the layer's lines, read back from Godot, span the
+imported ground mesh's bounds to the millimetre; **the import preset decides**: *None* on the file takes the
+collision of every mesh but the rock, whose collision meshes win; content names in snake case). The CTests: the test
+region goes into the project New made, the RunicEditor cooks it without a window (`--runic-cook-scene=`) and loads it,
+and **the RunicServer walks a character on the cooked cell** from the ground up to the wall (`--cooked`).
+
+Decisions taken in GDT-4 that await the owner (also in the slice brief): the preset is per file (the Import dock's
+global options), not per mesh node; the naming convention is `-rcol` (Godot's own `-col` suffixes create Godot physics
+bodies, which are not in the build), for a parent or a sibling, and wins over the file's preset; a mesh's AssetId is a
+hash of its file's Godot UID and its node path (Godot gives UIDs to files, not to the meshes inside them); content
+names from the path under the content folder in snake case; the menu and the export cook the manifest's world scene,
+`--runic-cook-scene=` names others; `--runic-cook` waits for the editor's imports and a second more; the editor loads
+each cook into its local world; RunicCollider3D sizes are full sizes (a capsule's height includes its caps), its scale
+baked in.
+
+Reported, not made: GodotBridge's GodotLayer stops the application as a clean exit when Godot quits, whatever Godot's
+exit code: the RunicEditor passes `--runic-cook`'s code through `cookFinished` and a layer of its own; a GodotLayer that
+hands Godot's quit code to the application would make that unneeded. No runtime module may link both Assets and
+Physics (Simulation's row has no Assets): loading a cooked cell into a world is written three times for slice 9 (the
+editor's `LoadCookedCells`, the RunicServer's cooked walk, the Cooker's tests) until WORLD-3 and COOK-3 (slice 21) give
+it an owner.
+
+Costs, measured: the RunicEditor's cook of the test region (read from Godot, cooked, written) 3 ms; loading it into the
+local world is 5 bodies. The editor's test run takes about 5 s, most of it Godot's start and first import.
 
 Decisions taken in GDT-3 that await the owner (also in the slice brief): until the Cooker (slice 9), "cooked collision"
 is the local simulation's own physics, which GDT-4 fills from cooked cells; the layer draws over the visuals by
@@ -245,6 +329,9 @@ or a later release pin).
 
 - Opening a build error at its line (with Run, GDT-9), and the assistants (GDT-10) that write files and register them.
 - Listing states in the dock, once Runic::ECS can enumerate them.
+- The Cooker integration: per-mesh presets (the Advanced Import Settings' node options), convex hulls and simplified
+  meshes when the Cooker makes them, incremental cooking of the touched cells and the other marker nodes (GDT-7),
+  region scenes with 64-bit origins (GDT-8), a cook in the background with progress for long cooks.
 - The physics dock: characters in the list (the bridge's `PhysicsCharacter` entities), picking by Physics' rays
   (PHYS-5), selecting the body's owner in the world dock, volumes, spawn points and nav tiles in the server view
   (RunicDocs' list for the layer), and cooked collision from GDT-4.

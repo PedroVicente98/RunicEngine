@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://Content/TestRegion/test_region.glb" id="1_region"]
+
+[node name="TestRegion" type="Node3D"]
+
+[node name="Geometry" parent="." instance=ExtResource("1_region")]
+
+[node name="Wall" type="RunicCollider3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 3, 0)
+shape = 0
+size = Vector3(0.2, 4, 10)

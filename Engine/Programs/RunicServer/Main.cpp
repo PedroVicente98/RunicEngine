@@ -13,6 +13,9 @@
 //   RunicServer --quit-after 120 --clock-demo --set simulation.workers=2
 //       slice 3: a neutral probe system in every slot of the scheduler says when it first runs,
 //       which shows the order of a master step (the CTest programs.runic_server_clock)
+//   RunicServer --quit-after 300 --cooked <folder> [--cooked-spawn -12,0,0]
+//       slice 9: loads a cooked folder's cells into physics and walks a character on them from
+//       the spawn point (relative to the first cell's origin), reporting where it ended
 //   RunicServer --config server.cfg
 //       settings come from their defaults, then the file, then RUNIC_CFG_* environment variables,
 //       then --set key=value; a problem in any of them stops the server with exit code 1
@@ -21,6 +24,7 @@
 // later slices.
 
 #include "Application.hpp"
+#include "CookedWalk.hpp"
 #include "EntryPoint.hpp"
 #include "Log.hpp"
 #include "MetricsRegistry.hpp"
@@ -31,8 +35,11 @@
 #include "Time.hpp"
 
 #include <array>
+#include <charconv>
 #include <cstdint>
+#include <format>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -67,6 +74,13 @@ constexpr std::string_view kClockProbeName = "engine:clock_probe";
 constexpr std::array<ScheduleSlot, Runic::Simulation::kScheduleSlotCount> kClockDemoSlots{
     ScheduleSlot::Hz20Producers, ScheduleSlot::Hz10Producers, ScheduleSlot::Hz30Realtime,
     ScheduleSlot::Hz20Consumers, ScheduleSlot::Hz10Consumers, ScheduleSlot::Hz60Hook};
+
+// RunicServer's own flags: the cooked walk of slice 9.
+constexpr std::string_view kCookedFlag = "--cooked";
+constexpr std::string_view kCookedSpawnFlag = "--cooked-spawn";
+constexpr char kVectorSeparator = ',';
+constexpr const char *kCookedLayerName = "CookedWalk";
+constexpr std::size_t kVectorParts = 3;
 
 // The layer that stops a server whose configuration has a problem.
 constexpr const char *kConfigurationLayerName = "Configuration";
@@ -195,6 +209,37 @@ class RunicServerApplication final : private ServerServices, public Application 
     Runic::Core::TimePoint m_Start;
 };
 
+// A layer that never attaches, with a reason: how the server stops before its first frame.
+class FailedLayer final : public Layer {
+  public:
+    FailedLayer(const char *name, std::string reason) : Layer(name), m_Reason(std::move(reason)) {}
+    Runic::Core::Result<void> OnAttach(LayerContext &) override {
+        return Runic::Core::Fail(m_Reason);
+    }
+
+  private:
+    std::string m_Reason;
+};
+
+// "x,y,z" as three floats.
+std::optional<Runic::Core::Vec3> ParseVector(std::string_view text) {
+    float parts[kVectorParts] = {};
+    std::size_t start = 0;
+    for (std::size_t i = 0; i < kVectorParts; ++i) {
+        const std::size_t end =
+            i + 1 == kVectorParts ? text.size() : text.find(kVectorSeparator, start);
+        if (end == std::string_view::npos) {
+            return std::nullopt;
+        }
+        const auto [at, error] = std::from_chars(text.data() + start, text.data() + end, parts[i]);
+        if (error != std::errc() || at != text.data() + end) {
+            return std::nullopt;
+        }
+        start = end + 1;
+    }
+    return Runic::Core::Vec3(parts[0], parts[1], parts[2]);
+}
+
 // The clock demo: every slot's probe says when it first runs, so the log shows the order of a
 // master step.
 void AddClockProbes(SimulationRuntime &runtime) {
@@ -247,8 +292,32 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     if (command.Has(kClockDemoFlag)) {
         AddClockProbes(*runtime);
     }
+    std::unique_ptr<Layer> cookedWalk;
+    if (const auto folder = command.ValueOf(kCookedFlag)) {
+        Programs::CookedWalkSpec walk;
+        walk.folder = std::string(*folder);
+        if (const auto spawn = command.ValueOf(kCookedSpawnFlag)) {
+            const auto parsed = ParseVector(*spawn);
+            if (!parsed.has_value()) {
+                application->PushLayer(std::make_unique<FailedLayer>(
+                    kCookedLayerName, std::format("{} {} is not x,y,z", kCookedSpawnFlag, *spawn)));
+                return application;
+            }
+            walk.spawn = *parsed;
+        }
+        auto made = Programs::MakeCookedWalk(*runtime, walk);
+        if (!made) {
+            application->PushLayer(
+                std::make_unique<FailedLayer>(kCookedLayerName, made.GetError().message));
+            return application;
+        }
+        cookedWalk = std::move(made.Value());
+    }
     application->PushLayer(std::make_unique<SimulationLayer>(
         std::move(runtime), Simulation::SimulationLayerSpecFrom(config, simulationSettings)));
+    if (cookedWalk != nullptr) {
+        application->PushLayer(std::move(cookedWalk)); // above: it detaches first, with the world
+    }
 
     if (command.Has(kLayerDemoFlag)) {
         application->PushLayer(

@@ -16,6 +16,8 @@ has code; contract in [ARCHITECTURE.md](ARCHITECTURE.md)
 | [`Source/Project/`](Source/Project/README.md) | The project model: runic.project.json, New and Open (per the open decision), and loading and reloading the project's editor library. | GDT-2 (slice 6) |
 | [`Source/IDEBridge/`](Source/IDEBridge/README.md) | The IDE bridge: compile_commands.json, go.work, VS Code tasks, opening a build error at its line. | GDT-2 (slice 6) |
 | [`Source/Docks/`](Source/Docks/README.md) | Docks: world, ECS and physics inspectors over a local simulation in the editor process, and the resolver debugger. | GDT-2 (slice 6), GDT-3 (slice 8), GDT-5 (slice 17) |
+| [`Source/Export/`](Source/Export/README.md) | Cooker integration: the export plugin that calls the Cooker, collision presets in Godot's import settings, the collision naming convention for glTF. | GDT-4 (slice 9) |
+| [`Source/MarkerNodes/`](Source/MarkerNodes/README.md) | Marker nodes (RunicVolume3D, RunicSpawnArea3D, RunicInteractable3D, RunicRoute3D, RunicCollider3D) and spawn-area previews; they exist only in the editor, the Cooker writes placements. | GDT-4 (slice 9), GDT-7 (slice 21) |
 | `Tests/` | GoogleTest tests, registered with CTest; one test executable per module. | every package |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | The module contract: purpose, public API, ownership, allowed and forbidden dependencies, threading, work packages and their status. | exists (slice 0; GDT-2 contract) |
 | [`CMakeLists.txt`](CMakeLists.txt) | One `runic_add_module(...)` call. | exists (slice 0) |
@@ -26,9 +28,7 @@ Not created yet: each folder appears with the package that fills it, which takes
 
 | Folder | Holds | Packages |
 | --- | --- | --- |
-| `Source/Export/` | Cooker integration: the export plugin that calls the Cooker, collision presets in Godot's import settings, the collision naming convention for glTF. | GDT-4 (slice 9) |
 | `Source/RunicData/` | Runic data in the editor: ResourceFormatLoader and ResourceFormatSaver for Runic files, inspectors and validation generated from schemas, live reload into a running server, background cooking with progress. | GDT-6 (slice 20) |
-| `Source/MarkerNodes/` | Marker nodes (RunicVolume3D, RunicSpawnArea3D, RunicInteractable3D, RunicRoute3D, RunicCollider3D) and spawn-area previews; they exist only in the editor, the Cooker writes placements. | GDT-4 (slice 9), GDT-7 (slice 21) |
 | `Source/RegionTools/` | Region tools: World.tscn with RunicRegion3D proxies, New region from layout, read-only neighbor proxies, 64-bit region origins. | GDT-8 (slice 21) |
 | `Source/Run/` | Run orchestration: compile what changed, cook, start the local server and development clients with a development ticket, development checkpoint on stop. | GDT-9 (slice 13) |
 | `Source/Assistants/` | Assistants: New Flecs system, New behavior, New quest condition or action, New AI node, New data type, New marker node, New Go service. | GDT-10 (slice 20) |
@@ -42,7 +42,7 @@ Not created yet: each folder appears with the package that fills it, which takes
 
 ## How the folders fill
 
-This module has code. Its contract is [ARCHITECTURE.md](ARCHITECTURE.md). GDT-1 (slice 0) wrote the spike's test plugin in `Source/Spike`; GDT-2 (slice 6) replaced it with `Source/Plugin` and deleted that folder, as its README said, and added `Source/Project` (with the runic-mmo template in `Source/Project/Template`), `Source/IDEBridge`, `Source/Docks` and `Tests/`. A planned folder appears when the package that fills it starts, with its README from the `layout` branch, so the planned layout never moves (decided 2026-11-14); a package writes inside this module's folder only, and reports any change another module needs instead of making it.
+This module has code. Its contract is [ARCHITECTURE.md](ARCHITECTURE.md). GDT-1 (slice 0) wrote the spike's test plugin in `Source/Spike`; GDT-2 (slice 6) replaced it with `Source/Plugin` and deleted that folder, as its README said, and added `Source/Project` (with the runic-mmo template in `Source/Project/Template`), `Source/IDEBridge`, `Source/Docks` and `Tests/`; GDT-3 (slice 8) filled more of `Source/Docks`; GDT-4 (slice 9) added `Source/Export` and `Source/MarkerNodes`. A planned folder appears when the package that fills it starts, with its README from the `layout` branch, so the planned layout never moves (decided 2026-11-14); a package writes inside this module's folder only, and reports any change another module needs instead of making it.
 
 ## Sources
 

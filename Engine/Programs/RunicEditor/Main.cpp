@@ -12,6 +12,10 @@
 //       makes <folder> a Runic project from the runic-mmo template and exits, without Godot
 //   RunicEditor --headless --editor --path <project> --quit-after 120
 //       the CI check: open the project, load the plugin, show the dock, exit
+//   RunicEditor --headless --editor --path <project> --runic-cook [--runic-cook-scene=<res
+//   path>...]
+//       cooks once the project is imported (the manifest's world scene, or the scenes named),
+//       prints the report and exits: 0 when the cook succeeded (GDT-4)
 //
 // Every argument goes to Godot unchanged: the project manager opens a project by relaunching this
 // executable with --path, so the entry point never consumes or rewrites arguments.
@@ -47,6 +51,11 @@ constexpr const char *kProgramName = "RunicEditor";
 constexpr std::string_view kNewProjectFlag = "--runic-new-project";
 constexpr int kNewProjectArguments = 2; // the folder and the game's name
 constexpr std::string_view kNewProjectLayerName = "engine:new_project";
+// --runic-cook, and the scenes it cooks (one flag each, as a value Godot does not read as a scene
+// to open).
+constexpr std::string_view kCookFlag = "--runic-cook";
+constexpr std::string_view kCookSceneFlag = "--runic-cook-scene=";
+constexpr std::string_view kExitCodeLayerName = "engine:exit_code";
 constexpr std::uint64_t kOneFrame = 1;
 
 #ifndef RUNIC_TEMPLATES_DIR
@@ -99,8 +108,30 @@ class RunicEditorApplication final : public Application {
     void OnStopped(int exitCode, std::uint64_t frames) override {
         if (exitCode == kCleanExit) {
             RUNIC_LOG_INFO("RUNIC: {} exited cleanly after {} frames", Spec().name, frames);
+        } else {
+            RUNIC_LOG_ERROR("RUNIC: {} exited with code {} after {} frames", Spec().name, exitCode,
+                            frames);
         }
     }
+};
+
+// Stops the editor with an exit code the tools give it (--runic-cook's), before Godot's quit stops
+// it as a clean exit: the first stop request wins.
+class ExitCodeLayer final : public Runic::Application::Layer {
+  public:
+    ExitCodeLayer() : Layer(std::string(kExitCodeLayerName)) {}
+    Runic::Core::Result<void> OnAttach(Runic::Application::LayerContext &context) override {
+        m_Context = &context;
+        return {};
+    }
+    void Stop(int code) {
+        if (m_Context != nullptr) {
+            m_Context->RequestStop(code);
+        }
+    }
+
+  private:
+    Runic::Application::LayerContext *m_Context = nullptr;
 };
 
 } // namespace
@@ -145,12 +176,24 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     tools.localWorld = &simulation->Runtime();
     tools.templateDirectory = TemplateDirectory();
     tools.engineVersion = RUNIC_ENGINE_VERSION;
+    auto exitCode = std::make_unique<ExitCodeLayer>();
+    ExitCodeLayer *stopper = exitCode.get();
+    tools.cookFinished = [stopper](int code) { stopper->Stop(code); };
+    for (const std::string &argument : arguments) {
+        if (argument == kCookFlag) {
+            tools.cookAndQuit = true;
+        } else if (argument.starts_with(kCookSceneFlag)) {
+            tools.cookAndQuit = true;
+            tools.cookScenes.push_back(argument.substr(kCookSceneFlag.size()));
+        }
+    }
     GodotTools::RegisterEditorTools(layer->Runtime(), tools);
 
     // The editor paces its own frames, and Godot reads the frame limit (kQuitAfterFlag) itself.
     auto application = std::make_unique<RunicEditorApplication>(ApplicationSpec{
         kProgramName, LoopPolicy::PacedByTopLayer(), ApplicationSpec::kRunUntilStopped});
     application->PushLayer(std::move(simulation));
+    application->PushLayer(std::move(exitCode));
     application->PushLayer(std::move(layer));
     return application;
 }

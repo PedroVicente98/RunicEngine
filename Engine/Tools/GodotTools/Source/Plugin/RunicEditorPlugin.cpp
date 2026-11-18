@@ -10,11 +10,15 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/script_editor.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
 #include "Docks/RunicPhysicsDock.hpp"
 #include "Docks/RunicWorldDock.hpp"
+#include "EditorCook.hpp"
 #include "IdeBridge.hpp"
 #include "Log.hpp"
 #include "Plugin/EditorContext.hpp"
@@ -27,6 +31,7 @@ constexpr const char *kPluginName = "Runic";
 constexpr const char *kNewProjectItem = "Runic: make this a Runic project";
 constexpr const char *kIdeFilesItem = "Runic: generate IDE files";
 constexpr const char *kReloadItem = "Runic: reload the game editor library";
+constexpr const char *kCookItem = "Runic: cook the project";
 constexpr const char *kNewProjectTitle = "Make this a Runic project";
 constexpr const char *kMessageTitle = "Runic";
 constexpr const char *kProjectRoot = "res://";
@@ -35,6 +40,13 @@ constexpr const char *kGDScriptClass = "GDScript";
 constexpr const char *kConfirmedSignal = "confirmed";
 // The editor library is looked at twice a second: a rebuilt library reloads within a second.
 constexpr double kPollSeconds = 0.5;
+// --runic-cook waits this long after the editor's last scan and import, then cooks; and quits this
+// long after a help page made Godot's help thread finish (Godot 4.7.2 crashes on a quit before
+// that thread queued its last call: see ARCHITECTURE.md).
+constexpr double kImportSettleSeconds = 1.0;
+constexpr double kQuitAfterHelpSeconds = 1.0;
+constexpr const char *kAnyHelpTopic = "class_name:Object";
+constexpr const char *kResPrefix = "res://";
 
 std::string ToStd(const godot::String &text) { return text.utf8().get_data(); }
 godot::String ToGodot(std::string_view text) {
@@ -75,6 +87,18 @@ void RunicEditorPlugin::_enter_tree() {
     }
     add_tool_menu_item(kIdeFilesItem, callable_mp(this, &RunicEditorPlugin::GenerateIdeFiles));
     add_tool_menu_item(kReloadItem, callable_mp(this, &RunicEditorPlugin::ReloadGameLibrary));
+    add_tool_menu_item(kCookItem, callable_mp(this, &RunicEditorPlugin::CookProject));
+
+    // The Cooker integration: collision presets at import, a cook before each export, the
+    // collider's gizmo.
+    m_Import.instantiate();
+    add_scene_post_import_plugin(m_Import);
+    m_Export.instantiate();
+    m_Export->SetCook(callable_mp(this, &RunicEditorPlugin::CookProject));
+    add_export_plugin(m_Export);
+    m_ColliderGizmo.instantiate();
+    m_ColliderGizmo->Prepare();
+    add_node_3d_gizmo_plugin(m_ColliderGizmo);
 
     m_Library = std::make_unique<GameLibrary>();
     m_Library->Open();
@@ -108,6 +132,13 @@ void RunicEditorPlugin::_exit_tree() {
     }
     remove_tool_menu_item(kIdeFilesItem);
     remove_tool_menu_item(kReloadItem);
+    remove_tool_menu_item(kCookItem);
+    remove_scene_post_import_plugin(m_Import);
+    remove_export_plugin(m_Export);
+    remove_node_3d_gizmo_plugin(m_ColliderGizmo);
+    m_Import.unref();
+    m_Export.unref();
+    m_ColliderGizmo.unref();
     m_Library.reset();
     m_Message = nullptr; // children of this node
     m_NewProject = nullptr;
@@ -116,6 +147,9 @@ void RunicEditorPlugin::_exit_tree() {
 }
 
 void RunicEditorPlugin::_process(double delta) {
+    if (Context().cookAndQuit) {
+        CookAndQuitWhenImported(delta);
+    }
     m_SincePoll += delta;
     if (m_SincePoll < kPollSeconds || m_Library == nullptr) {
         return;
@@ -140,6 +174,89 @@ int32_t RunicEditorPlugin::_forward_3d_gui_input(godot::Camera3D *camera,
     // A left click picks, any other button gives up picking; neither reaches the editor.
     m_PhysicsDock->StopPicking();
     return AFTER_GUI_INPUT_STOP;
+}
+
+bool RunicEditorPlugin::Cook(const std::vector<std::string> &scenes) {
+    if (!m_Project.has_value()) {
+        RUNIC_LOG_ERROR("{}: this is not a Runic project", kCookFailedLine);
+        return false;
+    }
+    const ProjectManifest &manifest = m_Project->manifest;
+    EditorCookSpec spec;
+    spec.scenes = scenes;
+    if (spec.scenes.empty()) {
+        spec.scenes.push_back(std::string(kResPrefix) + manifest.cook.world);
+    }
+    spec.output = m_Project->root / manifest.paths.cooked;
+    spec.contentFolder = manifest.paths.content;
+    spec.origin = Context().editedSceneOrigin;
+    auto report = CookEditorScenes(spec);
+    if (!report) {
+        RUNIC_LOG_ERROR("{}: {}", kCookFailedLine, report.GetError().message);
+        return false;
+    }
+    const Cooker::CookReport &cooked = report.Value();
+    if (!cooked.succeeded) {
+        RUNIC_LOG_ERROR("{}: {} problems", kCookFailedLine, cooked.problems.size());
+        for (const std::string &problem : cooked.problems) {
+            RUNIC_LOG_ERROR("RUNIC: cook problem: {}", problem);
+        }
+        return false;
+    }
+    RUNIC_LOG_INFO("{} in {:.0f} ms: {} meshes, {} collisions, {} cells, {} placements, {} "
+                   "colliders, {} collision triangles ({} welded vertices, {} dropped triangles) "
+                   "into {}",
+                   kCookSucceededLine, cooked.seconds * 1000.0, cooked.meshes, cooked.collisions,
+                   cooked.cells, cooked.placements, cooked.colliders, cooked.collisionTrianglesOut,
+                   cooked.weldedVertices, cooked.droppedTriangles, spec.output.string());
+    if (Simulation::SimulationRuntime *world = Context().localWorld) {
+        auto loaded = LoadCookedCells(*world, spec.output);
+        if (!loaded) {
+            RUNIC_LOG_WARNING("RUNIC: the local world did not load the cook: {}",
+                              loaded.GetError().message);
+        } else {
+            RUNIC_LOG_INFO("RUNIC: the local world loaded the cook: {} cells, {} bodies ({} "
+                           "replaced)",
+                           loaded.Value().cells, loaded.Value().bodies, loaded.Value().removed);
+        }
+    }
+    return true;
+}
+
+void RunicEditorPlugin::CookProject() {
+    const bool cooked = Cook({});
+    Tell(cooked ? "The project is cooked: see the log for what it holds."
+                : "The cook failed: the log lists its problems.");
+}
+
+void RunicEditorPlugin::CookAndQuitWhenImported(double delta) {
+    if (m_CookedOnStart) {
+        m_QuitIn -= delta;
+        if (m_QuitIn <= 0.0) {
+            if (Context().cookFinished) {
+                Context().cookFinished(m_ExitCode);
+            }
+            get_tree()->quit(m_ExitCode);
+        }
+        return;
+    }
+    godot::EditorFileSystem *files =
+        godot::EditorInterface::get_singleton()->get_resource_filesystem();
+    if (files->is_scanning() || files->is_importing()) {
+        m_ImportedFor = 0.0;
+        return;
+    }
+    m_ImportedFor += delta;
+    if (m_ImportedFor < kImportSettleSeconds) {
+        return;
+    }
+    m_CookedOnStart = true;
+    m_ExitCode = Cook(Context().cookScenes) ? kCookSucceededExitCode : kCookFailedExitCode;
+    if (godot::ScriptEditor *scripts =
+            godot::EditorInterface::get_singleton()->get_script_editor()) {
+        scripts->goto_help(kAnyHelpTopic);
+    }
+    m_QuitIn = kQuitAfterHelpSeconds;
 }
 
 void RunicEditorPlugin::OpenProject() {
