@@ -27,8 +27,8 @@ got, and every slice in it is done.
 
 ## The whole branch, checked (2026-11-18)
 
-Slices 3 to 11 are done: 26 packages. 25 are Engine packages, on this branch in 45 commits since `slice/2` (this
-check included); GAME-1 is on RunicGame's branch. Every package has its own commit or commits, named after it, and
+Slices 3 to 11 are done: 26 packages. 25 are Engine packages, on this branch since `slice/2` (`git log
+origin/slice/2..` lists them); GAME-1 is on RunicGame's branch. Every package has its own commit or commits, named after it, and
 every slice ends with its note's commit.
 
 - **The Engine, both builds.** The debug build (Godot, tools) runs 532 tests and the headless build 420, all passing.
