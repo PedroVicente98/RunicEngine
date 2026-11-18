@@ -22,14 +22,16 @@ umbrella target); it has no code of its own.
 | [Programs](Programs/README.md) | RunicEditor 0 · RunicServer 1 · RunicClient 1 · RunicBot 38 — executables, not modules |
 
 Modules with code: Core (CORE-1, CORE-3; CORE-2 and CORE-8 from slice 3; shape instances from slice 5; cached debug
-meshes and the physics layer's geometry from slice 8) and Application (APP-1), from slice 1; Simulation (SIM-1, slice
+meshes and the physics layer's geometry from slice 8) and Application (APP-1), from slice 1; Content (CNT-1) and
+Assets (ASSET-1) from slice 9; Simulation (SIM-1, slice
 3; SIM-2, slice 5); Events (EVT-1), ECS (ECS-1, ECS-2) and World (WORLD-1), from slice 4; Physics (PHYS-1, PHYS-2) from
 slice 7, which also gave Simulation its physics bridge (SIM-8), and its debug view (PHYS-3) from slice 8; Client
 (CLI-1, slice 5; CLI-2, slice 7); GodotBridge (the slice 0 LibGodot host, GDB-1's GodotLayer, GDB-2's debug view,
-GDB-3's presenter, GDB-4's physics geometry layer) and GodotTools (GDT-2's project model, editor plugin and world dock,
-slice 6; GDT-3's physics inspector and the editor's server view, slice 8). Programs with code: RunicEditor (slice 0, on
-the entry point since GDB-1, with a local world since GDT-2, running physics since GDT-3), RunicServer (APP-1, with the
-Simulation layer since SIM-1) and RunicClient (GDB-1; slice 5's moving entities; slice 7's walk on terrain far from the
+GDB-3's presenter, GDB-4's physics geometry layer), GodotTools (GDT-2's project model, editor plugin and world dock,
+slice 6; GDT-3's physics inspector and the editor's server view, slice 8; GDT-4's Cooker integration, slice 9) and the
+Cooker (COOK-1, slice 9). Programs with code: RunicEditor (slice 0, on
+the entry point since GDB-1, with a local world since GDT-2, running physics since GDT-3, cooking with `--runic-cook`
+since GDT-4), RunicServer (APP-1, with the Simulation layer since SIM-1, walking on a cooked folder since slice 9) and RunicClient (GDB-1; slice 5's moving entities; slice 7's walk on terrain far from the
 origin, with its collision drawn since slice 8). The other groups, modules and programs are only on the `layout` branch so far.
 
 ## The shape of a module
