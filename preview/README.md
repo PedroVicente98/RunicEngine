@@ -8,8 +8,8 @@ Each slice was built in the order of the roadmap, package by package, the way th
 Building with Claude Code): the contract first (the module's `ARCHITECTURE.md`, its public headers, its acceptance
 tests), then the code, then the checks. Every package is one commit named after it (`CORE-2: …`); a RunicGame package (GAME-1) is committed on RunicGame's
 branch of the same name, `preview/slices-3-11`. Every slice ends
-with a commit that adds its note here. If the work stops, it stops after a finished package: the table below says how
-far it got, and the next package in it is where to continue.
+with a commit that adds its note here. The work stopped only after finished packages: the table below says how far it
+got, and every slice in it is done.
 
 ## Status
 
@@ -24,6 +24,27 @@ far it got, and the next package in it is where to continue.
 | 9 · First cooker proof | CNT-1, ASSET-1, COOK-1, GDT-4 | **Done** | [slice-09-first-cooker-proof.md](slice-09-first-cooker-proof.md) |
 | 10 · Worker pool | PHYS-4, SIM-3 | **Done** | [slice-10-worker-pool.md](slice-10-worker-pool.md) |
 | 11 · Spatial index | WORLD-2 | **Done** | [slice-11-spatial-index.md](slice-11-spatial-index.md) |
+
+## The whole branch, checked (2026-11-18)
+
+Slices 3 to 11 are done: 23 packages in 44 commits on this branch since `slice/2`. Every package has its own commit
+or commits, named after it. Every slice ends with its note's commit. GAME-1 is on RunicGame's branch.
+
+- **The Engine, both builds.** The debug build (Godot, tools) runs 532 tests and the headless build 420, all passing.
+  That includes the build checks (`checks.catalog_sync`, the public-header and include scans, the headless check)
+  and every program's CTest.
+- **Every headless module under every checker.** Core, Application, Events, ECS, Content, Assets, World, Physics and
+  Simulation pass under AddressSanitizer with UBSan, ThreadSanitizer, clang and Release. The Client module's tests
+  pass in the presentation trees (ASan, clang, Release).
+- **RunicGame** (`preview/slices-3-11`) rebuilds against this Engine: its editor library and RunicEditor build, and
+  its checks pass. Its server and client build tests still fail, for the reason slice 6 gave: RunicGame's `main` links
+  the `Runic::Runtime` bundle the Engine removed in slice 1, and GAME-0 is not on it.
+- **RunicPlatform** (`main`, untouched by these slices) builds against this Engine, and its one test passes when run
+  directly. CTest cannot list it, because its discovery script is not found. The same happens against `slice/2`, so
+  this branch did not cause it; it is the Platform's to look at.
+- **Where the plan goes next.** Slice 12 (Transport) is the Platform's GameNetworkingSockets transport, so this branch
+  ends here. The notes' "Decisions that await the owner" tables are the review list: about a dozen per slice, each with
+  its reason and its alternative.
 
 ## How this differs from the normal pipeline
 
