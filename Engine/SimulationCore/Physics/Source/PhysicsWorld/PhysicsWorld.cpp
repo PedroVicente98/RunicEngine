@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <tuple>
 
 #include "Assert.hpp"
 #include "PhysicsWorld/WorldState.hpp"
@@ -28,6 +29,7 @@ namespace {
 
 // Jolt's job system needs to know how many jobs and barriers a step may make; its samples' values.
 constexpr std::uint32_t kMaxPhysicsJobs = JPH::cMaxPhysicsJobs;
+constexpr std::uint32_t kMaxPhysicsBarriers = JPH::cMaxPhysicsBarriers;
 // Body mutexes: 0 lets Jolt pick a default for the machine.
 constexpr std::uint32_t kDefaultBodyMutexes = 0;
 // Jolt is most stable with a collision step every 1/60 s: two per 30 Hz tick.
@@ -93,8 +95,16 @@ bool Asleep(const JPH::BodyInterface &bodies, JPH::BodyID body) {
 
 } // namespace
 
+void ContactBuffer::BeginStep() {
+    const std::lock_guard lock(m_Mutex);
+    m_StepFirstFact = m_Facts.size();
+}
+
 void ContactBuffer::Settle(const JPH::BodyInterface &bodies) {
     const std::lock_guard lock(m_Mutex);
+    // In pair order, whatever order the threads lost them in: the dormant pairs' lists, and so the
+    // facts they end with later, come out the same on any number of workers.
+    std::sort(m_Lost.begin(), m_Lost.end());
     for (const Pair &pair : m_Lost) {
         const JPH::BodyID a(pair.first);
         const JPH::BodyID b(pair.second);
@@ -122,8 +132,17 @@ void ContactBuffer::Settle(const JPH::BodyInterface &bodies) {
             EndLocked(pair);
         }
     }
+    std::sort(m_Woken.begin(), m_Woken.end());
     m_WokenLast.swap(m_Woken);
     m_Woken.clear();
+    // The step's facts by their bodies, Began before Ended.
+    const auto byBodies = [](const ContactFact &x, const ContactFact &y) {
+        return std::tuple(x.a.Value(), x.b.Value(), x.phase) <
+               std::tuple(y.a.Value(), y.b.Value(), y.phase);
+    };
+    const auto first = m_Facts.begin() + static_cast<std::ptrdiff_t>(m_StepFirstFact);
+    std::stable_sort(first, m_Facts.end(), byBodies);
+    m_StepFirstFact = m_Facts.size();
 }
 
 void ContactBuffer::BodyRemoved(JPH::BodyID body) {
@@ -169,6 +188,7 @@ void ContactBuffer::Take(std::vector<ContactFact> &out) {
     const std::lock_guard lock(m_Mutex);
     out.insert(out.end(), m_Facts.begin(), m_Facts.end());
     m_Facts.clear();
+    m_StepFirstFact = 0;
 }
 
 void ContactBuffer::SetOwner(JPH::BodyID body, std::uint64_t owner) {
@@ -182,8 +202,8 @@ void ContactBuffer::ForgetOwner(JPH::BodyID body) {
 }
 
 WorldState::WorldState(const PhysicsWorldSpec &spec)
-    : layers(spec.layers), scratch(spec.stepScratchBytes), jobs(kMaxPhysicsJobs),
-      characters(layers.Table()) {
+    : layers(spec.layers), scratch(spec.stepScratchBytes),
+      jobs(spec.workers, kMaxPhysicsJobs, kMaxPhysicsBarriers), characters(layers.Table()) {
     system.Init(spec.maxBodies, kDefaultBodyMutexes, spec.maxBodyPairs, spec.maxContactConstraints,
                 layers, layers, layers);
     system.SetGravity(ToJolt(spec.gravity));
@@ -421,8 +441,10 @@ void PhysicsWorld::Step(float dtSeconds) {
                  static_cast<int>(std::lround(dtSeconds * Detail::kCollisionStepsPerSecond)));
     // Characters first, at the bodies' poses and velocities of this step's start: a platform's
     // velocity carries whoever stands on it before the platform moves.
+    state.contacts.BeginStep();
     state.characters.Update(dtSeconds, state.system, state.scratch);
     state.system.Update(dtSeconds, collisionSteps, &state.scratch, &state.jobs);
+    state.jobs.Drain();
     state.contacts.Settle(state.system.GetBodyInterfaceNoLock());
     ++state.steps;
     for (const JPH::BodyID removed : state.removedSinceStep) {

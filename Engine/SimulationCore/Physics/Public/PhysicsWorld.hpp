@@ -13,13 +13,19 @@
 #include "RenderData/DebugGeometry.hpp"
 #include "RenderData/DebugMeshes.hpp"
 #include "Result.hpp"
+#include "WorkerPool.hpp"
 #include "WorldSpace.hpp"
 
 // The PhysicsWorld (PHYS-1; RunicDocs › Simulation core › Jolt rules): Jolt v5.6 in double
 // precision behind Runic types. Bodies sit at 64-bit world positions (Core::WorldPosition), so a
 // crate 6,000 km from the origin collides as exactly as one at it; shapes are 32-bit, relative to
-// their body. Jolt stays private: no Jolt type appears here, and Jolt creates no thread (it runs on
-// the caller's thread until PHYS-4 puts it on the Core worker pool).
+// their body. Jolt stays private: no Jolt type appears here, and Jolt creates no thread.
+//
+// Jolt on the worker pool (PHYS-4; RunicDocs › Threading model: "Jolt runs on the same worker
+// pool"): a world given a Core::WorkerPool runs the jobs of its step on that pool's workers, the
+// stepping thread among them; a world without one runs them on the thread that steps. Either way
+// the step's results are the same to the bit, contact facts included: Jolt is deterministic for
+// any number of threads, and Physics sorts what its callbacks report from several threads.
 //
 // Creating and removing bodies are structural changes: the Simulation's bridge does them in batches
 // at the 30 Hz boundary (CreateBodies, RemoveBodies). Contacts are facts: Jolt reports them from
@@ -65,6 +71,10 @@ struct PhysicsWorldSpec {
     std::uint32_t stepScratchBytes = kDefaultStepScratchBytes;
     Core::Vec3 gravity{0.0f, -kStandardGravityMps2, 0.0f};
     CollisionLayers layers = DefaultCollisionLayers();
+    // The pool Jolt's step jobs run on (PHYS-4); none: every job runs on the thread that steps. The
+    // pool outlives the world, and Step is called on the pool's driving thread or inside one of its
+    // jobs.
+    Core::WorkerPool *workers = nullptr;
 };
 
 // Where a body or a character is.
@@ -271,9 +281,12 @@ class PhysicsWorld {
     // ---- The step
     // -------------------------------------------------------------------------------------------
     // Advances the world by dtSeconds, once: every character in the order they were made (a removed
-    // character's place is reused), then the bodies. Called by one thread.
+    // character's place is reused), then the bodies. Called by one thread; with a pool, the step's
+    // jobs run across its workers and every one of them has finished when Step returns.
     void Step(float dtSeconds);
-    // The contacts that began or ended since the last call, in the order Jolt reported them.
+    // The contacts that began or ended since the last call. A step's facts come ordered by their
+    // bodies (a, then b), Began before Ended, whatever thread Jolt reported them on; a body's
+    // removal adds the facts of its sleeping contacts when it happens, between steps.
     void TakeContacts(std::vector<ContactFact> &out);
 
     PhysicsStats Stats() const;

@@ -2,7 +2,6 @@
 
 #include <Jolt/Jolt.h>
 
-#include <Jolt/Core/JobSystemSingleThreaded.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
@@ -23,6 +22,7 @@
 #include "Characters/CharacterSet.hpp"
 #include "CollisionLayers/JoltLayers.hpp"
 #include "DebugExtraction/DebugCapture.hpp"
+#include "JobSystem/PoolJobSystem.hpp"
 #include "PhysicsWorld.hpp"
 #include "PhysicsWorld/JoltRuntime.hpp"
 
@@ -58,6 +58,13 @@ inline JPH::BodyID ToBodyId(BodyHandle handle) noexcept { return JPH::BodyID(han
 // the step (Settle): when its moving bodies are all asleep it stays touching, dormant; otherwise
 // it ended. A dormant pair wakes silently when Jolt finds it again, and ends when one of its bodies
 // woke up a step ago and Jolt did not, or when one of its bodies is removed.
+//
+// On the worker pool (PHYS-4) the callbacks come from several threads in an order that changes
+// from run to run, though what Jolt finds does not. Jolt finds every sub-shape contact of a body
+// pair in one go, on one thread and in a fixed order, so a pair's first contact (its point) is the
+// same on any number of workers; across pairs, the pairs a step lost are decided in pair order and
+// the step's facts are sorted by their bodies at its end, so the facts come out the same, in the
+// same order.
 class ContactBuffer final : public JPH::ContactListener, public JPH::BodyActivationListener {
   public:
     void OnContactAdded(const JPH::Body &a, const JPH::Body &b,
@@ -67,7 +74,10 @@ class ContactBuffer final : public JPH::ContactListener, public JPH::BodyActivat
     void OnBodyActivated(const JPH::BodyID &body, JPH::uint64 userData) override;
     void OnBodyDeactivated(const JPH::BodyID &, JPH::uint64) override {}
 
-    // After the step, on the thread that stepped: decides the pairs whose contacts went.
+    // Before the step, on the thread that steps: the facts from here on are the step's.
+    void BeginStep();
+    // After the step, on the thread that stepped: decides the pairs whose contacts went, then
+    // sorts the step's facts.
     void Settle(const JPH::BodyInterface &bodies);
     // A body is being removed: its dormant pairs end now (Jolt reports only its awake contacts).
     void BodyRemoved(JPH::BodyID body);
@@ -92,6 +102,7 @@ class ContactBuffer final : public JPH::ContactListener, public JPH::BodyActivat
     std::vector<std::uint32_t> m_Woken;     // bodies woken since the last Settle
     std::vector<std::uint32_t> m_WokenLast; // bodies woken in the step before
     std::unordered_map<std::uint32_t, std::uint64_t> m_Owners;
+    std::size_t m_StepFirstFact = 0; // the first of m_Facts made in this step
 };
 
 struct NamedShape {
@@ -106,7 +117,7 @@ struct WorldState {
     JoltRuntime runtime; // first: Jolt is set up before anything below uses it
     JoltLayers layers;
     JPH::TempAllocatorImpl scratch;
-    JPH::JobSystemSingleThreaded jobs;
+    PoolJobSystem jobs; // Jolt on the worker pool (PHYS-4)
     ContactBuffer contacts;
     JPH::PhysicsSystem system;
     CharacterSet characters;        // after the system its characters belong to
