@@ -33,10 +33,11 @@ JPH::JobSystem::JobHandle PoolJobSystem::CreateJob(const char *name, JPH::ColorA
                                                    const JobFunction &function,
                                                    JPH::uint32 dependencies) {
     JPH::uint32 index = m_Jobs.ConstructObject(name, color, this, function, dependencies);
-    // A step never needs more than maxJobs at once; should one, jobs the pool still holds free their
-    // places as the workers drop them.
+    // A step never needs more than maxJobs at once; should one, jobs the pool still holds free
+    // their places as the workers drop them.
     while (index == AvailableJobs::cInvalidObjectIndex) {
-        RUNIC_ASSERT_MSG(m_Pool != nullptr, "Physics: a step needs more jobs than its job system holds");
+        RUNIC_ASSERT_MSG(m_Pool != nullptr,
+                         "Physics: a step needs more jobs than its job system holds");
         std::this_thread::yield();
         index = m_Jobs.ConstructObject(name, color, this, function, dependencies);
     }

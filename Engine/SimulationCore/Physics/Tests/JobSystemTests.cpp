@@ -126,7 +126,8 @@ PileScene BuildPile(PhysicsWorld &world) {
     for (int i = 0; i < kCharacters; ++i) {
         CharacterDesc desc;
         desc.layer = world.Layers().Find(kCharacterLayerName);
-        desc.pose.position = {kOrigin.x - 10.0 + i * 1.5, kOrigin.y + 0.5, kOrigin.z - 6.0 + i * 3.0};
+        desc.pose.position = {kOrigin.x - 10.0 + i * 1.5, kOrigin.y + 0.5,
+                              kOrigin.z - 6.0 + i * 3.0};
         desc.owner = owner++;
         scene.characters.push_back(world.CreateCharacter(desc).Value());
     }

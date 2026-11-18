@@ -47,7 +47,8 @@ class PoolJobSystem final : public JPH::JobSystemWithBarrier {
   private:
     using AvailableJobs = JPH::FixedSizeFreeList<Job>;
 
-    // The Core job: runs Jolt's job unless a barrier ran it first, then drops the queue's reference.
+    // The Core job: runs Jolt's job unless a barrier ran it first, then drops the queue's
+    // reference.
     static void Run(void *job, Core::WorkerIndex worker);
 
     Core::WorkerPool *m_Pool = nullptr; // null when nothing is queued (no pool, or one worker)
