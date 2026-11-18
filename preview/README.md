@@ -23,7 +23,7 @@ far it got, and the next package in it is where to continue.
 | 8 · Physics view | PHYS-3, GDB-4, GDT-3 (and a Core addition) | **Done** | [slice-08-physics-view.md](slice-08-physics-view.md) |
 | 9 · First cooker proof | CNT-1, ASSET-1, COOK-1, GDT-4 | **Done** | [slice-09-first-cooker-proof.md](slice-09-first-cooker-proof.md) |
 | 10 · Worker pool | PHYS-4, SIM-3 | **Done** | [slice-10-worker-pool.md](slice-10-worker-pool.md) |
-| 11 · Spatial index | WORLD-2 | Not started | |
+| 11 · Spatial index | WORLD-2 | **Done** | [slice-11-spatial-index.md](slice-11-spatial-index.md) |
 
 ## How this differs from the normal pipeline
 
@@ -41,7 +41,7 @@ far it got, and the next package in it is where to continue.
 
 ```sh
 cmake --preset headless && cmake --build --preset headless && ctest --preset headless   # no Godot: slices 3, 4, 7, 10, 11
-cmake --preset debug && cmake --build --preset debug && ctest --preset debug            # with Godot: slices 5, 6, 8, 9
+cmake --preset debug && cmake --build --preset debug && ctest --preset debug            # with Godot: slices 5, 6, 8, 9, and 7's and 11's client scenes
 ```
 
 Every package was also built with clang and warnings as errors, in Release, and run under ThreadSanitizer,
