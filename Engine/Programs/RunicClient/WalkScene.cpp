@@ -333,11 +333,11 @@ WalkSceneLayer::WalkSceneLayer(Simulation::SimulationRuntime &runtime, Client::C
     world.Set(state.capsule, Client::DebugShape{RenderData::ShapeKind::Capsule, kCapsuleSize,
                                                 kCapsuleOffset, RenderData::kDebugPredicted});
     world.Set(state.capsule, Client::RenderIdentity{Core::RenderInstanceId(kCapsuleId)});
-    Physics::CharacterDesc character;
-    character.radius = kCapsuleRadiusM;
-    character.height = kCapsuleHeightM;
-    character.layer = jolt.Layers().Find(Physics::kCharacterLayerName);
-    physics.AddCharacter(state.capsule, character);
+    Physics::CharacterDesc capsuleDesc;
+    capsuleDesc.radius = kCapsuleRadiusM;
+    capsuleDesc.height = kCapsuleHeightM;
+    capsuleDesc.layer = jolt.Layers().Find(Physics::kCharacterLayerName);
+    physics.AddCharacter(state.capsule, capsuleDesc);
     camera.Follow(state.capsule, kEyeOffset, kLookOffset);
 
     // The actions and the keys: the scene's own preset.
@@ -421,11 +421,11 @@ WalkSceneLayer::WalkSceneLayer(Simulation::SimulationRuntime &runtime, Client::C
              scene->highestM = std::max(scene->highestM, now.y - kTerrainOrigin.y);
              scene->last = now;
              if (scene->jumpAsked) {
-                 const Physics::CharacterState state = bridge->World().Character(character->handle);
-                 if (state.ground == Physics::GroundState::InAir && state.velocity.y > kRisingMps) {
+                 const Physics::CharacterState moved = bridge->World().Character(character->handle);
+                 if (moved.ground == Physics::GroundState::InAir && moved.velocity.y > kRisingMps) {
                      ++scene->jumps;
                      scene->jumpAsked = false;
-                 } else if (state.ground == Physics::GroundState::OnGround) {
+                 } else if (moved.ground == Physics::GroundState::OnGround) {
                      scene->jumpAsked = false; // it could not jump (it was not settled)
                  }
              }
