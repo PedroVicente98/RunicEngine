@@ -224,7 +224,19 @@ bool RunicEditorPlugin::Cook(const std::vector<std::string> &scenes) {
 }
 
 void RunicEditorPlugin::CookProject() {
-    const bool cooked = Cook({});
+    // The world scene; until the project has one (region tools, slice 21), the scene being edited.
+    std::vector<std::string> scenes;
+    if (m_Project.has_value()) {
+        const std::string world = std::string(kResPrefix) + m_Project->manifest.cook.world;
+        godot::Node *edited = godot::EditorInterface::get_singleton()->get_edited_scene_root();
+        if (!godot::ResourceLoader::get_singleton()->exists(ToGodot(world)) && edited != nullptr &&
+            !edited->get_scene_file_path().is_empty()) {
+            scenes.push_back(ToStd(edited->get_scene_file_path()));
+            RUNIC_LOG_INFO("RUNIC: the project has no {} yet: the cook takes the edited scene, {}",
+                           world, scenes.back());
+        }
+    }
+    const bool cooked = Cook(scenes);
     Tell(cooked ? "The project is cooked: see the log for what it holds."
                 : "The cook failed: the log lists its problems.");
 }

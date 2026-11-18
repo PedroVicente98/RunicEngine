@@ -80,7 +80,7 @@ is refused untouched.
   preset. A collision-only mesh without such an owner fails the read with its path.
 - *The cook.* `CookEditorScenes` reads every scene, then calls `Cooker::Cook` into the cooked folder. The plugin cooks
   the manifest's world scene (`cook.world`) into `paths.cooked` from Project › Tools › **Runic: cook the project** and
-  before each export (the export plugin); with `--runic-cook` it waits until the editor has scanned and imported (and
+  before each export (the export plugin) — while the project has no world scene, the scene being edited; with `--runic-cook` it waits until the editor has scanned and imported (and
   a second more), cooks the scenes named by `--runic-cook-scene=` (or the world scene), opens a help page (Godot 4.7.2's
   help thread must finish before a quit, see below), and a second later stops the program with the cook's exit code
   (`cookFinished`) and quits Godot. A cook prints `RUNIC: cook succeeded in <ms> ms: <n> meshes, ...` or `RUNIC: cook
