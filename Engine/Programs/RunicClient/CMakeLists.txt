@@ -1,6 +1,6 @@
 # RunicClient: the Engine's own game-agnostic client, on the Engine's entry point with the GodotLayer on top. Created
 # by GDB-1 (slice 1); a composition root, not a module. Never shipped.
-add_executable(RunicClient Main.cpp DebugDemo.cpp MovingEntities.cpp WalkScene.cpp)
+add_executable(RunicClient Main.cpp DebugDemo.cpp MovingEntities.cpp SpatialScene.cpp WalkScene.cpp)
 target_link_libraries(RunicClient PRIVATE Runic::Application Runic::Client Runic::GodotBridge Runic::LibGodotEditor
                                           Runic::LibGodotTemplate)
 runic_apply_toolchain(RunicClient)
@@ -44,6 +44,14 @@ if(RUNIC_ENGINE_BUILD_TESTS)
             "-DCOMMAND=$<TARGET_FILE:RunicClient>|--headless|--quit-after|300|--walk-check|--physics-check"
             "-DEXPECT=RUNIC: physics geometry stopped at frame [1-9][0-9]*: [1-9][0-9]* line vertices, [0-9]+ triangle vertices, [1-9][0-9]* mesh instances of 1 cached meshes \\(1 uploads\\)|RUNIC: physics check: the capsule's collision lines up with its shape within [0-9]\\.[0-9] mm over [1-9][0-9]* frames|RUNIC: RunicClient exited cleanly after 300 frames"
             -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
+    # Slice 11: the spatial scene draws the index's cells, its members, a query sweeping from the cave to the island
+    # and the volumes; every query matches testing every walker, and walkers pass through the cave.
+    add_test(NAME godot.runic_client_spatial
+        COMMAND "${CMAKE_COMMAND}"
+            "-DCOMMAND=$<TARGET_FILE:RunicClient>|--headless|--quit-after|240|--spatial-scene"
+            "-DEXPECT=RUNIC: debug view stopped at frame [1-9][0-9]*: [1-9][0-9]* line vertices|RUNIC: spatial scene: 150 walkers in [1-9][0-9]* cells of [1-9][0-9]* columns \\([1-9][0-9]* cell changes\\), [1-9][0-9]* queries matched testing every walker \\([1-9][0-9]* found, 0 differed\\), [1-9][0-9]* walker positions inside the cave, volumes 4 \\(3 rule areas, 1 need a Physics body, 1 indivisible\\)|RUNIC: RunicClient exited cleanly after 240 frames"
+            -P "${PROJECT_SOURCE_DIR}/tests/godot/RunGodotCheck.cmake")
     set_tests_properties(godot.runic_client_headless godot.runic_client_input godot.runic_client_moving_entities
-        godot.runic_client_walk godot.runic_client_physics_view PROPERTIES LABELS godot TIMEOUT 600)
+        godot.runic_client_walk godot.runic_client_physics_view godot.runic_client_spatial
+        PROPERTIES LABELS godot TIMEOUT 600)
 endif()

@@ -5,15 +5,15 @@
 // The stack, bottom to top: the input trace, the Simulation layer (a local simulation), the Input
 // layer (slice 7: keys and clicks become actions, and command builders turn them into commands),
 // the scene, the Presentation layer (the camera and the extractors) and the GodotLayer, which
-// draws only the frames the Presentation layer publishes. Two scenes:
+// draws only the frames the Presentation layer publishes. Three scenes:
 //   - the walk (the default, slice 7): a capsule walks on static terrain 8,600 km from the origin
-//   under
-//     keyboard control (WalkScene.hpp has the keys), with the camera behind it;
+//     under keyboard control (WalkScene.hpp has the keys), with the camera behind it;
 //   - the moving entities (slice 5, --moving-scene): walkers steered by commands around slice 2's
-//   debug scene, the camera
-//     circling them.
+//     debug scene, the camera circling them;
+//   - the spatial scene (slice 11, --spatial-scene): the sparse 3D index's cells, its members,
+//     its queries and the authored volumes in the debug view, the camera circling them.
 //
-//   RunicClient [--moving-scene]
+//   RunicClient [--moving-scene | --spatial-scene]
 //       a window with the test project; keys and clicks that reach the stack are printed, and a
 //       click on the test button is not (Godot's UI keeps it)
 //   RunicClient --headless --quit-after 60
@@ -25,6 +25,9 @@
 //   RunicClient --headless --quit-after 300 --walk-check --physics-check
 //       the same walk, and each frame the capsule's collision lines (the physics geometry layer,
 //       slice 8) are measured against its gameplay shape (godot.runic_client_physics_view)
+//   RunicClient --headless --quit-after 240 --spatial-scene
+//       the spatial scene for 4 s; every query is checked against testing every walker
+//       (godot.runic_client_spatial)
 //
 // Development builds run Godot's editor library on the project folder, as Godot's play button does;
 // every argument reaches Godot unchanged, with --path added when it is missing.
@@ -42,6 +45,7 @@
 #include "RenderData/RenderFrameExchange.hpp"
 #include "SimulationLayer.hpp"
 #include "SimulationRuntime.hpp"
+#include "SpatialScene.hpp"
 #include "WalkScene.hpp"
 
 #include <algorithm>
@@ -74,6 +78,7 @@ constexpr const char *kInputTraceLayerName = "engine:input_trace";
 // RunicClient's own flags: the scene, and the scripted input below.
 // Every argument also reaches Godot, which takes a bare word for a scene to open: flags only.
 constexpr std::string_view kMovingSceneFlag = "--moving-scene";
+constexpr std::string_view kSpatialSceneFlag = "--spatial-scene";
 constexpr std::string_view kInputCheckFlag = "--input-check";
 constexpr std::string_view kWalkCheckFlag = "--walk-check";
 constexpr std::string_view kPhysicsCheckFlag = "--physics-check";
@@ -208,6 +213,7 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
             {kWalkOnFrame, kKeyR}, {kJumpFrame, kKeySpace}, {kWalkOffFrame, kKeyR}};
     }
     const bool movingScene = command.Has(kMovingSceneFlag);
+    const bool spatialScene = command.Has(kSpatialSceneFlag);
 
     // Godot paces the frames and reads the frame limit (kQuitAfterFlag) itself.
     auto application = std::make_unique<RunicClientApplication>(ApplicationSpec{
@@ -226,6 +232,11 @@ std::unique_ptr<Application> Runic::Application::CreateApplication(const Command
     std::unique_ptr<Layer> scene;
     if (movingScene) {
         scene = std::make_unique<Programs::MovingEntitiesLayer>(runtime, presentation->Camera());
+    } else if (spatialScene) {
+        auto spatial =
+            std::make_unique<Programs::SpatialSceneLayer>(runtime, presentation->Camera());
+        spatial->RegisterExtractors(presentation->Extractors());
+        scene = std::move(spatial);
     } else {
         auto walk =
             std::make_unique<Programs::WalkSceneLayer>(runtime, presentation->Camera(), *input);
