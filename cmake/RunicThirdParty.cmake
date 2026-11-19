@@ -3,6 +3,7 @@
 #   runic_third_party_recipe(<id> TARGETS <target>... FETCH <function> [PRESENTATION] [INFRASTRUCTURE])
 #   runic_require_third_party(<id>...)
 #   runic_fetch_archive(<name> FOLDER <folder> URL <url> SHA256 <hash> [SOURCE_SUBDIR <dir>])
+#   runic_pinned_source_dir(<name> <external> <folder>)
 #
 # A recipe names a library ID, the targets the library provides and the function that brings it into the build.
 # Declaring a recipe fetches nothing. runic_add_module requires the recipe behind every dependency that names a recipe
@@ -81,6 +82,35 @@ function(runic_require_third_party)
     endforeach()
 endfunction()
 
+# runic_pinned_source_dir(<name> <external> <folder>)
+# Points FetchContent at the pinned folder <external>/<folder>: FETCHCONTENT_SOURCE_DIR_<NAME> becomes that folder when
+# it exists, and empty when it does not (FetchContent then downloads into it). FetchContent stores the variable in the
+# cache on a build tree's first configure, so without this a build tree keeps the first pin it saw and a moved pin
+# compiles against the old folder. A cached value inside <external> is an earlier pin and is replaced (the configure
+# says so); a value outside <external> is the developer's own override and is kept.
+function(runic_pinned_source_dir name external folder)
+    string(TOUPPER "${name}" key)
+    set(variable FETCHCONTENT_SOURCE_DIR_${key})
+    set(pinned "${external}/${folder}")
+    set(current "$CACHE{${variable}}")
+    if(NOT current STREQUAL "")
+        cmake_path(IS_PREFIX external "${current}" NORMALIZE inside_external)
+        if(NOT inside_external)
+            message(STATUS "RUNIC: third party ${name} from the override ${variable}=${current}")
+            return()
+        endif()
+    endif()
+    set(value "")
+    if(IS_DIRECTORY "${pinned}")
+        set(value "${pinned}")
+    endif()
+    if(NOT current STREQUAL "" AND NOT current STREQUAL value)
+        message(STATUS "RUNIC: third party ${name}: this build tree remembered ${current}, an earlier pin; it now uses ${pinned}")
+    endif()
+    set(${variable} "${value}" CACHE PATH "When not empty, overrides where to find pre-populated content for ${name}" FORCE)
+    set(${variable} "${value}" PARENT_SCOPE)
+endfunction()
+
 # A pinned, SHA-256 checked archive, downloaded once into the Engine's external/<FOLDER> (git-ignored; the folder
 # name carries the version, so a changed pin never reuses an old tree) and reused by every later build tree of the
 # three repositories. A recipe sets the library's options before calling it; they stay in the recipe's scope.
@@ -92,10 +122,7 @@ function(runic_fetch_archive name)
         endif()
     endforeach()
     get_filename_component(external "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../external" ABSOLUTE)
-    string(TOUPPER "${name}" key)
-    if(NOT FETCHCONTENT_SOURCE_DIR_${key} AND IS_DIRECTORY "${external}/${A_FOLDER}")
-        set(FETCHCONTENT_SOURCE_DIR_${key} "${external}/${A_FOLDER}")
-    endif()
+    runic_pinned_source_dir(${name} "${external}" "${A_FOLDER}")
     set(subdir "")
     if(A_SOURCE_SUBDIR)
         set(subdir SOURCE_SUBDIR "${A_SOURCE_SUBDIR}")

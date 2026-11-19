@@ -11,7 +11,7 @@ include_guard(GLOBAL)
 # Presentation is Godot (cmake/RunicGodot.cmake): GLFW, bgfx, bx, bimg and Dear ImGui of the v3 architecture are no
 # longer part of the Engine (RunicDocs › Godot integration; Decisions log › Rendering, UI).
 
-# ---- Flecs 4.0.4: C++ bindings over the static C core (private to Runic::ECS) ----
+# ---- Flecs 4.2.0: C++ bindings over the static C core (private to Runic::ECS) ----
 function(_runic_recipe_flecs)
     set(FLECS_STATIC ON)
     set(FLECS_SHARED OFF)

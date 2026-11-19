@@ -66,6 +66,14 @@ runic_fixture_test(header_only_module FIXTURE "${F}/header_only_module" EXPECT p
 runic_fixture_test(source_not_exported FIXTURE "${F}/source_not_exported" EXPECT build-fail
     REGEX "AlphaInternal\\.hpp")
 
+# ---- runic_pinned_source_dir: a moved pin is used by a build tree that remembers the old one ----
+runic_fixture_test(pinned_source_dir FIXTURE "${F}/pinned_source_dir" EXPECT pass
+    REGEX "fixture: pinned source folders as expected"
+    ARGS "-DFETCHCONTENT_SOURCE_DIR_MOVED:PATH=${F}/cpu_baseline"
+         "-DFETCHCONTENT_SOURCE_DIR_NOTYET:PATH=${F}/cpu_baseline"
+         "-DFETCHCONTENT_SOURCE_DIR_OVERRIDE:PATH=${RUNIC_BUILD_TESTS_WORK}/developer-folder"
+         "-DFIXTURE_OVERRIDE_DIR=${RUNIC_BUILD_TESTS_WORK}/developer-folder")
+
 # ---- catalog and dependency rules ----
 runic_fixture_test(not_in_catalog FIXTURE "${F}/not_in_catalog" EXPECT configure-fail
     REGEX "RUNIC:[^\n]*Alpha[^\n]*catalog")

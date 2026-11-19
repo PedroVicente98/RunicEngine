@@ -148,8 +148,8 @@ Three notes for other packages (nothing was changed outside the packages' module
   `kNoRotation` from four numbers. A `Core::kIdentityRotation` would serve everyone.
 - **RunicDocs:** the Flecs note says "queries on toggled components" and "deferred" in the 4.0 sense; with 4.2 the
   model is stages. Worth a line when the slice is built for real.
-- **cmake/README.md** row 15 still shows `external/flecs-4.0.4` as its example of a versioned folder; it is an
-  example, so it was left.
+- **cmake/README.md** row 15 showed `external/flecs-4.0.4` as its example of a versioned folder; updated to 4.2.0
+  on 2026-11-19, with the cached-folder fix (see the README's "After the check" section).
 
 ## What is finished and what is set up for later
 

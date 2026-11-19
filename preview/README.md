@@ -37,15 +37,31 @@ every slice ends with its note's commit.
 - **Every headless module under every checker.** Core, Application, Events, ECS, Content, Assets, World, Physics and
   Simulation pass under AddressSanitizer with UBSan, ThreadSanitizer, clang and Release. The Client module's tests
   pass in the presentation trees (ASan, clang, Release).
-- **RunicGame** (`preview/slices-3-11`) rebuilds against this Engine: its editor library and RunicEditor build, and
-  its checks pass. Its server and client build tests still fail, for the reason slice 6 gave: RunicGame's `main` links
-  the `Runic::Runtime` bundle the Engine removed in slice 1, and GAME-0 is not on it.
+- **RunicGame** (`preview/slices-3-11`) rebuilds against this Engine: RunicGameClient, RunicGameServer, its editor
+  library and RunicEditor build, and its 9 tests pass. (Until slice/1 was merged into it, with GAME-0, its server and
+  client build tests failed: they linked the `Runic::Runtime` bundle the Engine removed in slice 1.)
 - **RunicPlatform** (`main`, untouched by these slices) builds against this Engine, and its one test passes when run
   directly. CTest cannot list it, because its discovery script is not found. The same happens against `slice/2`, so
   this branch did not cause it; it is the Platform's to look at.
 - **Where the plan goes next.** Slice 12 (Transport) is the Platform's GameNetworkingSockets transport, so this branch
   ends here. The notes' "Decisions that await the owner" tables are the review list: about a dozen per slice, each with
   its reason and its alternative.
+
+## After the check (2026-11-19)
+
+The owner ran every launch configuration on build folders made before slice 3, and the Engine did not compile:
+about 30 errors in Physics and ECS (`JPH::CharacterContact`, `Vec3::sOne`, `mExtraConvexRadius`,
+`EcsDontFragment`). Nothing on the branch was wrong. FetchContent had stored the folders of the earlier pins
+(`external/flecs-4.0.4`, `external/JoltPhysics-5.2.0`) in those build folders' caches, and the Engine kept a cached
+folder, so the moved pins (Flecs 4.2.0, Jolt 5.6.0) never reached them. Fixed in `cmake/RunicThirdParty.cmake`:
+`runic_pinned_source_dir` replaces a cached folder of an earlier pin, says so in the configure output, and keeps a
+developer's override outside `external/`; GoogleTest uses it too. The build test `build.pinned_source_dir` covers
+the four cases. Old build folders now heal on their next configure.
+
+At the same time, RunicGame's `preview/slices-3-11` moved its RunicEngine submodule from the end of slice 1
+(8378904) to this branch, so CI and fresh clones build what a local build next to this checkout builds. Its
+RunicPlatform pin stays at b077b5f, the Platform's `slice/1` head: these slices did not change the Platform, and in a
+RunicGame build the Engine comes from RunicGame's own pin, not the Platform's.
 
 ## How this differs from the normal pipeline
 

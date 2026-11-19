@@ -8,6 +8,7 @@
 # are off, so consumers that only build never download it.
 include_guard(GLOBAL)
 include(FetchContent)
+include("${CMAKE_CURRENT_LIST_DIR}/RunicThirdParty.cmake")   # runic_pinned_source_dir
 
 # A macro, because enable_testing() records itself in the calling directory's scope.
 macro(runic_enable_tests)
@@ -23,9 +24,7 @@ function(_runic_fetch_googletest)
 
     # The Engine's external/, wherever this function is called from (Engine, Platform or Game scope).
     get_filename_component(third_party_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../external" ABSOLUTE)
-    if(NOT FETCHCONTENT_SOURCE_DIR_GOOGLETEST AND EXISTS "${third_party_dir}/googletest-1.17.0/CMakeLists.txt")
-        set(FETCHCONTENT_SOURCE_DIR_GOOGLETEST "${third_party_dir}/googletest-1.17.0")
-    endif()
+    runic_pinned_source_dir(googletest "${third_party_dir}" googletest-1.17.0)
 
     set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
     set(INSTALL_GTEST OFF)

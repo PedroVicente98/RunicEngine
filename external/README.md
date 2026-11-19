@@ -6,7 +6,7 @@ Code this repository did not write. Nothing here is edited by hand.
 | --- | --- | --- | --- |
 | `godot/` | Godot 4.7.2-stable, built as libgodot (editor and template targets) | Shallow submodule: `git submodule update --init --depth 1 external/godot external/godot-cpp` | Submodule pin |
 | `godot-cpp/` | godot-cpp 10.0.0-stable, compiled into the Runic executables | The same command | Submodule pin |
-| `glm-1.0.1/` (and `flecs-4.0.4/`, `JoltPhysics-5.2.0/` once ECS-1 and PHYS-1 link them) | Pinned third parties, downloaded when a configured module links them (GLM: Runic::Core) | Downloaded on configure by [cmake/Dependencies.cmake](../cmake/Dependencies.cmake) | Ignored |
+| `glm-1.0.1/`, `flecs-4.2.0/`, `JoltPhysics-5.6.0/` | Pinned third parties, downloaded when a configured module links them (GLM: Runic::Core, Flecs: Runic::ECS, Jolt: Runic::Physics). Folders of earlier pins (`flecs-4.0.4/`, `JoltPhysics-5.2.0/`) are no longer used and can be deleted | Downloaded on configure by [cmake/Dependencies.cmake](../cmake/Dependencies.cmake) | Ignored |
 | `googletest-1.17.0/` | The C++ test framework, only when tests are on | Downloaded by [cmake/RunicTesting.cmake](../cmake/RunicTesting.cmake) | Ignored |
 | `scons-venv/` | Pinned SCons 4.10.1 (hash-checked wheel) that builds libgodot | Created by [scripts/godot/build_libgodot.py](../scripts/godot/build_libgodot.py) on first use | Ignored |
 

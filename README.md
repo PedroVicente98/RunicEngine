@@ -47,12 +47,12 @@ cmake --preset headless && cmake --build --preset headless && ctest --preset hea
 | Godot | 4.7.2-stable (submodule `external/godot`), built as libgodot: editor and template targets, module lists in `scripts/godot/` |
 | godot-cpp | 10.0.0-stable (submodule `external/godot-cpp`), API 4.7 |
 | GoogleTest | 1.17.0 (tests only) |
-| Flecs | 4.0.4, a pinned recipe no module links yet (4.2 is decided and set by ECS-1) |
+| Flecs | 4.2.0 (Runic::ECS, since ECS-1) |
 | GLM | 1.0.1 |
-| Jolt Physics | 5.2.0 with SIMD from the CPU baseline (5.6 in double precision is decided and set by PHYS-1) |
+| Jolt Physics | 5.6.0 in double precision, SIMD from the CPU baseline (Runic::Physics, since PHYS-1) |
 
 Third-party archives are downloaded on configure into versioned folders in `external/` (git-ignored) with SHA-256
-checks and reused afterwards. Editors: open `Runic.code-workspace` for the Engine, Platform, Game and Docs folders;
+checks and reused afterwards; when a pin moves, an existing build folder switches to the new folder on its next configure. Editors: open `Runic.code-workspace` for the Engine, Platform, Game and Docs folders;
 `.vscode/` has build and test tasks and launch configurations for RunicClient, RunicServer, the RunicEditor and
 the GodotBridge tests, each named after the program and what it shows.
 
