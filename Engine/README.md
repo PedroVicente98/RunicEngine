@@ -15,6 +15,7 @@ umbrella target); it has no code of its own.
 | [Foundation](Foundation/README.md) | Core 1 · Application 1 · Events 4 · Content 9 · Assets 9 |
 | [SimulationCore](SimulationCore/README.md) | Simulation 3 · ECS 4 · World 4 · Physics 7 |
 | GameplayAPI | Gameplay 14 · Combat 16 · GameplayFlow 29 · Quest 30 |
+| Scripting | Scripting 37a |
 | WorldSystems | Environment 25 · Perception 25 · Navigation 31 · AI 32 · Water 40 |
 | Networking | Network 12 · DistributedSimulation 36 |
 | [Presentation](Presentation/README.md) | GodotBridge 0 · Client 5 · Animation 23 · Audio 24 |
