@@ -2,6 +2,8 @@
 
 #include "Input/InputSink.hpp"
 
+#include "GodotLayer/SceneRoot.hpp"
+
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
@@ -23,11 +25,7 @@ constexpr const char *kRootResizedSignal = "size_changed";
 // The wheel step when Godot reports no amount (its factor is 0 on platforms without one).
 constexpr float kDefaultWheelStep = 1.0f;
 
-godot::Window *Root() {
-    godot::MainLoop *loop = godot::Engine::get_singleton()->get_main_loop();
-    godot::SceneTree *tree = godot::Object::cast_to<godot::SceneTree>(loop);
-    return tree != nullptr ? tree->get_root() : nullptr;
-}
+godot::Window *Root() { return SceneRoot(); }
 
 std::uint32_t Modifiers(const godot::InputEventWithModifiers &event) {
     return (event.is_shift_pressed() ? kModifierShift : kNoModifiers) |

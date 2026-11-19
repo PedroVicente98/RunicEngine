@@ -5,9 +5,14 @@
 #include <string>
 #include <vector>
 
+#include "DebugView.hpp"
 #include "GodotArguments.hpp"
 #include "GodotRuntime.hpp"
 #include "Layer.hpp"
+#include "Math.hpp"
+#include "RenderData/Color.hpp"
+#include "RenderData/DebugGeometry.hpp"
+#include "RenderData/RenderFrameExchange.hpp"
 
 namespace Runic::GodotBridge {
 
@@ -41,6 +46,13 @@ struct GodotLayerSpec {
         true; // input Godot's UI did not consume becomes AppEvents (off in the RunicEditor)
     std::vector<ScriptedClick> scriptedClicks;
     std::vector<ScriptedKey> scriptedKeys;
+    // The frames this layer shows (GDB-2): their camera and debug geometry. The GodotLayer is the
+    // exchange's reader, and the exchange must outlive the layer. nullptr: the layer adds nothing
+    // to the scene (the RunicEditor).
+    RenderData::RenderFrameExchange *frames = nullptr;
+    // The development overlay: the debug layers' toggles and what the last frame drew. Development
+    // clients only.
+    bool developmentOverlay = false;
 };
 
 // The LibGodot instance at the top of the client's LayerStack (RunicDocs › Godot integration
@@ -56,7 +68,21 @@ class GodotLayer final : public Application::Layer {
 
     Core::Result<void> OnAttach(Application::LayerContext &context) override;
     void OnDetach() override;
+    // Applies the newest frame of GodotLayerSpec::frames, when there is a new one. The GodotLayer
+    // is the top layer, so every layer below has written its part of the frame by then.
+    void OnUpdate(const Application::FrameTime &time) override;
     void OnRender() override;
+
+    // The debug layers (GDB-2), visible from the start. A change shows from the next frame; the
+    // overlay's checkboxes follow it.
+    void SetDebugLayerVisible(DebugLayer layer, bool visible);
+    bool IsDebugLayerVisible(DebugLayer layer) const noexcept;
+    DebugViewStats DebugStats() const noexcept;
+    // What Godot holds for one batch and primitive of the last frame, decoded by Godot, for checks.
+    // False when that surface is empty or there is no debug view.
+    bool ReadBackDebugSurface(RenderData::DebugBatch batch, RenderData::DebugPrimitive primitive,
+                              std::vector<Core::Vec3> &positions,
+                              std::vector<RenderData::PackedColor> &colors) const;
 
     // Before the layer attaches: add registration hooks here (GodotTools registers the
     // RunicEditor's classes).

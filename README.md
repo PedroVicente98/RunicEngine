@@ -6,14 +6,16 @@ It is one of three repositories. RunicGame (proprietary) builds its game on it; 
 
 ## Status
 
-Slice 0 (Build skeleton) is done: the module helpers and their checks, the v4 module catalog, GoogleTest, presets,
-CI, the x86-64-v3 baseline, Godot 4.7.2 and godot-cpp 10.0.0 pinned, libgodot built from source in the editor and
-template targets, and the RunicEditor opening the Godot editor through LibGodot with a test plugin (GDT-1). Slice 1
+Slice 0 (Build skeleton) is done: the module helpers and their checks, the v4 module catalog, GoogleTest, presets, CI,
+the x86-64-v3 baseline, Godot 4.7.2 and godot-cpp 10.0.0 pinned, libgodot built from source in the editor and template
+targets, and the RunicEditor opening the Godot editor through LibGodot with a test plugin (GDT-1). Slice 1
 (Application and layers) adds Runic::Core's first types (CORE-1), the entry point and the layer stack
-(Runic::Application, APP-1), the GodotLayer (GDB-1) and the Engine's own RunicServer and RunicClient. Only the folders
-in use are on `main`; the planned layout, every folder with its README, is on the `layout` branch
-([Engine/README.md](Engine/README.md)). The build skeleton is described in [cmake/README.md](cmake/README.md); the
-plan and the status of every slice and package are in RunicDocs (Development).
+(Runic::Application, APP-1), the GodotLayer (GDB-1) and the Engine's own RunicServer and RunicClient. Slice 2 (Debug
+drawing) adds RenderData to Core (frames handed between threads without a lock, debug geometry and the debug-draw API,
+CORE-3) and GodotBridge's debug view with the development overlay (GDB-2). Only the folders in use are on `main`; the
+planned layout, every folder with its README, is on the `layout` branch ([Engine/README.md](Engine/README.md)). The
+build skeleton is described in [cmake/README.md](cmake/README.md); the plan and the status of every slice and package
+are in RunicDocs (Development).
 
 ## Build
 
