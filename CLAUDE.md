@@ -20,7 +20,8 @@ RunicDocs wins: report the difference. This repository's own documents sit next 
 ## Read before changing anything
 
 1. The module you are working on: `Engine/<Group>/<Module>/README.md` (its folders and the package that fills each
-   one) and its `ARCHITECTURE.md` once the module has one.
+   one; until the module's first package it exists only on the `layout` branch:
+   `git show origin/layout:Engine/<Group>/<Module>/README.md`) and its `ARCHITECTURE.md` once the module has one.
 2. The RunicDocs notes that README lists under Sources, and the module's row in RunicDocs › Architecture ›
    Repositories, build targets and processes › Engine modules.
 3. RunicDocs › Architecture › Modules, work packages and the implementation contract — the package (write scope,
@@ -55,20 +56,31 @@ RunicDocs wins: report the difference. This repository's own documents sit next 
 - **Headless modules** never link libgodot, godot-cpp, GodotBridge, GodotTools, an audio backend or
   editor code; the configure-time headless check fails the build if they do. There is no window
   class: the window comes from Godot through the GodotLayer.
-- **Folders.** Every group, module and subsystem folder already exists with a README (`Engine/<Group>/<Module>/`
-  with `Public/`, `Source/<Subsystem>/`, `Tests/`; `Engine/Programs/` for the Engine's executables). A package puts
-  its code in the folders its README names and never moves or renames a folder; a module's first package adds its
-  `CMakeLists.txt` and `ARCHITECTURE.md`, and the build picks the module up from the catalog (never edit
-  `Engine/CMakeLists.txt` or another shared CMake file to add one). PascalCase for what the architecture defines,
-  lowercase for repository plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`, `build/`). Never two
-  folders that differ only by case. Third-party code lives in `external/`: Godot and godot-cpp as submodules,
-  everything else as pinned downloads.
+- **Folders.** `main` holds only the folders in use. The planned layout, every group, module, subsystem and program
+  folder with a README naming the package that fills it (`Engine/<Group>/<Module>/` with `Public/`,
+  `Source/<Subsystem>/`, `Tests/`; `Engine/Programs/` for the Engine's executables), is on the `layout` branch
+  (decided 2026-11-14). A package creates the folders it fills, each with its README from there
+  (`git checkout origin/layout -- <folder>/README.md`, then the README's status updated and links kept to folders that
+  exist), puts its code in the folders its module's README names and never moves or renames a planned folder; a
+  module's first package adds its `CMakeLists.txt` and `ARCHITECTURE.md`, and the build picks the module up from the
+  catalog (never edit `Engine/CMakeLists.txt` or another shared CMake file to add one). PascalCase for what the
+  architecture defines, lowercase for repository plumbing (`cmake/`, `docs/`, `external/`, `scripts/`, `tests/`,
+  `build/`). Never two folders that differ only by case. Third-party code lives in `external/`: Godot and godot-cpp as
+  submodules, everything else as pinned downloads.
 - **Programs are composition roots, not modules.** A package may also edit the Engine program that shows its result
   (`Engine/Programs/`: RunicServer, RunicClient, the RunicEditor), and nothing else outside its module. A program
   joins the build when its folder has a `CMakeLists.txt`.
 - **Code visibility.** `Public/` headers, namespace `Runic::<Module>`: the module's API. Headers in
   `Source/<Subsystem>/`, namespace `Runic::<Module>::Detail` when several files of the module share them: private to
   the module. An unnamed namespace for helpers one `.cpp` uses.
+- **Named values** (decided by the owner on 2026-11-15; RunicDocs › Module contract). Production code (modules and
+  programs) writes no bare string or number: every value with a meaning (a name, flag, key, path, size, rate, time,
+  count, threshold, coordinate, exit code) is a named constant (`constexpr`, `k` prefix), defined once in the
+  narrowest scope its users share, and every use refers to it. 0 and 1, true and false included: the name says what
+  the choice affects (`RequestStop(kCleanExit)`, `maxFrames = kRunUntilStopped`); a field or setter named for the
+  value counts as its name (`bool pressed = false`), and loop counters and a formula's own arithmetic stay bare
+  (`i = 0`, `n + 1`). A log or error message used once keeps its wording where it is used, with its values from the
+  constants; tests may write their values directly.
 - **No game content.** No RunicGame rules, names, numbers or content anywhere in this repository,
   tests and docs included. Tests use neutral IDs such as `engine:test_ability`.
 - **No Agones, Kubernetes, database, gRPC or NATS** dependency anywhere in the Engine.

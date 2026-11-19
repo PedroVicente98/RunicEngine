@@ -140,7 +140,7 @@ endif()
 # ---- the Engine itself: headless configure, no presentation library configured ----
 # No godot-cpp build tree, no libgodot stage and no Godot stamp: the headless Engine never configures Godot.
 runic_fixture_test(engine_headless_configure FIXTURE "${RUNIC_BUILD_TESTS_ENGINE}" EXPECT pass
-    ARGS "-DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF" "-DRUNIC_BUILD_SANDBOX=OFF"
+    ARGS "-DRUNIC_ENGINE_ENABLE_PRESENTATION=OFF"
          "-DRUNIC_ENGINE_BUILD_TOOLS=OFF" "-DRUNIC_ENGINE_BUILD_TESTS=OFF"
     REGEX "RUNIC: link checks passed"
     ABSENT "godot-cpp" "godot" "bin/libgodot.linuxbsd.editor.x86_64.so")

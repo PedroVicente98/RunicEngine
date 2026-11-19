@@ -1,7 +1,7 @@
 # RunicEditor: owned by the Engine (RunicDocs › Repositories, build targets and processes › Processes).
-# The Godot editor through LibGodot (editor target) with the Runic tools; never shipped.
+# The Godot editor through LibGodot (editor target) with the Runic tools, on the Engine's entry point since GDB-1; never shipped.
 add_executable(RunicEditor Main.cpp)
-target_link_libraries(RunicEditor PRIVATE Runic::GodotTools Runic::GodotBridge Runic::LibGodotEditor)
+target_link_libraries(RunicEditor PRIVATE Runic::Application Runic::GodotTools Runic::GodotBridge Runic::LibGodotEditor)
 runic_apply_toolchain(RunicEditor)
 runic_godot_host_executable(RunicEditor)
 

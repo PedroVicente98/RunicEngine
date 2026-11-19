@@ -1,5 +1,5 @@
 # Engine modules live at Engine/<Group>/<Module>/ (Public/, Source/<Subsystem>/, Tests/, ARCHITECTURE.md,
-# CMakeLists.txt). Every module and subsystem folder exists from the start with a README (decided 2026-11-12).
+# CMakeLists.txt). A folder exists once its package starts; the planned ones are on the layout branch (2026-11-14).
 #
 # Modules from the catalog (BUILD-2, decided 2026-11-12): every module of cmake/RunicModuleCatalog.cmake whose folder
 # has a CMakeLists.txt joins the build, so a module's first package adds only its own CMakeLists.txt and never edits

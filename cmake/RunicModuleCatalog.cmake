@@ -69,6 +69,13 @@ runic_catalog_module(Quest
     ALLOWS Runic::GameplayFlow Runic::DistributedSimulation
     HEADLESS yes)
 
+# ---- Scripting ----
+runic_catalog_module(Scripting
+    GROUP Scripting
+    ALLOWS Runic::Gameplay Runic::GameplayFlow Runic::Quest Runic::Simulation Runic::Content
+    THIRD_PARTY lua
+    HEADLESS yes)
+
 # ---- World systems ----
 runic_catalog_module(Perception
     GROUP WorldSystems
@@ -133,7 +140,7 @@ runic_catalog_module(GodotTools
     HEADLESS never-shipped)
 runic_catalog_module(Cooker
     GROUP Tools
-    ALLOWS Runic::Core Runic::Content Runic::Assets Runic::World Runic::Physics Runic::Navigation Runic::Water
+    ALLOWS Runic::Core Runic::Content Runic::Assets Runic::World Runic::Physics Runic::Navigation Runic::Water Runic::Scripting
     THIRD_PARTY jolt recast meshoptimizer zstd
     HEADLESS tool)
 

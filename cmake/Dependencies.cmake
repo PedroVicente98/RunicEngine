@@ -1,8 +1,7 @@
 include_guard(GLOBAL)
 
 # The Engine's pinned headless third parties as recipes (cmake/RunicThirdParty.cmake, BUILD-2). Nothing is fetched
-# here: a recipe runs once, when a configured module links its library or the transitional Runic::Runtime bundle
-# needs it (OQ-8). Every archive is pinned and SHA-256 checked. Sources live in external/<name>-<version>
+# here: a recipe runs once, when a configured module links its library. Every archive is pinned and SHA-256 checked. Sources live in external/<name>-<version>
 # (git-ignored, next to the Godot submodules); generated files and compiled libraries stay in each consumer's build
 # tree. Each recipe is a function, so upstream build options stay out of consumer directories.
 #

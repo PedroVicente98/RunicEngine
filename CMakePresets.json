@@ -20,8 +20,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "RUNIC_ENGINE_ENABLE_PRESENTATION": true,
-        "RUNIC_ENGINE_BUILD_TOOLS": true,
-        "RUNIC_BUILD_SANDBOX": true
+        "RUNIC_ENGINE_BUILD_TOOLS": true
       }
     },
     {
@@ -33,13 +32,12 @@
     {
       "name": "headless",
       "displayName": "Headless (no Godot, no graphics)",
-      "description": "Presentation, tools and sandbox off: proves the Engine configures and builds with no Godot and no graphics library.",
+      "description": "Presentation and tools off: proves the Engine configures and builds with no Godot and no graphics library.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "RUNIC_ENGINE_ENABLE_PRESENTATION": false,
-        "RUNIC_ENGINE_BUILD_TOOLS": false,
-        "RUNIC_BUILD_SANDBOX": false
+        "RUNIC_ENGINE_BUILD_TOOLS": false
       }
     },
     {
