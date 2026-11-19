@@ -48,7 +48,7 @@ cmake --preset headless && cmake --build --preset headless && ctest --preset hea
 | godot-cpp | 10.0.0-stable (submodule `external/godot-cpp`), API 4.7 |
 | GoogleTest | 1.17.0 (tests only) |
 | Flecs | 4.2.0 (Runic::ECS, since ECS-1) |
-| GLM | 1.0.1 |
+| GLM | 1.0.3 |
 | Jolt Physics | 5.6.0 in double precision, SIMD from the CPU baseline (Runic::Physics, since PHYS-1) |
 
 Third-party archives are downloaded on configure into versioned folders in `external/` (git-ignored) with SHA-256

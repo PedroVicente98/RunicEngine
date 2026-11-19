@@ -23,14 +23,14 @@ function(_runic_recipe_flecs)
 endfunction()
 runic_third_party_recipe(flecs TARGETS flecs::flecs_static FETCH _runic_recipe_flecs)
 
-# ---- GLM 1.0.1: header-only mathematics (Core's approved public exception) ----
+# ---- GLM 1.0.3: header-only mathematics (Core's approved public exception) ----
 function(_runic_recipe_glm)
     set(GLM_BUILD_LIBRARY OFF)
     set(GLM_BUILD_TESTS OFF)
     set(GLM_BUILD_INSTALL OFF)
-    runic_fetch_archive(glm FOLDER glm-1.0.1
-        URL https://codeload.github.com/g-truc/glm/tar.gz/refs/tags/1.0.1
-        SHA256 9f3174561fd26904b23f0db5e560971cbf9b3cbda0b280f04d5c379d03bf234c)
+    runic_fetch_archive(glm FOLDER glm-1.0.3
+        URL https://codeload.github.com/g-truc/glm/tar.gz/refs/tags/1.0.3
+        SHA256 6775e47231a446fd086d660ecc18bcd076531cfedd912fbd66e576b118607001)
 endfunction()
 runic_third_party_recipe(glm TARGETS glm::glm FETCH _runic_recipe_glm)
 
